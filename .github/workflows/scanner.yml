@@ -1,0 +1,70 @@
+name: SONAR MIESZKANIOWY Scanner
+
+on:
+  schedule:
+    # 3 scany dziennie: 9:00, 15:00, 21:00 CET/CEST
+    # W zimie (CET = UTC+1): 8:00, 14:00, 20:00 UTC
+    # W lecie (CEST = UTC+2): 7:00, 13:00, 19:00 UTC
+    - cron: '0 7,13,19 * * *'  # 9:00, 15:00, 21:00 CEST (letni)
+    
+  # Możliwość manualnego uruchomienia
+  workflow_dispatch:
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Pozwala na push do repo
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      
+      - name: Run SONAR MIESZKANIOWY scanner
+        continue-on-error: true
+        id: scanner
+        run: |
+          cd src
+          python main.py || echo "::warning::Scanner failed but continuing..."
+      
+      - name: Generate map data
+        if: success() || steps.scanner.outcome == 'failure'
+        continue-on-error: true
+        run: |
+          cd src
+          python map_generator.py || echo "::warning::Map generator failed but continuing..."
+      
+      - name: Generate mobile API
+        if: always()
+        continue-on-error: true
+        run: |
+          cd src
+          python api_generator.py || echo "::warning::API generator failed but continuing..."
+      
+      - name: Commit and push changes
+        if: always()
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          git add data/ docs/data.json docs/monitoring_data.json docs/api/ || true
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🤖 Automatyczny scan: $(TZ='Europe/Warsaw' date +'%Y-%m-%d %H:%M')" || true
+            git push || echo "::warning::Push failed"
+          fi

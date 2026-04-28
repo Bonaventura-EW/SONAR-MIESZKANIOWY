@@ -1,0 +1,1979 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analiza Rynku - SONAR MIESZKANIOWY</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        header h1 {
+            color: #667eea;
+            font-size: 28px;
+        }
+        
+        .back-link {
+            color: #667eea;
+            text-decoration: none;
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .back-link:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .section {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+        }
+        
+        .section h2 {
+            color: #333;
+            font-size: 22px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #667eea;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-box {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .stat-box .label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 6px;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+        
+        .stat-box .value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #333;
+        }
+        
+        .stat-box .subtext {
+            font-size: 13px;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        /* Filtry */
+        .filters {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+        
+        .filter-group {
+            margin-bottom: 20px;
+        }
+        
+        .filter-group:last-child {
+            margin-bottom: 0;
+        }
+        
+        .filter-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+        }
+        
+        .slider-container {
+            position: relative;
+            margin-bottom: 8px;
+        }
+        
+        .slider {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #e5e7eb;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .slider::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #666;
+            margin-top: 4px;
+        }
+        
+        .slider-value {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 6px 16px;
+            border-radius: 6px;
+            font-weight: 700;
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        
+        .toggle-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .toggle-btn {
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .toggle-btn:hover {
+            background: #f0f2ff;
+        }
+        
+        .toggle-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        /* Lifespan section styles */
+        .stat-box.fast { border-left-color: #10b981; }
+        .stat-box.medium { border-left-color: #f59e0b; }
+        .stat-box.slow { border-left-color: #ef4444; }
+        .stat-box.reactivated { border-left-color: #8b5cf6; }
+        
+        .section-description {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 20px;
+            line-height: 1.5;
+        }
+        
+        .filters-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 24px;
+            align-items: flex-start;
+        }
+        
+        .filters-row .filter-group {
+            flex: 1;
+            min-width: 200px;
+            margin-bottom: 0;
+        }
+        
+        /* Price inputs */
+        .price-filter-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .price-input-group {
+            display: flex;
+            align-items: center;
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 6px 12px;
+            transition: border-color 0.2s;
+        }
+        
+        .price-input-group:focus-within {
+            border-color: #667eea;
+        }
+        
+        .price-input-group.small {
+            padding: 4px 8px;
+        }
+        
+        .price-input-group.small .price-input {
+            width: 60px;
+            font-size: 14px;
+        }
+        
+        .price-label {
+            font-size: 13px;
+            color: #666;
+            margin-right: 8px;
+        }
+        
+        .price-input {
+            width: 70px;
+            border: none;
+            outline: none;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            background: transparent;
+        }
+        
+        .price-input::placeholder {
+            color: #999;
+            font-weight: 400;
+        }
+        
+        .price-input::-webkit-outer-spin-button,
+        .price-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        
+        .price-unit {
+            font-size: 14px;
+            color: #666;
+            font-weight: 500;
+        }
+        
+        .price-separator {
+            color: #666;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .price-max-buttons {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        
+        .price-btn {
+            padding: 8px 14px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .price-btn:hover {
+            background: #f0f2ff;
+        }
+        
+        .price-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .offer-types-legend {
+            display: flex;
+            gap: 24px;
+            padding: 16px;
+            background: #f0f2ff;
+            border-radius: 8px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .legend-dot.clean { background: #667eea; }
+        .legend-dot.reactivated { background: #8b5cf6; }
+        
+        .legend-text {
+            font-size: 13px;
+            color: #333;
+        }
+        
+        .median-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            padding: 20px;
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border-radius: 8px;
+            margin-bottom: 24px;
+        }
+        
+        .median-indicator .big-number {
+            font-size: 48px;
+            font-weight: 800;
+            color: #92400e;
+        }
+        
+        .median-indicator .median-label {
+            font-size: 14px;
+            color: #78350f;
+            font-weight: 600;
+        }
+        
+        .median-indicator .median-subtext {
+            font-size: 12px;
+            color: #92400e;
+        }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+        
+        @media (max-width: 900px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .chart-container {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        
+        .chart-container h3 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 16px;
+        }
+        
+        .interpretation {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #0ea5e9;
+        }
+        
+        .interpretation h4 {
+            color: #0369a1;
+            margin-bottom: 12px;
+            font-size: 16px;
+        }
+        
+        .interpretation ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .interpretation li {
+            padding: 8px 0;
+            color: #333;
+            font-size: 14px;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+        }
+        
+        .interpretation li::before {
+            content: "💡";
+            flex-shrink: 0;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+            margin-bottom: 20px;
+        }
+        
+        .offers-list {
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .offer-card {
+            background: #f8f9fa;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border-left: 4px solid #10b981;
+            transition: all 0.2s;
+        }
+        
+        .offer-card:hover {
+            background: #e8f4f1;
+            transform: translateX(4px);
+        }
+        
+        .offer-card.increase {
+            border-left-color: #ef4444;
+        }
+        
+        .offer-card h3 {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 8px;
+        }
+        
+        .offer-card .price-change {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .offer-card .price-change.decrease {
+            color: #10b981;
+        }
+        
+        .offer-card .price-change.increase {
+            color: #ef4444;
+        }
+        
+        .offer-card .details {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        
+        .offer-card .timestamp {
+            font-size: 12px;
+            color: #999;
+            font-style: italic;
+        }
+        
+        .offer-card a {
+            display: inline-block;
+            margin-top: 8px;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        
+        .offer-card a:hover {
+            text-decoration: underline;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        
+        .empty-state .icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+        }
+        
+        .empty-state p {
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+        
+        .empty-state .hint {
+            font-size: 14px;
+            color: #999;
+        }
+        
+        .velocity-indicator {
+            position: relative;
+            height: 40px;
+            background: #e5e7eb;
+            border-radius: 20px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+        
+        .velocity-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #fbbf24, #ef4444);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 700;
+            font-size: 16px;
+            transition: width 0.5s ease;
+        }
+        
+        .rotation-bars {
+            display: flex;
+            gap: 8px;
+            margin-top: 16px;
+        }
+        
+        .rotation-day {
+            flex: 1;
+            text-align: center;
+        }
+        
+        .rotation-day .date {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        
+        .rotation-day .bars {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            height: 100px;
+            justify-content: flex-end;
+        }
+        
+        .rotation-day .bar {
+            border-radius: 4px;
+        }
+        
+        .rotation-day .bar.new {
+            background: #10b981;
+        }
+        
+        .rotation-day .bar.removed {
+            background: #ef4444;
+        }
+        
+        .rotation-day .count {
+            font-size: 10px;
+            font-weight: 600;
+            color: #333;
+            margin-top: 4px;
+        }
+
+        @media (max-width: 768px) {
+            header {
+                flex-direction: column;
+                gap: 16px;
+                text-align: center;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .toggle-buttons {
+                flex-direction: column;
+            }
+            
+            .toggle-btn {
+                width: 100%;
+            }
+            
+            .rotation-day .date {
+                font-size: 9px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 ANALIZA RYNKU - LUBLIN</h1>
+            <a href="index.html" class="back-link">← Powrót do mapy</a>
+        </header>
+        
+        <!-- FILTRY -->
+        <div class="section">
+            <h2>⚙️ Filtry</h2>
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Okres analizy zmian cen:</label>
+                    <div class="slider-value" id="daysValue">7 dni</div>
+                    <div class="slider-container">
+                        <input type="range" min="1" max="30" value="7" class="slider" id="daysSlider">
+                    </div>
+                    <div class="slider-labels">
+                        <span>1 dzień</span>
+                        <span>30 dni</span>
+                    </div>
+                </div>
+                
+                <div class="filter-group">
+                    <label>Typ zmian:</label>
+                    <div class="toggle-buttons">
+                        <button class="toggle-btn active" data-filter="all">Wszystkie</button>
+                        <button class="toggle-btn" data-filter="decreases">Tylko obniżki</button>
+                        <button class="toggle-btn" data-filter="increases">Tylko podwyżki</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 2.2 ANALIZA ZMIAN CEN -->
+        <div class="section">
+            <h2>💰 Zmiany Cen</h2>
+            
+            <div class="stats-grid" id="priceStatsGrid">
+                <div class="stat-box">
+                    <div class="label">Obniżki cen</div>
+                    <div class="value" id="priceDecreases">-</div>
+                    <div class="subtext" id="priceDecreasesAvg">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Podwyżki cen</div>
+                    <div class="value" id="priceIncreases">-</div>
+                    <div class="subtext" id="priceIncreasesAvg">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Ceny stabilne</div>
+                    <div class="value" id="priceStable">-</div>
+                </div>
+            </div>
+            
+            <div id="priceChangesContent"></div>
+        </div>
+        
+        <!-- 2.1 CZAS ŻYCIA OFERT - ROZBUDOWANA ANALIZA -->
+        <div class="section">
+            <h2>⏱️ Czas Życia Ogłoszeń</h2>
+            <p class="section-description">
+                Jak szybko mieszkania są wynajmowane? Ta analiza pokazuje rozkład czasu "życia" ogłoszeń - 
+                od momentu pierwszego wykrycia przez SONAR do dnia, gdy oferta stała się nieaktywna.
+            </p>
+            
+            <!-- Filtry dla tej sekcji -->
+            <div class="filters">
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label>📅 Zakres dat pierwszego wykrycia</label>
+                        <span class="slider-value" id="lifespanDaysValue">90 dni</span>
+                        <div class="slider-container">
+                            <input type="range" class="slider" id="lifespanDaysSlider" min="7" max="180" value="90">
+                        </div>
+                        <div class="slider-labels">
+                            <span>7 dni</span>
+                            <span>180 dni</span>
+                        </div>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>💰 Przedział cenowy</label>
+                        <div class="price-filter-row">
+                            <div class="price-input-group">
+                                <span class="price-label">od</span>
+                                <input type="number" id="lifespanPriceMin" class="price-input" value="0" min="0" max="10000" step="50">
+                                <span class="price-unit">zł</span>
+                            </div>
+                            <span class="price-separator">do</span>
+                            <div class="price-max-buttons">
+                                <button class="price-btn" data-lifespan-max="600">600</button>
+                                <button class="price-btn" data-lifespan-max="700">700</button>
+                                <button class="price-btn" data-lifespan-max="800">800</button>
+                                <button class="price-btn" data-lifespan-max="900">900</button>
+                                <button class="price-btn active" data-lifespan-max="1000">1000</button>
+                                <div class="price-input-group small">
+                                    <input type="number" id="lifespanPriceMaxCustom" class="price-input" placeholder="wpisz" min="0" max="10000" step="50">
+                                    <span class="price-unit">zł</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <label>🔄 Typ ofert</label>
+                        <div class="toggle-buttons">
+                            <button class="toggle-btn active" data-lifespan-type="all">Wszystkie</button>
+                            <button class="toggle-btn" data-lifespan-type="clean">Czyste</button>
+                            <button class="toggle-btn" data-lifespan-type="reactivated">Reaktywowane</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Legenda -->
+            <div class="offer-types-legend">
+                <div class="legend-item">
+                    <div class="legend-dot clean"></div>
+                    <span class="legend-text"><strong>Czyste oferty:</strong> wynajęte raz, bez powrotów na rynek</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot reactivated"></div>
+                    <span class="legend-text"><strong>Reaktywowane:</strong> wróciły na rynek po dezaktywacji</span>
+                </div>
+            </div>
+            
+            <!-- Główna statystyka - mediana -->
+            <div class="median-indicator">
+                <div>
+                    <div class="big-number" id="lifespanMedian">-</div>
+                </div>
+                <div>
+                    <div class="median-label">MEDIANA CZASU ŻYCIA</div>
+                    <div class="median-subtext">50% ofert znika z rynku w ciągu <span id="lifespanMedianText">-</span> dni</div>
+                </div>
+            </div>
+            
+            <!-- Statystyki -->
+            <div class="stats-grid">
+                <div class="stat-box fast">
+                    <div class="label">Błyskawiczne (0-3 dni)</div>
+                    <div class="value" id="lifespanFast">-</div>
+                    <div class="subtext" id="lifespanFastPct">-</div>
+                </div>
+                <div class="stat-box medium">
+                    <div class="label">Szybkie (4-7 dni)</div>
+                    <div class="value" id="lifespanMedium">-</div>
+                    <div class="subtext" id="lifespanMediumPct">-</div>
+                </div>
+                <div class="stat-box slow">
+                    <div class="label">Wolne (8-14 dni)</div>
+                    <div class="value" id="lifespanSlow">-</div>
+                    <div class="subtext" id="lifespanSlowPct">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Długie (15+ dni)</div>
+                    <div class="value" id="lifespanLong">-</div>
+                    <div class="subtext" id="lifespanLongPct">-</div>
+                </div>
+                <div class="stat-box reactivated">
+                    <div class="label">Reaktywowane</div>
+                    <div class="value" id="lifespanReactivated">-</div>
+                    <div class="subtext">wróciły na rynek</div>
+                </div>
+            </div>
+            
+            <!-- Wykresy -->
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3>📊 Histogram rozkładu czasu życia</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="lifespanHistogramChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <h3>📉 Krzywa przeżycia (Kaplan-Meier)</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="lifespanSurvivalChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Interpretacja -->
+            <div class="interpretation">
+                <h4>🎯 Co to oznacza dla szukających?</h4>
+                <ul>
+                    <li><strong>Rynek jest bardzo dynamiczny</strong> - większość mieszkań znika w ciągu pierwszych dni</li>
+                    <li><strong>Działaj szybko</strong> - jeśli widzisz interesującą ofertę, kontaktuj się od razu</li>
+                    <li><strong>Reaktywowane oferty</strong> mogą oznaczać problemy lub anulowaną rezerwację</li>
+                    <li><strong>Oferty powyżej 7 dni</strong> mogą być zawyżone cenowo - warto negocjować</li>
+                </ul>
+            </div>
+        </div>
+        
+        <!-- 2.3 WSKAŹNIK ROTACJI RYNKU -->
+        <div class="section">
+            <h2>🔄 Wskaźnik Rotacji Rynku</h2>
+            
+            <div class="stats-grid">
+                <div class="stat-box">
+                    <div class="label">Nowe oferty (7 dni)</div>
+                    <div class="value" id="rotationNew">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Usunięte (7 dni)</div>
+                    <div class="value" id="rotationRemoved">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Saldo</div>
+                    <div class="value" id="rotationNet">-</div>
+                </div>
+            </div>
+            
+            <h3 style="margin-top: 24px; margin-bottom: 12px; color: #333; font-size: 16px;">
+                Market Velocity (aktywność rynku)
+            </h3>
+            <div class="velocity-indicator">
+                <div class="velocity-fill" id="velocityFill" style="width: 0%;">
+                    <span id="velocityText">0/100</span>
+                </div>
+            </div>
+            <p style="margin-top: 8px; font-size: 13px; color: #666;">
+                0-30: Rynek słaby | 31-60: Umiarkowany | 61-80: Aktywny | 81-100: Bardzo aktywny
+            </p>
+            
+            <h3 style="margin-top: 32px; margin-bottom: 16px; color: #333; font-size: 16px;">
+                Rozkład dzienny (ostatnie 7 dni)
+            </h3>
+            <div class="rotation-bars" id="rotationBars"></div>
+        </div>
+        
+        <!-- B3: TIMELINE AKTYWNOŚCI (nowe vs usunięte per dzień) -->
+        <div class="section">
+            <h2>📈 Timeline Aktywności Rynku</h2>
+            <p class="section-description">
+                Dzienny rozkład nowych ofert i usunięć w wybranym okresie. Pozwala zidentyfikować dni największej aktywności rynku.
+            </p>
+            
+            <div class="filters">
+                <div class="filter-group">
+                    <label>Okres analizy:</label>
+                    <div class="toggle-buttons">
+                        <button class="toggle-btn" data-timeline-days="7">7 dni</button>
+                        <button class="toggle-btn active" data-timeline-days="14">14 dni</button>
+                        <button class="toggle-btn" data-timeline-days="30">30 dni</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <h3>📊 Nowe oferty vs usunięte (per dzień)</h3>
+                <div class="chart-wrapper" style="height: 350px;">
+                    <canvas id="timelineChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- Statystyki timeline -->
+            <div class="stats-grid" style="margin-top: 20px;">
+                <div class="stat-box fast">
+                    <div class="label">Szczyt nowych ofert</div>
+                    <div class="value" id="timelinePeakNew">-</div>
+                    <div class="subtext" id="timelinePeakNewDate">-</div>
+                </div>
+                <div class="stat-box slow">
+                    <div class="label">Szczyt usunięć</div>
+                    <div class="value" id="timelinePeakRemoved">-</div>
+                    <div class="subtext" id="timelinePeakRemovedDate">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Średnia dzienna (nowe)</div>
+                    <div class="value" id="timelineAvgNew">-</div>
+                </div>
+                <div class="stat-box">
+                    <div class="label">Średnia dzienna (usunięte)</div>
+                    <div class="value" id="timelineAvgRemoved">-</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- C2-A: ROZKŁAD CEN (histogram + box plot) -->
+        <div class="section">
+            <h2>💹 Rozkład Cen na Rynku</h2>
+            <p class="section-description">
+                Analiza statystyczna cen aktywnych ofert. Histogram pokazuje ile ofert mieści się w każdym przedziale cenowym, 
+                a box plot prezentuje rozkład kwartylowy z medianą.
+            </p>
+            
+            <div class="filters">
+                <div class="filters-row">
+                    <div class="filter-group">
+                        <label>🏷️ Typ oferty</label>
+                        <div class="toggle-buttons">
+                            <button class="toggle-btn active" data-price-dist-type="all">Wszystkie</button>
+                            <button class="toggle-btn" data-price-dist-type="pokoj">🛏️ Pokoje</button>
+                            <button class="toggle-btn" data-price-dist-type="kawalerka">🏠 Kawalerki</button>
+                            <button class="toggle-btn" data-price-dist-type="mieszkanie">🏢 Mieszkania</button>
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <label>📊 Tylko aktywne</label>
+                        <div class="toggle-buttons">
+                            <button class="toggle-btn active" data-price-dist-active="true">Tak</button>
+                            <button class="toggle-btn" data-price-dist-active="false">Wszystkie</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Główne statystyki cenowe -->
+            <div class="median-indicator" style="background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);">
+                <div>
+                    <div class="big-number" id="priceDistMedian" style="color: #1e40af;">-</div>
+                </div>
+                <div>
+                    <div class="median-label" style="color: #1e3a8a;">MEDIANA CENY</div>
+                    <div class="median-subtext" style="color: #3b82f6;">Połowa ofert jest tańsza, połowa droższa</div>
+                </div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-box" style="border-left-color: #10b981;">
+                    <div class="label">Minimum</div>
+                    <div class="value" id="priceDistMin">-</div>
+                </div>
+                <div class="stat-box" style="border-left-color: #3b82f6;">
+                    <div class="label">Q1 (25%)</div>
+                    <div class="value" id="priceDistQ1">-</div>
+                    <div class="subtext">25% ofert poniżej</div>
+                </div>
+                <div class="stat-box" style="border-left-color: #8b5cf6;">
+                    <div class="label">Średnia</div>
+                    <div class="value" id="priceDistAvg">-</div>
+                </div>
+                <div class="stat-box" style="border-left-color: #3b82f6;">
+                    <div class="label">Q3 (75%)</div>
+                    <div class="value" id="priceDistQ3">-</div>
+                    <div class="subtext">75% ofert poniżej</div>
+                </div>
+                <div class="stat-box" style="border-left-color: #ef4444;">
+                    <div class="label">Maksimum</div>
+                    <div class="value" id="priceDistMax">-</div>
+                </div>
+            </div>
+            
+            <!-- Wykresy -->
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3>📊 Histogram rozkładu cen</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="priceHistogramChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <h3>📦 Box Plot (rozkład kwartylowy)</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="priceBoxPlotChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Interpretacja -->
+            <div class="interpretation">
+                <h4>🎯 Jak interpretować te dane?</h4>
+                <ul>
+                    <li><strong>Mediana</strong> to "typowa" cena - 50% ofert jest tańszych, 50% droższych</li>
+                    <li><strong>Q1-Q3</strong> to zakres, w którym mieści się 50% wszystkich ofert (środkowa połowa)</li>
+                    <li><strong>Oferty poniżej Q1</strong> to okazje - najtańsze 25% rynku</li>
+                    <li><strong>Oferty powyżej Q3</strong> to segment premium - najdroższe 25%</li>
+                    <li><strong>Różnica między średnią a medianą</strong> wskazuje na asymetrię - duża różnica oznacza outliers (bardzo drogie oferty)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        console.log('=== START MARKET ANALYSIS ===');
+        
+        // Załaduj dane z data.json
+        let allData = null;
+        let currentFilter = 'all';
+        let currentDays = 7;
+        
+        // Zmienne dla sekcji Lifespan
+        let lifespanDays = 90;
+        let lifespanPriceMin = 0;
+        let lifespanPriceMax = 1000;
+        let lifespanType = 'all';
+        let lifespanHistogramChart = null;
+        let lifespanSurvivalChart = null;
+        
+        async function loadData() {
+            try {
+                const response = await fetch('data.json?' + new Date().getTime());
+                const data = await response.json();
+                allData = processData(data);
+                renderAll();
+            } catch (error) {
+                console.error('Błąd ładowania danych:', error);
+            }
+        }
+        
+        // Przetwarzanie danych
+        function processData(rawData) {
+            // Wyciągnij wszystkie oferty z markers
+            const offers = [];
+            if (rawData.markers) {
+                rawData.markers.forEach(marker => {
+                    if (marker.offers) {
+                        marker.offers.forEach(offer => {
+                            offers.push({
+                                ...offer,
+                                address_full: marker.address
+                            });
+                        });
+                    }
+                });
+            }
+            
+            console.log('Przetworzone oferty:', offers.length);
+            
+            const now = new Date();
+            
+            // Przygotuj dane survival
+            const active = offers.filter(o => o.active);
+            const inactive = offers.filter(o => !o.active);
+            const avgDays = offers.length > 0 
+                ? offers.reduce((sum, o) => sum + (o.days_active || 0), 0) / offers.length 
+                : 0;
+            
+            // Przygotuj zmiany cen
+            const priceChanges = [];
+            offers.forEach(offer => {
+                const history = offer.price_history || [];
+                if (history.length >= 2) {
+                    const first = history[0];
+                    const last = history[history.length - 1];
+                    if (first !== last) {
+                        const changePct = ((last - first) / first) * 100;
+                        
+                        // Timestamp zmiany (użyj price_changed_at lub last_seen)
+                        let changedAt = now;
+                        let daysAgo = 0;
+                        
+                        if (offer.price_changed_at) {
+                            changedAt = parseDateString(offer.price_changed_at);
+                            daysAgo = Math.floor((now - changedAt) / (1000 * 60 * 60 * 24));
+                        } else if (offer.last_seen) {
+                            changedAt = parseDateString(offer.last_seen);
+                            daysAgo = Math.floor((now - changedAt) / (1000 * 60 * 60 * 24));
+                        }
+                        
+                        priceChanges.push({
+                            address: offer.address_full || 'Brak adresu',
+                            first,
+                            last,
+                            change: last - first,
+                            changePct,
+                            url: offer.url,
+                            daysAgo,
+                            changedAt
+                        });
+                    }
+                }
+            });
+            
+            priceChanges.sort((a, b) => a.changePct - b.changePct);
+            
+            console.log('Zmiany cen:', priceChanges.length);
+            
+            // Rotacja rynku
+            const dailyNew = {};
+            const dailyRemoved = {};
+            
+            offers.forEach(offer => {
+                if (offer.first_seen) {
+                    const date = parseDateString(offer.first_seen);
+                    const dateKey = date.toISOString().split('T')[0];
+                    dailyNew[dateKey] = (dailyNew[dateKey] || 0) + 1;
+                }
+                
+                if (!offer.active && offer.last_seen) {
+                    const date = parseDateString(offer.last_seen);
+                    const dateKey = date.toISOString().split('T')[0];
+                    dailyRemoved[dateKey] = (dailyRemoved[dateKey] || 0) + 1;
+                }
+            });
+            
+            const last7Days = [];
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(now - i * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+                last7Days.push({
+                    date,
+                    new: dailyNew[date] || 0,
+                    removed: dailyRemoved[date] || 0
+                });
+            }
+            
+            const totalNew = last7Days.reduce((sum, d) => sum + d.new, 0);
+            const totalRemoved = last7Days.reduce((sum, d) => sum + d.removed, 0);
+            
+            return {
+                offers: offers,  // B3/C2: surowe oferty dla nowych sekcji
+                survival: {
+                    active: active.length,
+                    inactive: inactive.length,
+                    avgDays: avgDays.toFixed(1),
+                    distribution: [{ days: 0, count: offers.length }]
+                },
+                priceChanges: {
+                    all: priceChanges,
+                    decreases: priceChanges.filter(p => p.change < 0),
+                    increases: priceChanges.filter(p => p.change > 0),
+                    stable: offers.length - priceChanges.length
+                },
+                rotation: {
+                    last7d: {
+                        new: totalNew,
+                        removed: totalRemoved,
+                        net: totalNew - totalRemoved,
+                        velocity: Math.min(100, Math.round((totalNew + totalRemoved) / 2))
+                    },
+                    daily: last7Days
+                },
+                // Dane dla sekcji Lifespan
+                lifespan: {
+                    offers: inactive.map(o => {
+                        const firstSeen = parseDateString(o.first_seen);
+                        const lastSeen = parseDateString(o.last_seen);
+                        const days = Math.max(0, Math.floor((lastSeen - firstSeen) / (1000 * 60 * 60 * 24)));
+                        return {
+                            days,
+                            price: o.price || 0,
+                            reactivated: o.reactivated || false,  // Użyj pola z backendu
+                            firstSeen,
+                            address: o.address_full || 'Brak adresu'
+                        };
+                    })
+                }
+            };
+        }
+        
+        // Parsowanie daty w formacie "DD.MM.YYYY HH:MM"
+        function parseDateString(dateStr) {
+            if (!dateStr) return new Date();
+            
+            // Format: "28.02.2026 20:46"
+            const parts = dateStr.split(' ');
+            const dateParts = parts[0].split('.');
+            const timeParts = parts[1] ? parts[1].split(':') : ['00', '00'];
+            
+            return new Date(
+                parseInt(dateParts[2]), // year
+                parseInt(dateParts[1]) - 1, // month (0-indexed)
+                parseInt(dateParts[0]), // day
+                parseInt(timeParts[0]), // hour
+                parseInt(timeParts[1]) // minute
+            );
+        }
+        
+        // Filtrowanie zmian cen według dni
+        function filterPriceChanges(changes, days) {
+            return changes.filter(c => c.daysAgo <= days);
+        }
+        
+        // Renderowanie wszystkich sekcji
+        function renderAll() {
+            if (!allData) return;
+            
+            renderLifespan();
+            renderPriceChanges();
+            renderRotation();
+            renderTimeline();        // B3
+            renderPriceDistribution(); // C2-A
+        }
+        
+        // 2.1 LIFESPAN - Czas życia ogłoszeń
+        function filterLifespanOffers(offers) {
+            const now = new Date();
+            return offers.filter(o => {
+                // Filtr czasowy - oferty z ostatnich X dni
+                const daysAgo = Math.floor((now - o.firstSeen) / (1000 * 60 * 60 * 24));
+                if (daysAgo > lifespanDays) return false;
+                
+                // Filtr cenowy
+                if (o.price < lifespanPriceMin || o.price > lifespanPriceMax) return false;
+                
+                // Filtr typu
+                if (lifespanType === 'clean' && o.reactivated) return false;
+                if (lifespanType === 'reactivated' && !o.reactivated) return false;
+                
+                return true;
+            });
+        }
+        
+        function renderLifespan() {
+            const offers = allData.lifespan.offers;
+            const filtered = filterLifespanOffers(offers);
+            
+            // Oblicz statystyki
+            const fast = filtered.filter(o => o.days <= 3).length;
+            const medium = filtered.filter(o => o.days >= 4 && o.days <= 7).length;
+            const slow = filtered.filter(o => o.days >= 8 && o.days <= 14).length;
+            const long = filtered.filter(o => o.days > 14).length;
+            const reactivated = filtered.filter(o => o.reactivated).length;
+            const total = filtered.length || 1;
+            
+            // Mediana
+            const sorted = [...filtered].sort((a, b) => a.days - b.days);
+            const median = sorted.length > 0 ? sorted[Math.floor(sorted.length / 2)].days : 0;
+            
+            // Aktualizuj UI
+            document.getElementById('lifespanMedian').textContent = median;
+            document.getElementById('lifespanMedianText').textContent = median;
+            
+            document.getElementById('lifespanFast').textContent = fast;
+            document.getElementById('lifespanFastPct').textContent = `${Math.round(fast / total * 100)}% ofert`;
+            
+            document.getElementById('lifespanMedium').textContent = medium;
+            document.getElementById('lifespanMediumPct').textContent = `${Math.round(medium / total * 100)}% ofert`;
+            
+            document.getElementById('lifespanSlow').textContent = slow;
+            document.getElementById('lifespanSlowPct').textContent = `${Math.round(slow / total * 100)}% ofert`;
+            
+            document.getElementById('lifespanLong').textContent = long;
+            document.getElementById('lifespanLongPct').textContent = `${Math.round(long / total * 100)}% ofert`;
+            
+            document.getElementById('lifespanReactivated').textContent = reactivated;
+            
+            // Rysuj wykresy
+            renderLifespanHistogram(filtered);
+            renderLifespanSurvivalCurve(filtered);
+        }
+        
+        function renderLifespanHistogram(filtered) {
+            const ctx = document.getElementById('lifespanHistogramChart').getContext('2d');
+            
+            const clean = filtered.filter(o => !o.reactivated);
+            const reactivated = filtered.filter(o => o.reactivated);
+            
+            const bins = ['0-1', '2-3', '4-5', '6-7', '8-10', '11-14', '15-21', '22+'];
+            const binRanges = [[0,1], [2,3], [4,5], [6,7], [8,10], [11,14], [15,21], [22, 999]];
+            
+            const cleanData = binRanges.map(([min, max]) => 
+                clean.filter(o => o.days >= min && o.days <= max).length
+            );
+            
+            const reactivatedData = binRanges.map(([min, max]) => 
+                reactivated.filter(o => o.days >= min && o.days <= max).length
+            );
+            
+            if (lifespanHistogramChart) lifespanHistogramChart.destroy();
+            
+            lifespanHistogramChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: bins.map(b => b + ' dni'),
+                    datasets: [
+                        {
+                            label: 'Czyste oferty',
+                            data: cleanData,
+                            backgroundColor: '#667eea',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'Reaktywowane',
+                            data: reactivatedData,
+                            backgroundColor: '#8b5cf6',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { 
+                            display: lifespanType === 'all',
+                            position: 'top' 
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            title: { display: true, text: 'Czas życia (dni)' }
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            title: { display: true, text: 'Liczba ofert' }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function renderLifespanSurvivalCurve(filtered) {
+            const ctx = document.getElementById('lifespanSurvivalChart').getContext('2d');
+            
+            const maxDays = 30;
+            const clean = filtered.filter(o => !o.reactivated);
+            const reactivated = filtered.filter(o => o.reactivated);
+            
+            const cleanSurvival = [];
+            const reactivatedSurvival = [];
+            
+            for (let day = 0; day <= maxDays; day++) {
+                if (clean.length > 0) {
+                    const surviving = clean.filter(o => o.days > day).length;
+                    cleanSurvival.push({ x: day, y: Math.round((surviving / clean.length) * 100) });
+                }
+                if (reactivated.length > 0) {
+                    const surviving = reactivated.filter(o => o.days > day).length;
+                    reactivatedSurvival.push({ x: day, y: Math.round((surviving / reactivated.length) * 100) });
+                }
+            }
+            
+            if (lifespanSurvivalChart) lifespanSurvivalChart.destroy();
+            
+            const datasets = [];
+            
+            if (lifespanType === 'all' || lifespanType === 'clean') {
+                datasets.push({
+                    label: 'Czyste oferty',
+                    data: cleanSurvival,
+                    borderColor: '#667eea',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 0
+                });
+            }
+            
+            if ((lifespanType === 'all' || lifespanType === 'reactivated') && reactivatedSurvival.length > 0) {
+                datasets.push({
+                    label: 'Reaktywowane',
+                    data: reactivatedSurvival,
+                    borderColor: '#8b5cf6',
+                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 0
+                });
+            }
+            
+            lifespanSurvivalChart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { 
+                            display: lifespanType === 'all' && datasets.length > 1,
+                            position: 'top' 
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: (ctx) => `${ctx.parsed.y}% ofert nadal aktywnych`
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: { display: true, text: 'Dni od wykrycia' },
+                            min: 0,
+                            max: 30
+                        },
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: { display: true, text: '% ofert nadal aktywnych' },
+                            ticks: {
+                                callback: (v) => v + '%'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 2.2 PRICE CHANGES
+        function renderPriceChanges() {
+            const filtered = filterPriceChanges(allData.priceChanges.all, currentDays);
+            const decreases = filtered.filter(p => p.change < 0);
+            const increases = filtered.filter(p => p.change > 0);
+            
+            // Aktualizuj statystyki
+            document.getElementById('priceDecreases').textContent = decreases.length;
+            document.getElementById('priceIncreases').textContent = increases.length;
+            document.getElementById('priceStable').textContent = allData.priceChanges.stable;
+            
+            if (decreases.length > 0) {
+                const avgDecrease = decreases.reduce((sum, d) => sum + d.changePct, 0) / decreases.length;
+                document.getElementById('priceDecreasesAvg').textContent = `średnio ${avgDecrease.toFixed(1)}%`;
+            } else {
+                document.getElementById('priceDecreasesAvg').textContent = '-';
+            }
+            
+            if (increases.length > 0) {
+                const avgIncrease = increases.reduce((sum, i) => sum + i.changePct, 0) / increases.length;
+                document.getElementById('priceIncreasesAvg').textContent = `średnio +${avgIncrease.toFixed(1)}%`;
+            } else {
+                document.getElementById('priceIncreasesAvg').textContent = '-';
+            }
+            
+            // Renderuj listy
+            const container = document.getElementById('priceChangesContent');
+            let html = '';
+            
+            // Filtruj według typu
+            let showDecreases = currentFilter === 'all' || currentFilter === 'decreases';
+            let showIncreases = currentFilter === 'all' || currentFilter === 'increases';
+            
+            if (showDecreases && decreases.length > 0) {
+                html += `<h3 style="margin-top: 24px; margin-bottom: 16px; color: #10b981; font-size: 18px;">🔥 Największe Obniżki Cen (Okazje!)</h3>`;
+                html += '<div class="offers-list">';
+                decreases.forEach(offer => {
+                    html += `
+                        <div class="offer-card">
+                            <h3>${offer.address}</h3>
+                            <div class="price-change decrease">
+                                ${offer.first} zł → ${offer.last} zł (${offer.changePct.toFixed(1)}%)
+                            </div>
+                            <div class="details">Oszczędzasz: ${Math.abs(offer.change)} zł/mies.</div>
+                            <div class="timestamp">${offer.daysAgo} dni temu</div>
+                            <a href="${offer.url}" target="_blank">Zobacz ogłoszenie →</a>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            if (showIncreases && increases.length > 0) {
+                html += `<h3 style="margin-top: 24px; margin-bottom: 16px; color: #ef4444; font-size: 18px;">📈 Największe Podwyżki Cen</h3>`;
+                html += '<div class="offers-list">';
+                increases.reverse().forEach(offer => {
+                    html += `
+                        <div class="offer-card increase">
+                            <h3>${offer.address}</h3>
+                            <div class="price-change increase">
+                                ${offer.first} zł → ${offer.last} zł (+${offer.changePct.toFixed(1)}%)
+                            </div>
+                            <div class="details">Wzrost: +${offer.change} zł/mies.</div>
+                            <div class="timestamp">${offer.daysAgo} dni temu</div>
+                            <a href="${offer.url}" target="_blank">Zobacz ogłoszenie →</a>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            if (html === '') {
+                html = `
+                    <div class="empty-state">
+                        <div class="icon">🔍</div>
+                        <p>Brak zmian cen w wybranym okresie</p>
+                        <p class="hint">Spróbuj zwiększyć zakres dni lub zmienić filtr</p>
+                    </div>
+                `;
+            }
+            
+            container.innerHTML = html;
+        }
+        
+        // 2.3 ROTATION
+        function renderRotation() {
+            const data = allData.rotation;
+            
+            document.getElementById('rotationNew').textContent = '+' + data.last7d.new;
+            document.getElementById('rotationRemoved').textContent = '-' + data.last7d.removed;
+            
+            const net = data.last7d.net;
+            const netEl = document.getElementById('rotationNet');
+            netEl.textContent = (net >= 0 ? '+' : '') + net;
+            netEl.style.color = net > 0 ? '#10b981' : (net < 0 ? '#ef4444' : '#666');
+            
+            const velocity = data.last7d.velocity;
+            document.getElementById('velocityFill').style.width = velocity + '%';
+            document.getElementById('velocityText').textContent = velocity + '/100';
+            
+            const barsContainer = document.getElementById('rotationBars');
+            const maxValue = Math.max(...data.daily.map(d => Math.max(d.new, d.removed)), 1);
+            
+            barsContainer.innerHTML = data.daily.map(day => {
+                const newHeight = (day.new / maxValue) * 100;
+                const removedHeight = (day.removed / maxValue) * 100;
+                const dateFormatted = new Date(day.date).toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit' });
+                
+                return `
+                    <div class="rotation-day">
+                        <div class="date">${dateFormatted}</div>
+                        <div class="bars">
+                            <div class="bar new" style="height: ${newHeight}px;"></div>
+                            <div class="bar removed" style="height: ${removedHeight}px;"></div>
+                        </div>
+                        <div class="count">+${day.new} / -${day.removed}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // Obsługa suwaka
+        document.getElementById('daysSlider').addEventListener('input', (e) => {
+            currentDays = parseInt(e.target.value);
+            document.getElementById('daysValue').textContent = currentDays + ' dni';
+            renderPriceChanges();
+        });
+        
+        // Obsługa przycisków filtra
+        document.querySelectorAll('[data-filter]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentFilter = btn.dataset.filter;
+                document.querySelectorAll('[data-filter]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                renderPriceChanges();
+            });
+        });
+        
+        // === Event listenery dla sekcji Lifespan ===
+        
+        // Suwak dni
+        document.getElementById('lifespanDaysSlider').addEventListener('input', (e) => {
+            lifespanDays = parseInt(e.target.value);
+            document.getElementById('lifespanDaysValue').textContent = lifespanDays + ' dni';
+            renderLifespan();
+        });
+        
+        // Pole "od" ceny
+        document.getElementById('lifespanPriceMin').addEventListener('input', (e) => {
+            lifespanPriceMin = parseInt(e.target.value) || 0;
+            renderLifespan();
+        });
+        
+        // Przyciski "do" ceny
+        document.querySelectorAll('.price-btn[data-lifespan-max]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                lifespanPriceMax = parseInt(btn.dataset.lifespanMax);
+                document.querySelectorAll('.price-btn[data-lifespan-max]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('lifespanPriceMaxCustom').value = '';
+                renderLifespan();
+            });
+        });
+        
+        // Pole własnej wartości "do" ceny
+        document.getElementById('lifespanPriceMaxCustom').addEventListener('input', (e) => {
+            const val = parseInt(e.target.value);
+            if (val > 0) {
+                lifespanPriceMax = val;
+                document.querySelectorAll('.price-btn[data-lifespan-max]').forEach(b => b.classList.remove('active'));
+                renderLifespan();
+            }
+        });
+        
+        // Przyciski typu ofert
+        document.querySelectorAll('[data-lifespan-type]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                lifespanType = btn.dataset.lifespanType;
+                document.querySelectorAll('[data-lifespan-type]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                renderLifespan();
+            });
+        });
+        
+        // ============================================================
+        // B3: TIMELINE AKTYWNOŚCI
+        // ============================================================
+        let timelineDays = 14;
+        let timelineChart = null;
+        
+        function renderTimeline() {
+            if (!allData || !allData.offers) return;
+            
+            const now = new Date();
+            const dayMs = 24 * 60 * 60 * 1000;
+            
+            // Przygotuj dane dla każdego dnia
+            const dailyData = {};
+            for (let i = 0; i < timelineDays; i++) {
+                const date = new Date(now.getTime() - i * dayMs);
+                const dateKey = date.toISOString().split('T')[0];
+                dailyData[dateKey] = { newOffers: 0, removedOffers: 0, label: formatDateShort(date) };
+            }
+            
+            // Zlicz nowe oferty (first_seen w danym dniu)
+            allData.offers.forEach(offer => {
+                if (!offer.first_seen) return;
+                try {
+                    const fsDate = parseDateString(offer.first_seen);
+                    if (!fsDate) return;
+                    const dateKey = fsDate.toISOString().split('T')[0];
+                    if (dailyData[dateKey]) {
+                        dailyData[dateKey].newOffers++;
+                    }
+                } catch (e) {}
+            });
+            
+            // Zlicz usunięte oferty (last_seen w danym dniu dla nieaktywnych)
+            allData.offers.filter(o => !o.active).forEach(offer => {
+                if (!offer.last_seen) return;
+                try {
+                    const lsDate = parseDateString(offer.last_seen);
+                    if (!lsDate) return;
+                    const dateKey = lsDate.toISOString().split('T')[0];
+                    if (dailyData[dateKey]) {
+                        dailyData[dateKey].removedOffers++;
+                    }
+                } catch (e) {}
+            });
+            
+            // Konwersja do tablic (odwróć kolejność - od najstarszego)
+            const dates = Object.keys(dailyData).sort();
+            const labels = dates.map(d => dailyData[d].label);
+            const newData = dates.map(d => dailyData[d].newOffers);
+            const removedData = dates.map(d => dailyData[d].removedOffers);
+            
+            // Statystyki
+            const maxNew = Math.max(...newData);
+            const maxRemoved = Math.max(...removedData);
+            const avgNew = newData.reduce((a, b) => a + b, 0) / newData.length;
+            const avgRemoved = removedData.reduce((a, b) => a + b, 0) / removedData.length;
+            
+            document.getElementById('timelinePeakNew').textContent = maxNew;
+            document.getElementById('timelinePeakNewDate').textContent = labels[newData.indexOf(maxNew)] || '-';
+            document.getElementById('timelinePeakRemoved').textContent = maxRemoved;
+            document.getElementById('timelinePeakRemovedDate').textContent = labels[removedData.indexOf(maxRemoved)] || '-';
+            document.getElementById('timelineAvgNew').textContent = avgNew.toFixed(1);
+            document.getElementById('timelineAvgRemoved').textContent = avgRemoved.toFixed(1);
+            
+            // Wykres
+            if (timelineChart) timelineChart.destroy();
+            
+            const ctx = document.getElementById('timelineChart').getContext('2d');
+            timelineChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Nowe oferty',
+                            data: newData,
+                            backgroundColor: 'rgba(16, 185, 129, 0.7)',
+                            borderColor: '#10b981',
+                            borderWidth: 1
+                        },
+                        {
+                            label: 'Usunięte',
+                            data: removedData,
+                            backgroundColor: 'rgba(239, 68, 68, 0.7)',
+                            borderColor: '#ef4444',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' }
+                    },
+                    scales: {
+                        x: { title: { display: true, text: 'Data' } },
+                        y: { 
+                            beginAtZero: true,
+                            title: { display: true, text: 'Liczba ofert' }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function formatDateShort(date) {
+            return date.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit' });
+        }
+        
+        // Event listeners dla timeline
+        document.querySelectorAll('[data-timeline-days]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                timelineDays = parseInt(btn.dataset.timelineDays);
+                document.querySelectorAll('[data-timeline-days]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                renderTimeline();
+            });
+        });
+        
+        // ============================================================
+        // C2-A: ROZKŁAD CEN (histogram + box plot)
+        // ============================================================
+        let priceDistType = 'all';
+        let priceDistActiveOnly = true;
+        let priceHistogramChart = null;
+        let priceBoxPlotChart = null;
+        
+        function renderPriceDistribution() {
+            if (!allData || !allData.offers) return;
+            
+            // Filtruj oferty
+            let offers = allData.offers;
+            
+            if (priceDistActiveOnly) {
+                offers = offers.filter(o => o.active);
+            }
+            
+            if (priceDistType !== 'all') {
+                offers = offers.filter(o => {
+                    const primaryTag = o.tags?.primary || 'pokoj';
+                    return primaryTag === priceDistType;
+                });
+            }
+            
+            const prices = offers.map(o => o.price).filter(p => p > 0).sort((a, b) => a - b);
+            
+            if (prices.length === 0) {
+                document.getElementById('priceDistMedian').textContent = '-';
+                document.getElementById('priceDistMin').textContent = '-';
+                document.getElementById('priceDistMax').textContent = '-';
+                document.getElementById('priceDistQ1').textContent = '-';
+                document.getElementById('priceDistQ3').textContent = '-';
+                document.getElementById('priceDistAvg').textContent = '-';
+                return;
+            }
+            
+            // Oblicz statystyki
+            const n = prices.length;
+            const min = prices[0];
+            const max = prices[n - 1];
+            const median = prices[Math.floor(n / 2)];
+            const q1 = prices[Math.floor(n * 0.25)];
+            const q3 = prices[Math.floor(n * 0.75)];
+            const avg = Math.round(prices.reduce((a, b) => a + b, 0) / n);
+            
+            // Aktualizuj UI
+            document.getElementById('priceDistMedian').textContent = median + ' zł';
+            document.getElementById('priceDistMin').textContent = min + ' zł';
+            document.getElementById('priceDistMax').textContent = max + ' zł';
+            document.getElementById('priceDistQ1').textContent = q1 + ' zł';
+            document.getElementById('priceDistQ3').textContent = q3 + ' zł';
+            document.getElementById('priceDistAvg').textContent = avg + ' zł';
+            
+            // Histogram
+            renderPriceHistogram(prices);
+            
+            // Box Plot (symulowany)
+            renderPriceBoxPlot(min, q1, median, q3, max, prices);
+        }
+        
+        function renderPriceHistogram(prices) {
+            // Twórz przedziały (bins)
+            const binSize = 100;
+            const minPrice = Math.floor(prices[0] / binSize) * binSize;
+            const maxPrice = Math.ceil(prices[prices.length - 1] / binSize) * binSize;
+            
+            const bins = {};
+            for (let i = minPrice; i <= maxPrice; i += binSize) {
+                bins[i] = 0;
+            }
+            
+            prices.forEach(p => {
+                const bin = Math.floor(p / binSize) * binSize;
+                if (bins[bin] !== undefined) {
+                    bins[bin]++;
+                }
+            });
+            
+            const labels = Object.keys(bins).map(b => `${b}-${parseInt(b) + binSize}`);
+            const data = Object.values(bins);
+            
+            if (priceHistogramChart) priceHistogramChart.destroy();
+            
+            const ctx = document.getElementById('priceHistogramChart').getContext('2d');
+            priceHistogramChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Liczba ofert',
+                        data: data,
+                        backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                        borderColor: '#3b82f6',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { 
+                            title: { display: true, text: 'Przedział cenowy (zł)' },
+                            ticks: { maxRotation: 45, minRotation: 45 }
+                        },
+                        y: { 
+                            beginAtZero: true,
+                            title: { display: true, text: 'Liczba ofert' }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function renderPriceBoxPlot(min, q1, median, q3, max, prices) {
+            // Symulowany box plot jako wykres słupkowy horyzontalny
+            if (priceBoxPlotChart) priceBoxPlotChart.destroy();
+            
+            const ctx = document.getElementById('priceBoxPlotChart').getContext('2d');
+            
+            // Canvas-based custom box plot
+            const canvas = document.getElementById('priceBoxPlotChart');
+            const parent = canvas.parentElement;
+            
+            // Wstaw SVG zamiast Chart.js dla box plot
+            canvas.style.display = 'none';
+            
+            // Usuń poprzedni SVG jeśli istnieje
+            const oldSvg = parent.querySelector('.boxplot-svg');
+            if (oldSvg) oldSvg.remove();
+            
+            const svgNs = 'http://www.w3.org/2000/svg';
+            const svg = document.createElementNS(svgNs, 'svg');
+            svg.setAttribute('class', 'boxplot-svg');
+            svg.setAttribute('viewBox', '0 0 400 200');
+            svg.setAttribute('width', '100%');
+            svg.setAttribute('height', '100%');
+            svg.style.maxHeight = '280px';
+            
+            const padding = 40;
+            const width = 400 - 2 * padding;
+            const centerY = 100;
+            const boxHeight = 60;
+            
+            // Skala
+            const scale = (val) => padding + ((val - min) / (max - min)) * width;
+            
+            // Whiskers
+            const whiskerLine = document.createElementNS(svgNs, 'line');
+            whiskerLine.setAttribute('x1', scale(min));
+            whiskerLine.setAttribute('x2', scale(max));
+            whiskerLine.setAttribute('y1', centerY);
+            whiskerLine.setAttribute('y2', centerY);
+            whiskerLine.setAttribute('stroke', '#3b82f6');
+            whiskerLine.setAttribute('stroke-width', '2');
+            whiskerLine.setAttribute('stroke-dasharray', '4,2');
+            svg.appendChild(whiskerLine);
+            
+            // Min/Max caps
+            [min, max].forEach(val => {
+                const cap = document.createElementNS(svgNs, 'line');
+                cap.setAttribute('x1', scale(val));
+                cap.setAttribute('x2', scale(val));
+                cap.setAttribute('y1', centerY - 15);
+                cap.setAttribute('y2', centerY + 15);
+                cap.setAttribute('stroke', '#3b82f6');
+                cap.setAttribute('stroke-width', '2');
+                svg.appendChild(cap);
+            });
+            
+            // Box (Q1-Q3)
+            const box = document.createElementNS(svgNs, 'rect');
+            box.setAttribute('x', scale(q1));
+            box.setAttribute('y', centerY - boxHeight / 2);
+            box.setAttribute('width', scale(q3) - scale(q1));
+            box.setAttribute('height', boxHeight);
+            box.setAttribute('fill', 'rgba(59, 130, 246, 0.2)');
+            box.setAttribute('stroke', '#3b82f6');
+            box.setAttribute('stroke-width', '2');
+            box.setAttribute('rx', '4');
+            svg.appendChild(box);
+            
+            // Mediana
+            const medianLine = document.createElementNS(svgNs, 'line');
+            medianLine.setAttribute('x1', scale(median));
+            medianLine.setAttribute('x2', scale(median));
+            medianLine.setAttribute('y1', centerY - boxHeight / 2);
+            medianLine.setAttribute('y2', centerY + boxHeight / 2);
+            medianLine.setAttribute('stroke', '#1e40af');
+            medianLine.setAttribute('stroke-width', '3');
+            svg.appendChild(medianLine);
+            
+            // Etykiety
+            const labels = [
+                { val: min, text: min + ' zł', label: 'min', y: centerY + 55 },
+                { val: q1, text: q1 + ' zł', label: 'Q1', y: centerY + 55 },
+                { val: median, text: median + ' zł', label: 'mediana', y: centerY - 45 },
+                { val: q3, text: q3 + ' zł', label: 'Q3', y: centerY + 55 },
+                { val: max, text: max + ' zł', label: 'max', y: centerY + 55 }
+            ];
+            
+            labels.forEach(l => {
+                const text = document.createElementNS(svgNs, 'text');
+                text.setAttribute('x', scale(l.val));
+                text.setAttribute('y', l.y);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('font-size', '11');
+                text.setAttribute('fill', l.label === 'mediana' ? '#1e40af' : '#666');
+                text.setAttribute('font-weight', l.label === 'mediana' ? 'bold' : 'normal');
+                text.textContent = l.text;
+                svg.appendChild(text);
+                
+                const labelText = document.createElementNS(svgNs, 'text');
+                labelText.setAttribute('x', scale(l.val));
+                labelText.setAttribute('y', l.y + 14);
+                labelText.setAttribute('text-anchor', 'middle');
+                labelText.setAttribute('font-size', '10');
+                labelText.setAttribute('fill', '#999');
+                labelText.textContent = l.label;
+                svg.appendChild(labelText);
+            });
+            
+            parent.appendChild(svg);
+        }
+        
+        // Event listeners dla rozkładu cen
+        document.querySelectorAll('[data-price-dist-type]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                priceDistType = btn.dataset.priceDistType;
+                document.querySelectorAll('[data-price-dist-type]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                renderPriceDistribution();
+            });
+        });
+        
+        document.querySelectorAll('[data-price-dist-active]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                priceDistActiveOnly = btn.dataset.priceDistActive === 'true';
+                document.querySelectorAll('[data-price-dist-active]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                renderPriceDistribution();
+            });
+        });
+        
+        // Inicjalizacja
+        loadData();
+        console.log('=== MARKET ANALYSIS GOTOWA ===');
+    </script>
+</body>
+</html>

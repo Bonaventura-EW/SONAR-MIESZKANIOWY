@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SONAR MIESZKANIOWY - Analityka</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        header h1 {
+            color: #667eea;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .back-link {
+            color: #667eea;
+            text-decoration: none;
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .back-link:hover {
+            background: #667eea;
+            color: white;
+        }
+        
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 24px;
+            padding: 100px 20px;
+        }
+        
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .stats-overview {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card h3 {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #333;
+        }
+        
+        .stat-card .trend {
+            font-size: 14px;
+            margin-top: 8px;
+        }
+        
+        .trend.up {
+            color: #10b981;
+        }
+        
+        .trend.down {
+            color: #ef4444;
+        }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 24px;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .chart-container h2 {
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 16px;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+        }
+        
+        .time-range-control {
+            margin-bottom: 16px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .time-range-control label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .range-slider {
+            width: 100%;
+            margin-bottom: 8px;
+        }
+        
+        .range-value {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        /* Style dla kontrolek histogramu */
+        .histogram-controls {
+            margin-bottom: 16px;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .control-group {
+            margin-bottom: 12px;
+        }
+        
+        .control-group:last-of-type {
+            margin-bottom: 8px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+        
+        .toggle-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .toggle-btn {
+            padding: 8px 16px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        
+        .toggle-btn:hover {
+            background: #f0f2ff;
+        }
+        
+        .toggle-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .histogram-info {
+            margin-top: 12px;
+            padding: 8px 12px;
+            background: #e8f4e8;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #2d5a2d;
+            display: none;
+        }
+        
+        .histogram-info.visible {
+            display: block;
+        }
+        
+        @media (max-width: 768px) {
+            .toggle-buttons {
+                flex-wrap: wrap;
+            }
+            
+            .toggle-btn {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .stats-overview {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-wrapper {
+                height: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                <svg width="32" height="32" viewBox="0 0 64 64" style="display: inline-block; vertical-align: middle; margin-right: 8px;">
+                    <defs>
+                        <radialGradient id="analyticsRadarBg" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" style="stop-color:#1a3a1a;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#0a1a0a;stop-opacity:1" />
+                        </radialGradient>
+                        <linearGradient id="analyticsSweepGradient" x1="50%" y1="50%" x2="100%" y2="50%">
+                            <stop offset="0%" style="stop-color:#00ff00;stop-opacity:0.8" />
+                            <stop offset="50%" style="stop-color:#00ff00;stop-opacity:0.3" />
+                            <stop offset="100%" style="stop-color:#00ff00;stop-opacity:0" />
+                        </linearGradient>
+                        <mask id="analyticsSweepMask">
+                            <circle cx="32" cy="32" r="28" fill="white"/>
+                        </mask>
+                    </defs>
+                    <circle cx="32" cy="32" r="32" fill="url(#analyticsRadarBg)"/>
+                    <circle cx="32" cy="32" r="30" fill="none" stroke="#00ff00" stroke-width="0.5" opacity="0.6"/>
+                    <circle cx="32" cy="32" r="24" fill="none" stroke="#00ff00" stroke-width="0.3" opacity="0.3"/>
+                    <circle cx="32" cy="32" r="18" fill="none" stroke="#00ff00" stroke-width="0.3" opacity="0.3"/>
+                    <line x1="32" y1="4" x2="32" y2="60" stroke="#00ff00" stroke-width="0.3" opacity="0.3"/>
+                    <line x1="4" y1="32" x2="60" y2="32" stroke="#00ff00" stroke-width="0.3" opacity="0.3"/>
+                    <g transform="translate(32, 32)">
+                        <path d="M0,-6 L-2,-3 L-2,0 C-2,2 -1,3 0,6 C1,3 2,2 2,0 L2,-3 Z" fill="#00ff00" stroke="#003300" stroke-width="0.5" opacity="0.9">
+                            <animateTransform attributeName="transform" type="scale" values="1;1.3;1" dur="2s" repeatCount="indefinite"/>
+                        </path>
+                    </g>
+                    <g mask="url(#analyticsSweepMask)">
+                        <path d="M32,32 L32,4 A28,28 0 0,1 60,32 Z" fill="url(#analyticsSweepGradient)" opacity="0.6">
+                            <animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="3s" repeatCount="indefinite"/>
+                        </path>
+                    </g>
+                    <circle cx="22" cy="18" r="1.5" fill="#00ff00" opacity="0.8">
+                        <animate attributeName="opacity" values="0.8;0.3;0.8" dur="1.5s" repeatCount="indefinite"/>
+                    </circle>
+                </svg>
+                📈 SONAR MIESZKANIOWY - Analityka
+            </h1>
+            <a href="index.html" class="back-link">← Powrót do mapy</a>
+        </header>
+        
+        <div id="loading" class="loading">⏳ Ładowanie danych analitycznych...</div>
+        <div id="error" class="error-message" style="display: none;"></div>
+        
+        <div id="content" style="display: none;">
+            <!-- Statystyki przegląd -->
+            <div class="stats-overview">
+                <div class="stat-card">
+                    <h3>Łącznie ofert (aktywne)</h3>
+                    <div class="value" id="total-active">-</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Średnia cena</h3>
+                    <div class="value" id="avg-price">-</div>
+                    <div class="trend" id="price-trend"></div>
+                </div>
+                <div class="stat-card">
+                    <h3>Nowych w ostatnich 7 dniach</h3>
+                    <div class="value" id="new-7days">-</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Mediana ceny</h3>
+                    <div class="value" id="median-price">-</div>
+                </div>
+            </div>
+            
+            <!-- Wykresy -->
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h2>📊 Trend średniej ceny w czasie</h2>
+                    <div class="time-range-control">
+                        <label for="priceChartRange">Zakres czasowy:</label>
+                        <input type="range" id="priceChartRange" class="range-slider" 
+                               min="7" max="180" value="30" step="1">
+                        <span class="range-value" id="priceChartRangeValue">30 dni</span>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <h2>📈 Nowe oferty dziennie</h2>
+                    <div class="time-range-control">
+                        <label for="newOffersChartRange">Zakres czasowy:</label>
+                        <input type="range" id="newOffersChartRange" class="range-slider" 
+                               min="7" max="180" value="30" step="1">
+                        <span class="range-value" id="newOffersChartRangeValue">30 dni</span>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="newOffersChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <h2>🎯 Rozkład cen (histogram)</h2>
+                    <div class="histogram-controls">
+                        <div class="control-group">
+                            <label>Status ofert:</label>
+                            <div class="toggle-buttons">
+                                <button id="statusActive" class="toggle-btn active" data-status="active">Aktywne</button>
+                                <button id="statusInactive" class="toggle-btn" data-status="inactive">Nieaktywne</button>
+                                <button id="statusAll" class="toggle-btn" data-status="all">Wszystkie</button>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label>Zakres czasowy:</label>
+                            <div class="toggle-buttons">
+                                <button class="toggle-btn date-btn" data-days="7">7 dni</button>
+                                <button class="toggle-btn date-btn" data-days="14">14 dni</button>
+                                <button class="toggle-btn date-btn active" data-days="30">30 dni</button>
+                                <button class="toggle-btn date-btn" data-days="60">60 dni</button>
+                                <button class="toggle-btn date-btn" data-days="90">90 dni</button>
+                                <button class="toggle-btn date-btn" data-days="180">180 dni</button>
+                            </div>
+                        </div>
+                        <div class="histogram-info" id="histogramInfo"></div>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="priceDistribution"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <script>
+        async function loadAnalyticsData() {
+            try {
+                // Wczytaj dane ofert
+                const response = await fetch('data.json');
+                if (!response.ok) {
+                    throw new Error('Nie udało się załadować danych');
+                }
+                
+                const data = await response.json();
+                
+                // Ukryj loading, pokaż content
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+                
+                // Przetwórz dane
+                processAnalytics(data);
+                
+            } catch (error) {
+                console.error('❌ Błąd:', error);
+                document.getElementById('loading').style.display = 'none';
+                const errorDiv = document.getElementById('error');
+                errorDiv.textContent = `Błąd: ${error.message}`;
+                errorDiv.style.display = 'block';
+            }
+        }
+        
+        function showError(message) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'none';
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+        
+        function processAnalytics(data) {
+            const markers = data.markers || [];
+            
+            // Zbierz WSZYSTKIE oferty (aktywne i nieaktywne) z prawidłowymi datami
+            const allOffers = [];
+            markers.forEach(marker => {
+                marker.offers.forEach(offer => {
+                    const parsedDate = parseDate(offer.first_seen);
+                    const lastSeenDate = parseDate(offer.last_seen);
+                    if (parsedDate) {
+                        allOffers.push({
+                            ...offer,
+                            first_seen_date: parsedDate,
+                            last_seen_date: lastSeenDate || parsedDate
+                        });
+                    } else {
+                        console.warn('Pominięto ofertę z nieprawidłową datą:', offer.id, offer.first_seen);
+                    }
+                });
+            });
+            
+            if (allOffers.length === 0) {
+                showError('Brak ofert z prawidłowymi datami do wyświetlenia');
+                return;
+            }
+            
+            // Zapisz wszystkie oferty globalnie (dla histogramu)
+            window.allOffersRaw = allOffers;
+            
+            // Dla statystyk i wykresów trendu - tylko aktywne
+            const activeOffers = allOffers.filter(o => o.active);
+            
+            // Walidacja cen: filtruj oferty z sensownymi cenami (200-3000 zł)
+            const validOffers = activeOffers.filter(o => o.price >= 200 && o.price <= 3000);
+            const invalidCount = activeOffers.length - validOffers.length;
+            
+            if (invalidCount > 0) {
+                console.warn(`⚠️ Odfiltrowano ${invalidCount} ofert z nieprawidłowymi cenami (< 200 zł lub > 3000 zł)`);
+            }
+            
+            if (validOffers.length === 0) {
+                showError('Brak ofert z prawidłowymi cenami do wyświetlenia');
+                return;
+            }
+            
+            // Statystyki - używaj tylko prawidłowych ofert
+            const totalActive = validOffers.length;
+            const prices = validOffers.map(o => o.price);
+            const avgPrice = prices.reduce((a, b) => a + b, 0) / prices.length;
+            const medianPrice = calculateMedian(prices);
+            
+            // Nowe w ostatnich 7 dniach (również z filtrem cen)
+            const now = new Date();
+            const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+            const newLast7Days = validOffers.filter(o => o.first_seen_date >= sevenDaysAgo).length;
+            
+            // Wypełnij statystyki
+            document.getElementById('total-active').textContent = totalActive;
+            document.getElementById('avg-price').textContent = Math.round(avgPrice) + ' zł';
+            document.getElementById('new-7days').textContent = newLast7Days;
+            document.getElementById('median-price').textContent = Math.round(medianPrice) + ' zł';
+            
+            // Wykresy (zapisz oferty globalnie dla suwaków) - używaj validOffers
+            window.allOffersData = validOffers;
+            window.allPricesData = prices;
+            createPriceChart(validOffers, 30); // Domyślnie 30 dni
+            createNewOffersChart(validOffers, 30);
+            
+            // Histogram z domyślnymi filtrami (aktywne, 30 dni)
+            window.histogramStatus = 'active';
+            window.histogramDays = 30;
+            updateHistogram();
+            setupHistogramControls();
+        }
+        
+        function parseDate(dateStr) {
+            // Format: "28.02.2026" (DD.MM.YYYY)
+            try {
+                const dateParts = dateStr.trim().split('.');
+                if (dateParts.length !== 3) {
+                    console.warn('Nieprawidłowy format daty:', dateStr);
+                    return null;
+                }
+                const day = parseInt(dateParts[0]);
+                const month = parseInt(dateParts[1]) - 1; // Miesiące 0-11
+                const year = parseInt(dateParts[2]);
+                
+                const date = new Date(year, month, day);
+                
+                // Walidacja czy data jest poprawna
+                if (isNaN(date.getTime())) {
+                    console.warn('Nieprawidłowa data:', dateStr);
+                    return null;
+                }
+                
+                return date;
+            } catch (e) {
+                console.error('Błąd parsowania daty:', dateStr, e);
+                return null;
+            }
+        }
+        
+        function calculateMedian(arr) {
+            const sorted = [...arr].sort((a, b) => a - b);
+            const mid = Math.floor(sorted.length / 2);
+            return sorted.length % 2 === 0 
+                ? (sorted[mid - 1] + sorted[mid]) / 2 
+                : sorted[mid];
+        }
+        
+        function createPriceChart(offers, daysRange = 30) {
+            // Grupuj po dniach
+            const now = new Date();
+            const startDate = new Date(now.getTime() - (daysRange * 24 * 60 * 60 * 1000));
+            
+            const dailyPrices = {};
+            offers.forEach(offer => {
+                // Walidacja: tylko sensowne ceny i prawidłowy zakres dat
+                const price = offer.price;
+                const isValidPrice = price >= 200 && price <= 3000;
+                
+                if (offer.first_seen_date >= startDate && isValidPrice) {
+                    const dateKey = offer.first_seen_date.toISOString().split('T')[0];
+                    if (!dailyPrices[dateKey]) {
+                        dailyPrices[dateKey] = [];
+                    }
+                    dailyPrices[dateKey].push(price);
+                }
+            });
+            
+            const labels = Object.keys(dailyPrices).sort();
+            const avgPrices = labels.map(date => {
+                const prices = dailyPrices[date];
+                return prices.reduce((a, b) => a + b, 0) / prices.length;
+            });
+            
+            const ctx = document.getElementById('priceChart');
+            
+            // Zniszcz poprzedni wykres jeśli istnieje
+            if (window.priceChartInstance) {
+                window.priceChartInstance.destroy();
+            }
+            
+            window.priceChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels.map(d => new Date(d).toLocaleDateString('pl-PL')),
+                    datasets: [{
+                        label: 'Średnia cena',
+                        data: avgPrices,
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: value => value + ' zł'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function createNewOffersChart(offers, daysRange = 30) {
+            const now = new Date();
+            const startDate = new Date(now.getTime() - (daysRange * 24 * 60 * 60 * 1000));
+            
+            const dailyCounts = {};
+            offers.forEach(offer => {
+                // Walidacja: tylko oferty z sensownymi cenami
+                const price = offer.price;
+                const isValidPrice = price >= 200 && price <= 3000;
+                
+                if (offer.first_seen_date >= startDate && isValidPrice) {
+                    const dateKey = offer.first_seen_date.toISOString().split('T')[0];
+                    dailyCounts[dateKey] = (dailyCounts[dateKey] || 0) + 1;
+                }
+            });
+            
+            // Wypełnij puste dni zerami (ciągła oś czasu)
+            const filledCounts = {};
+            let currentDate = new Date(startDate);
+            const endDate = now;
+            
+            while (currentDate <= endDate) {
+                const dateKey = currentDate.toISOString().split('T')[0];
+                filledCounts[dateKey] = dailyCounts[dateKey] || 0;
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            
+            const labels = Object.keys(filledCounts).sort();
+            const counts = labels.map(date => filledCounts[date]);
+            
+            const ctx = document.getElementById('newOffersChart');
+            
+            // Zniszcz poprzedni wykres jeśli istnieje
+            if (window.newOffersChartInstance) {
+                window.newOffersChartInstance.destroy();
+            }
+            
+            window.newOffersChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels.map(d => new Date(d).toLocaleDateString('pl-PL')),
+                    datasets: [{
+                        label: 'Nowe oferty',
+                        data: counts,
+                        backgroundColor: '#10b981',
+                        borderColor: '#059669',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Zmienna globalna dla wykresu histogramu
+        let priceDistributionChart = null;
+        
+        function setupHistogramControls() {
+            // Obsługa przycisków statusu
+            const statusBtns = document.querySelectorAll('#statusActive, #statusInactive, #statusAll');
+            statusBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    statusBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    window.histogramStatus = btn.dataset.status;
+                    updateHistogram();
+                });
+            });
+            
+            // Obsługa przycisków zakresu dat
+            const dateBtns = document.querySelectorAll('.date-btn');
+            dateBtns.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    dateBtns.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    window.histogramDays = parseInt(btn.dataset.days);
+                    updateHistogram();
+                });
+            });
+        }
+        
+        function updateHistogram() {
+            const status = window.histogramStatus || 'active';
+            const days = window.histogramDays || 30;
+            const allOffers = window.allOffersRaw || [];
+            
+            const now = new Date();
+            const cutoffDate = new Date(now.getTime() - (days * 24 * 60 * 60 * 1000));
+            
+            // Filtruj oferty według statusu
+            let filteredOffers = allOffers;
+            if (status === 'active') {
+                filteredOffers = allOffers.filter(o => o.active);
+            } else if (status === 'inactive') {
+                filteredOffers = allOffers.filter(o => !o.active);
+            }
+            // status === 'all' - wszystkie oferty
+            
+            // Filtruj według daty (first_seen w zakresie)
+            filteredOffers = filteredOffers.filter(o => o.first_seen_date >= cutoffDate);
+            
+            // Walidacja cen
+            const validOffers = filteredOffers.filter(o => o.price >= 200 && o.price <= 3000);
+            const prices = validOffers.map(o => o.price);
+            
+            // Aktualizuj info
+            const infoEl = document.getElementById('histogramInfo');
+            const statusText = status === 'active' ? 'aktywnych' : (status === 'inactive' ? 'nieaktywnych' : 'wszystkich');
+            infoEl.textContent = `Pokazuję ${validOffers.length} ${statusText} ofert z ostatnich ${days} dni`;
+            infoEl.classList.add('visible');
+            
+            // Stwórz histogram
+            createPriceDistribution(prices, status);
+        }
+        
+        function createPriceDistribution(prices, status = 'active') {
+            // Histogram cen (przedziały co 50 zł)
+            const validPrices = prices.filter(price => price >= 200 && price <= 3000);
+            
+            const bins = {};
+            validPrices.forEach(price => {
+                const bin = Math.floor(price / 50) * 50;
+                bins[bin] = (bins[bin] || 0) + 1;
+            });
+            
+            const labels = Object.keys(bins).sort((a, b) => a - b);
+            const counts = labels.map(bin => bins[bin]);
+            
+            // Kolory w zależności od statusu
+            let bgColor, borderColor;
+            if (status === 'active') {
+                bgColor = '#10b981';  // Zielony dla aktywnych
+                borderColor = '#059669';
+            } else if (status === 'inactive') {
+                bgColor = '#ef4444';  // Czerwony dla nieaktywnych
+                borderColor = '#dc2626';
+            } else {
+                bgColor = '#f59e0b';  // Pomarańczowy dla wszystkich
+                borderColor = '#d97706';
+            }
+            
+            const ctx = document.getElementById('priceDistribution');
+            
+            // Zniszcz poprzedni wykres jeśli istnieje
+            if (priceDistributionChart) {
+                priceDistributionChart.destroy();
+            }
+            
+            priceDistributionChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels.map(bin => `${bin}-${parseInt(bin) + 49} zł`),
+                    datasets: [{
+                        label: 'Liczba ofert',
+                        data: counts,
+                        backgroundColor: bgColor,
+                        borderColor: borderColor,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Funkcje obsługi suwaków
+        function setupRangeSliders() {
+            // Suwak dla wykresu cen
+            const priceChartRange = document.getElementById('priceChartRange');
+            const priceChartRangeValue = document.getElementById('priceChartRangeValue');
+            
+            priceChartRange.addEventListener('input', (e) => {
+                const days = parseInt(e.target.value);
+                priceChartRangeValue.textContent = days + ' dni';
+                if (window.allOffersData) {
+                    createPriceChart(window.allOffersData, days);
+                }
+            });
+            
+            // Suwak dla wykresu nowych ofert
+            const newOffersChartRange = document.getElementById('newOffersChartRange');
+            const newOffersChartRangeValue = document.getElementById('newOffersChartRangeValue');
+            
+            newOffersChartRange.addEventListener('input', (e) => {
+                const days = parseInt(e.target.value);
+                newOffersChartRangeValue.textContent = days + ' dni';
+                if (window.allOffersData) {
+                    createNewOffersChart(window.allOffersData, days);
+                }
+            });
+        }
+        
+        // Załaduj dane przy starcie
+        loadAnalyticsData().then(() => {
+            setupRangeSliders();
+        });
+    </script>
+</body>
+</html>

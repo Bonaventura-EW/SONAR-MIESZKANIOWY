@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SONAR MIESZKANIOWY - Mapa mieszkań Lublin</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="assets/style.css?v=2">
+</head>
+<body>
+    <div id="app">
+        <!-- Header -->
+        <header class="header">
+            <h1>
+                <svg width="32" height="32" viewBox="0 0 64 64" style="display: inline-block; vertical-align: middle; margin-right: 8px;">
+                    <defs>
+                        <radialGradient id="headerRadarBg" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" style="stop-color:#1a3a1a;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#0a1a0a;stop-opacity:1" />
+                        </radialGradient>
+                        <linearGradient id="headerSweepGradient" x1="50%" y1="50%" x2="100%" y2="50%">
+                            <stop offset="0%" style="stop-color:#00ff00;stop-opacity:0.8" />
+                            <stop offset="50%" style="stop-color:#00ff00;stop-opacity:0.3" />
+                            <stop offset="100%" style="stop-color:#00ff00;stop-opacity:0" />
+                        </linearGradient>
+                        <mask id="headerSweepMask">
+                            <circle cx="32" cy="32" r="28" fill="white"/>
+                        </mask>
+                    </defs>
+                    <circle cx="32" cy="32" r="32" fill="url(#headerRadarBg)"/>
+                    <circle cx="32" cy="32" r="30" fill="none" stroke="#00ff00" stroke-width="0.5" opacity="0.6"/>
+                    <circle cx="32" cy="32" r="24" fill="none" stroke="#00ff00" stroke-width="0.3" opacity="0.3"/>
+                    <circle cx="32" cy="32" r="18" fill="none" stroke="#00ff00" stroke-width="0.3" opacity="0.3"/>
+                    <circle cx="32" cy="32" r="12" fill="none" stroke="#00ff00" stroke-width="0.3" opacity="0.3"/>
+                    <line x1="32" y1="4" x2="32" y2="60" stroke="#00ff00" stroke-width="0.3" opacity="0.3"/>
+                    <line x1="4" y1="32" x2="60" y2="32" stroke="#00ff00" stroke-width="0.3" opacity="0.3"/>
+                    <g transform="translate(32, 32)">
+                        <path d="M0,-6 L-2,-3 L-2,0 C-2,2 -1,3 0,6 C1,3 2,2 2,0 L2,-3 Z" fill="#00ff00" stroke="#003300" stroke-width="0.5" opacity="0.9">
+                            <animateTransform attributeName="transform" type="scale" values="1;1.3;1" dur="2s" repeatCount="indefinite"/>
+                        </path>
+                    </g>
+                    <g mask="url(#headerSweepMask)">
+                        <path d="M32,32 L32,4 A28,28 0 0,1 60,32 Z" fill="url(#headerSweepGradient)" opacity="0.6">
+                            <animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="3s" repeatCount="indefinite"/>
+                        </path>
+                    </g>
+                    <circle cx="22" cy="18" r="1.5" fill="#00ff00" opacity="0.8">
+                        <animate attributeName="opacity" values="0.8;0.3;0.8" dur="1.5s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle cx="45" cy="25" r="1.5" fill="#00ff00" opacity="0.8">
+                        <animate attributeName="opacity" values="0.3;0.8;0.3" dur="1.5s" repeatCount="indefinite"/>
+                    </circle>
+                </svg>
+                SONAR MIESZKANIOWY
+            </h1>
+            <div style="display: flex; gap: 12px;">
+                <a href="analytics.html" style="color: white; text-decoration: none; background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 6px; font-weight: 600; transition: background 0.3s;">
+                    📈 Analityka
+                </a>
+                <a href="monitoring.html" style="color: white; text-decoration: none; background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 6px; font-weight: 600; transition: background 0.3s;">
+                    📊 Monitoring
+                </a>
+                <a href="market_analysis.html" style="color: white; text-decoration: none; background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 6px; font-weight: 600; transition: background 0.3s;">
+                    🔍 Analiza Rynku
+                </a>
+            </div>
+        </header>
+
+        <!-- Pasek filtra daty dodania (suwak dni) -->
+        <div class="date-slider-bar">
+            <label class="date-slider-toggle">
+                <input type="checkbox" id="date-filter-enable">
+                <span>Filtruj po dacie dodania</span>
+            </label>
+
+            <div class="date-slider-control" id="date-slider-control">
+                <span class="date-slider-bound" id="date-slider-min">—</span>
+                <input type="range" id="date-slider" min="0" max="0" value="0" step="1" disabled>
+                <span class="date-slider-bound" id="date-slider-max">—</span>
+            </div>
+
+            <div class="date-slider-readout">
+                <span class="date-slider-label">Wybrany dzień:</span>
+                <span class="date-slider-date" id="date-slider-current">—</span>
+                <span class="date-slider-count" id="date-slider-count">— ofert</span>
+            </div>
+
+            <div class="date-slider-histogram" id="date-slider-histogram"></div>
+        </div>
+
+        <!-- Main content: mapa + sidebar -->
+        <div class="main-container">
+            <!-- Map Container -->
+            <div id="map">
+                <!-- Search control - floating na mapie -->
+                <div class="map-search-control">
+                    <input type="text" id="search-input" placeholder="🔍 Szukaj adresu...">
+                </div>
+            </div>
+            
+            <!-- Sidebar po prawej -->
+            <aside class="sidebar">
+                <!-- Statystyki -->
+                <div class="sidebar-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">Widocznych ofert:</span>
+                        <span class="stat-value" id="visible-count">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Średnia cena:</span>
+                        <span class="stat-value" id="avg-price">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Najtańsza oferta:</span>
+                        <span class="stat-value" id="min-price">-</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">Najdroższa oferta:</span>
+                        <span class="stat-value" id="max-price">-</span>
+                    </div>
+                    <div class="stat-item scan-time">
+                        <span>🕐 Ostatni scan: <strong id="last-scan">-</strong></span>
+                    </div>
+                    <div class="stat-item scan-time">
+                        <span>⏰ Następny scan: <strong id="next-scan">-</strong></span>
+                    </div>
+                </div>
+                
+                <!-- Filter Controls -->
+                <div class="filters-container">
+                    <div class="filter-group">
+                        <h3>Warstwy</h3>
+                        <label>
+                            <input type="checkbox" id="layer-active" checked>
+                            Aktywne oferty
+                        </label>
+                        <label>
+                            <input type="checkbox" id="layer-inactive" checked>
+                            Nieaktywne oferty (historia)
+                        </label>
+                        <label style="background: #fff3cd; padding: 5px; border-radius: 4px; margin-top: 5px;">
+                            <input type="checkbox" id="layer-damaged">
+                            ⚠️ Uszkodzone (oznaczone przez użytkownika)
+                        </label>
+                    </div>
+                    
+                    <!-- B1: WARSTWY TYPU OFERTY -->
+                    <div class="filter-group" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border: 1px solid #7dd3fc;">
+                        <h3 style="color: #0369a1;">🏷️ Typ oferty</h3>
+                        <label>
+                            <input type="checkbox" id="layer-tag-pokoj" checked onchange="filterByTags()">
+                            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#3b82f6;margin-right:4px;"></span>
+                            🛏️ <strong>Pokój</strong> <span id="tag-count-pokoj" style="color:#888">(0)</span>
+                        </label>
+                        <label>
+                            <input type="checkbox" id="layer-tag-kawalerka" checked onchange="filterByTags()">
+                            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#10b981;margin-right:4px;"></span>
+                            🏠 <strong>Kawalerka</strong> <span id="tag-count-kawalerka" style="color:#888">(0)</span>
+                        </label>
+                        <label>
+                            <input type="checkbox" id="layer-tag-mieszkanie" checked onchange="filterByTags()">
+                            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#8b5cf6;margin-right:4px;"></span>
+                            🏢 <strong>Mieszkanie</strong> <span id="tag-count-mieszkanie" style="color:#888">(0)</span>
+                        </label>
+                    </div>
+                    
+                    <!-- WARSTWY UCZELNI -->
+                    <div class="filter-group" style="background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%); border: 1px solid #90caf9;">
+                        <h3 onclick="toggleUniSection()" style="cursor: pointer; user-select: none; color: #1565c0;">
+                            🎓 Warstwy uczelni <span id="uni-toggle-icon" style="float: right;">▶</span>
+                        </h3>
+                        <div id="uni-list" style="display: none;">
+                            <label>
+                                <input type="checkbox" id="layer-uni-kul" onchange="toggleUniversityLayer('kul')">
+                                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#1e88e5;margin-right:4px;"></span>
+                                <strong>KUL</strong> <span style="color:#888">(5)</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="layer-uni-umcs" onchange="toggleUniversityLayer('umcs')">
+                                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#43a047;margin-right:4px;"></span>
+                                <strong>UMCS</strong> <span style="color:#888">(12)</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="layer-uni-politechnika" onchange="toggleUniversityLayer('politechnika')">
+                                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ff5722;margin-right:4px;"></span>
+                                <strong>Politechnika</strong> <span style="color:#888">(7)</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="layer-uni-wspa" onchange="toggleUniversityLayer('wspa')">
+                                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#9c27b0;margin-right:4px;"></span>
+                                <strong>WSPA</strong> <span style="color:#888">(1)</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="layer-uni-up" onchange="toggleUniversityLayer('up')">
+                                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#009688;margin-right:4px;"></span>
+                                <strong>UP</strong> <span style="color:#888">(8)</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="layer-uni-umed" onchange="toggleUniversityLayer('umed')">
+                                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#e91e63;margin-right:4px;"></span>
+                                <strong>UM</strong> <span style="color:#888">(8)</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="layer-uni-awp" onchange="toggleUniversityLayer('awp')">
+                                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#ff9800;margin-right:4px;"></span>
+                                <strong>AWP</strong> <span style="color:#888">(1)</span>
+                            </label>
+                            <label>
+                                <input type="checkbox" id="layer-uni-ansim" onchange="toggleUniversityLayer('ansim')">
+                                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#795548;margin-right:4px;"></span>
+                                <strong>ANSiM</strong> <span style="color:#888">(1)</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Legenda oznaczeń - interaktywne filtry -->
+                    <div class="filter-group">
+                        <h3>📌 Legenda pinezek</h3>
+                        <label>
+                            <input type="checkbox" id="badge-filter-price-down" checked>
+                            <span class="badge-pill badge-green">$↓</span>
+                            <span>Cena spadła</span>
+                            <span id="badge-count-price-down" class="badge-count">(0)</span>
+                        </label>
+                        <label>
+                            <input type="checkbox" id="badge-filter-price-up" checked>
+                            <span class="badge-pill badge-red">$↑</span>
+                            <span>Cena wzrosła</span>
+                            <span id="badge-count-price-up" class="badge-count">(0)</span>
+                        </label>
+                        <label>
+                            <input type="checkbox" id="badge-filter-new" checked>
+                            <span class="badge-circle badge-crimson">N</span>
+                            <span>Nowa oferta</span>
+                            <span id="badge-count-new" class="badge-count">(0)</span>
+                        </label>
+                        <label>
+                            <input type="checkbox" id="badge-filter-damaged" checked>
+                            <span class="badge-circle badge-orange">⚠</span>
+                            <span>Uszkodzone</span>
+                            <span id="badge-count-damaged" class="badge-count">(0)</span>
+                        </label>
+                    </div>
+                    
+                    <!-- NOWY: Filtr czasowy -->
+                    <div class="filter-group">
+                        <h3>📅 Pokaż oferty z ostatnich:</h3>
+                        <select id="time-filter" class="time-filter-select">
+                            <option value="all">Wszystkie</option>
+                            <option value="1">Dzisiaj</option>
+                            <option value="3">3 dni</option>
+                            <option value="7">7 dni</option>
+                            <option value="30" selected>30 dni</option>
+                            <option value="90">90 dni</option>
+                            <option value="180">180 dni</option>
+                        </select>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <h3>Zakresy cenowe</h3>
+                        <div id="price-range-filters"></div>
+                    </div>
+                    
+                    <div class="filter-group">
+                        <h3>Precyzyjny filtr cen</h3>
+                        <label>
+                            Min: <input type="number" id="price-min" placeholder="0" min="0" step="50"> zł
+                        </label>
+                        <label>
+                            Max: <input type="number" id="price-max" placeholder="3000" min="0" step="50"> zł
+                        </label>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+    
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Custom JS (v9 - B1: tagowanie ofert, filtry warstw) -->
+    <script src="assets/script.js?v=11"></script>
+</body>
+</html>

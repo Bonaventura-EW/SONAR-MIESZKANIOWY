@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SONAR MIESZKANIOWY - Monitoring</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        h1 {
+            font-size: 32px;
+            color: #333;
+        }
+        
+        .back-link {
+            background: #667eea;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        
+        .back-link:hover {
+            background: #5568d3;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        
+        .stat-value {
+            font-size: 36px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .stat-value.success {
+            color: #10b981;
+        }
+        
+        .stat-value.warning {
+            color: #f59e0b;
+        }
+        
+        .stat-value.error {
+            color: #ef4444;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .chart-container h2 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        
+        canvas {
+            max-height: 300px;
+        }
+        
+        .table-container {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            background: #f3f4f6;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #e5e7eb;
+        }
+        
+        td {
+            padding: 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        
+        tr:hover {
+            background: #f9fafb;
+        }
+        
+        .status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .status.completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .status.failed {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: white;
+            font-size: 18px;
+        }
+        
+        .error-message {
+            background: #fee2e2;
+            border: 2px solid #ef4444;
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            color: #991b1b;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                <svg width="32" height="32" viewBox="0 0 64 64" style="display: inline-block; vertical-align: middle; margin-right: 8px;">
+                    <defs>
+                        <radialGradient id="monRadarBg" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" style="stop-color:#1a3a1a;stop-opacity:1" />
+                            <stop offset="100%" style="stop-color:#0a1a0a;stop-opacity:1" />
+                        </radialGradient>
+                        <linearGradient id="monSweepGradient" x1="50%" y1="50%" x2="100%" y2="50%">
+                            <stop offset="0%" style="stop-color:#00ff00;stop-opacity:0.8" />
+                            <stop offset="50%" style="stop-color:#00ff00;stop-opacity:0.3" />
+                            <stop offset="100%" style="stop-color:#00ff00;stop-opacity:0" />
+                        </linearGradient>
+                        <mask id="monSweepMask">
+                            <circle cx="32" cy="32" r="28" fill="white"/>
+                        </mask>
+                    </defs>
+                    <circle cx="32" cy="32" r="32" fill="url(#monRadarBg)"/>
+                    <circle cx="32" cy="32" r="30" fill="none" stroke="#00ff00" stroke-width="0.5" opacity="0.6"/>
+                    <circle cx="32" cy="32" r="24" fill="none" stroke="#00ff00" stroke-width="0.3" opacity="0.3"/>
+                    <circle cx="32" cy="32" r="18" fill="none" stroke="#00ff00" stroke-width="0.3" opacity="0.3"/>
+                    <line x1="32" y1="4" x2="32" y2="60" stroke="#00ff00" stroke-width="0.3" opacity="0.3"/>
+                    <line x1="4" y1="32" x2="60" y2="32" stroke="#00ff00" stroke-width="0.3" opacity="0.3"/>
+                    <g transform="translate(32, 32)">
+                        <path d="M0,-6 L-2,-3 L-2,0 C-2,2 -1,3 0,6 C1,3 2,2 2,0 L2,-3 Z" fill="#00ff00" stroke="#003300" stroke-width="0.5" opacity="0.9">
+                            <animateTransform attributeName="transform" type="scale" values="1;1.3;1" dur="2s" repeatCount="indefinite"/>
+                        </path>
+                    </g>
+                    <g mask="url(#monSweepMask)">
+                        <path d="M32,32 L32,4 A28,28 0 0,1 60,32 Z" fill="url(#monSweepGradient)" opacity="0.6">
+                            <animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="3s" repeatCount="indefinite"/>
+                        </path>
+                    </g>
+                    <circle cx="22" cy="18" r="1.5" fill="#00ff00" opacity="0.8">
+                        <animate attributeName="opacity" values="0.8;0.3;0.8" dur="1.5s" repeatCount="indefinite"/>
+                    </circle>
+                </svg>
+                📊 SONAR MIESZKANIOWY - Monitoring
+            </h1>
+            <a href="index.html" class="back-link">← Powrót do mapy</a>
+        </header>
+        
+        <div id="loading" class="loading">⏳ Ładowanie danych monitoringu...</div>
+        <div id="error" class="error-message" style="display: none;"></div>
+        
+        <div id="content" style="display: none;">
+            <!-- Statystyki -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Łącznie skanów</div>
+                    <div class="stat-value" id="total-scans">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Sukces</div>
+                    <div class="stat-value success" id="successful-scans">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Błędy</div>
+                    <div class="stat-value error" id="failed-scans">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Średni czas</div>
+                    <div class="stat-value" id="avg-duration">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Średnia ofert</div>
+                    <div class="stat-value" id="avg-offers">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Success Rate</div>
+                    <div class="stat-value success" id="success-rate">-</div>
+                </div>
+            </div>
+            
+            <!-- Wykresy -->
+            <div class="chart-container">
+                <h2>⏱️ Czas wykonania skanów</h2>
+                <canvas id="durationChart"></canvas>
+            </div>
+            
+            <div class="chart-container">
+                <h2>📈 Liczba ofert w czasie</h2>
+                <canvas id="offersChart"></canvas>
+            </div>
+            
+            <div class="chart-container">
+                <h2>✅ Success Rate</h2>
+                <canvas id="successRateChart"></canvas>
+            </div>
+            
+            <!-- Nowa sekcja: Wydajność skanów -->
+            <div class="chart-container">
+                <h2>⚡ Wydajność skanów</h2>
+                <canvas id="performanceChart"></canvas>
+            </div>
+            
+            <div class="chart-container">
+                <h2>🌍 Wydajność geokodowania</h2>
+                <canvas id="geocodingChart"></canvas>
+            </div>
+            
+            <!-- Tabela ostatnich skanów -->
+            <div class="table-container">
+                <h2>🕐 Ostatnie skany</h2>
+                <table id="scans-table">
+                    <thead>
+                        <tr>
+                            <th>Data i czas</th>
+                            <th>Status</th>
+                            <th>Czas [s]</th>
+                            <th>Oferty</th>
+                            <th>Przetworzone</th>
+                            <th>Nowe</th>
+                            <th>Błędy</th>
+                        </tr>
+                    </thead>
+                    <tbody id="scans-tbody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <script>
+        async function loadMonitoringData() {
+            try {
+                const response = await fetch('monitoring_data.json');
+                if (!response.ok) {
+                    throw new Error('Nie udało się załadować danych monitoringu');
+                }
+                
+                const data = await response.json();
+                
+                // Ukryj loading, pokaż content
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('content').style.display = 'block';
+                
+                // Wypełnij statystyki
+                const stats = data.statistics;
+                document.getElementById('total-scans').textContent = stats.total_scans;
+                document.getElementById('successful-scans').textContent = stats.successful;
+                document.getElementById('failed-scans').textContent = stats.failed;
+                document.getElementById('avg-duration').textContent = stats.avg_duration + 's';
+                document.getElementById('avg-offers').textContent = Math.round(stats.avg_offers_found);
+                document.getElementById('success-rate').textContent = stats.success_rate.toFixed(1) + '%';
+                
+                // Wypełnij tabelę
+                const tbody = document.getElementById('scans-tbody');
+                data.recent_scans.forEach(scan => {
+                    const row = tbody.insertRow();
+                    
+                    // Data
+                    const dateCell = row.insertCell();
+                    const date = new Date(scan.timestamp);
+                    dateCell.textContent = date.toLocaleString('pl-PL');
+                    
+                    // Status
+                    const statusCell = row.insertCell();
+                    const statusSpan = document.createElement('span');
+                    statusSpan.className = `status ${scan.status}`;
+                    statusSpan.textContent = scan.status === 'completed' ? 'Sukces' : 'Błąd';
+                    statusCell.appendChild(statusSpan);
+                    
+                    // Czas
+                    row.insertCell().textContent = scan.total_duration ? scan.total_duration.toFixed(1) : '-';
+                    
+                    // Oferty
+                    row.insertCell().textContent = scan.stats?.raw_offers || '-';
+                    row.insertCell().textContent = scan.stats?.processed || '-';
+                    row.insertCell().textContent = scan.stats?.new || '-';
+                    
+                    // Błędy - z tooltipem
+                    const errorsCell = row.insertCell();
+                    const errorCount = scan.errors?.length || 0;
+                    errorsCell.textContent = errorCount;
+                    
+                    if (errorCount > 0) {
+                        errorsCell.style.cursor = 'help';
+                        errorsCell.style.color = '#ef4444';
+                        errorsCell.style.fontWeight = 'bold';
+                        errorsCell.title = 'Błędy:\n' + scan.errors.join('\n');
+                        
+                        // Opcjonalnie: modal przy kliknięciu
+                        errorsCell.onclick = () => {
+                            alert('🔴 Błędy w skanie:\n\n' + scan.errors.map((e, i) => `${i+1}. ${e}`).join('\n'));
+                        };
+                    }
+                });
+                
+                // Wykresy
+                renderCharts(data.charts);
+                
+            } catch (error) {
+                document.getElementById('loading').style.display = 'none';
+                const errorDiv = document.getElementById('error');
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = '❌ Błąd: ' + error.message + '. Sprawdź czy plik monitoring_data.json istnieje.';
+            }
+        }
+        
+        function renderCharts(chartData) {
+            // Wykres czasu wykonania
+            const durationCtx = document.getElementById('durationChart').getContext('2d');
+            new Chart(durationCtx, {
+                type: 'line',
+                data: {
+                    labels: chartData.duration_over_time.map(d => {
+                        const date = new Date(d.timestamp);
+                        return date.toLocaleDateString('pl-PL') + ' ' + date.toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit'});
+                    }),
+                    datasets: [{
+                        label: 'Czas wykonania (s)',
+                        data: chartData.duration_over_time.map(d => d.duration),
+                        borderColor: '#667eea',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Sekundy'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Wykres ofert
+            const offersCtx = document.getElementById('offersChart').getContext('2d');
+            new Chart(offersCtx, {
+                type: 'bar',
+                data: {
+                    labels: chartData.offers_over_time.map(d => {
+                        const date = new Date(d.timestamp);
+                        return date.toLocaleDateString('pl-PL') + ' ' + date.toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit'});
+                    }),
+                    datasets: [
+                        {
+                            label: 'Znalezione',
+                            data: chartData.offers_over_time.map(d => d.raw_offers),
+                            backgroundColor: 'rgba(102, 126, 234, 0.6)',
+                        },
+                        {
+                            label: 'Przetworzone',
+                            data: chartData.offers_over_time.map(d => d.processed),
+                            backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                        },
+                        {
+                            label: 'Nowe',
+                            data: chartData.offers_over_time.map(d => d.new),
+                            backgroundColor: 'rgba(245, 158, 11, 0.6)',
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Liczba ofert'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Wykres Success Rate
+            const successRateCtx = document.getElementById('successRateChart').getContext('2d');
+            new Chart(successRateCtx, {
+                type: 'line',
+                data: {
+                    labels: chartData.success_rate.map(d => {
+                        const date = new Date(d.timestamp);
+                        return date.toLocaleDateString('pl-PL') + ' ' + date.toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit'});
+                    }),
+                    datasets: [{
+                        label: 'Success Rate (%)',
+                        data: chartData.success_rate.map(d => d.success),
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointBackgroundColor: chartData.success_rate.map(d => 
+                            d.success === 100 ? '#10b981' : '#ef4444'
+                        ),
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const dataPoint = chartData.success_rate[context.dataIndex];
+                                    return `Status: ${dataPoint.status === 'completed' ? 'Sukces' : 'Błąd'} (${dataPoint.success}%)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Procent sukcesu'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // NOWE WYKRESY WYDAJNOŚCI
+            
+            // Wykres wydajności: Oferty/sekundę
+            const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+            new Chart(performanceCtx, {
+                type: 'line',
+                data: {
+                    labels: chartData.duration_over_time.map(d => {
+                        const date = new Date(d.timestamp);
+                        return date.toLocaleDateString('pl-PL') + ' ' + date.toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit'});
+                    }),
+                    datasets: [{
+                        label: 'Oferty/sekundę',
+                        data: chartData.duration_over_time.map(d => d.offers_per_second || 0),
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Czas scrapingu/stronę (s)',
+                        data: chartData.duration_over_time.map(d => d.scraping_per_page || 0),
+                        borderColor: '#8b5cf6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            display: true
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    label += context.parsed.y.toFixed(2);
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Oferty/sekundę'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Sekundy/stronę'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Wykres geokodowania
+            const geocodingCtx = document.getElementById('geocodingChart').getContext('2d');
+            new Chart(geocodingCtx, {
+                type: 'bar',
+                data: {
+                    labels: chartData.duration_over_time.map(d => {
+                        const date = new Date(d.timestamp);
+                        return date.toLocaleDateString('pl-PL') + ' ' + date.toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit'});
+                    }),
+                    datasets: [{
+                        label: 'Czas geokodowania (s)',
+                        data: chartData.duration_over_time.map(d => d.geocoding_duration || 0),
+                        backgroundColor: 'rgba(59, 130, 246, 0.6)',
+                        yAxisID: 'y'
+                    }, {
+                        label: 'Czas/adres (s)',
+                        data: chartData.duration_over_time.map(d => d.geocoding_per_address || 0),
+                        backgroundColor: 'rgba(16, 185, 129, 0.6)',
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            display: true
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    label += context.parsed.y.toFixed(2) + 's';
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Całkowity czas geokodowania (s)'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Średni czas/adres (s)'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Załaduj dane przy starcie
+        loadMonitoringData();
+    </script>
+</body>
+</html>

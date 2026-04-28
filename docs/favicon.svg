@@ -1,0 +1,86 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <!-- Gradient dla tła radaru -->
+    <radialGradient id="radarBg" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#1a3a1a;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0a1a0a;stop-opacity:1" />
+    </radialGradient>
+    
+    <!-- Gradient dla promienia skanującego -->
+    <linearGradient id="sweepGradient" x1="50%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" style="stop-color:#00ff00;stop-opacity:0.8" />
+      <stop offset="50%" style="stop-color:#00ff00;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#00ff00;stop-opacity:0" />
+    </linearGradient>
+    
+    <!-- Maska dla promienia -->
+    <mask id="sweepMask">
+      <circle cx="32" cy="32" r="28" fill="white"/>
+    </mask>
+  </defs>
+  
+  <!-- Tło radaru -->
+  <circle cx="32" cy="32" r="32" fill="url(#radarBg)"/>
+  
+  <!-- Okrąg zewnętrzny (obramowanie) -->
+  <circle cx="32" cy="32" r="30" fill="none" stroke="#00ff00" stroke-width="0.5" opacity="0.6"/>
+  
+  <!-- Koncentryczne okręgi radaru -->
+  <circle cx="32" cy="32" r="24" fill="none" stroke="#00ff00" stroke-width="0.3" opacity="0.3"/>
+  <circle cx="32" cy="32" r="18" fill="none" stroke="#00ff00" stroke-width="0.3" opacity="0.3"/>
+  <circle cx="32" cy="32" r="12" fill="none" stroke="#00ff00" stroke-width="0.3" opacity="0.3"/>
+  <circle cx="32" cy="32" r="6" fill="none" stroke="#00ff00" stroke-width="0.3" opacity="0.3"/>
+  
+  <!-- Linie krzyża -->
+  <line x1="32" y1="4" x2="32" y2="60" stroke="#00ff00" stroke-width="0.3" opacity="0.3"/>
+  <line x1="4" y1="32" x2="60" y2="32" stroke="#00ff00" stroke-width="0.3" opacity="0.3"/>
+  
+  <!-- Pinezka w centrum (target) -->
+  <g transform="translate(32, 32)">
+    <!-- Pinezka SVG -->
+    <path d="M0,-6 L-2,-3 L-2,0 C-2,2 -1,3 0,6 C1,3 2,2 2,0 L2,-3 Z" 
+          fill="#00ff00" stroke="#003300" stroke-width="0.5" opacity="0.9">
+      <animateTransform
+        attributeName="transform"
+        type="scale"
+        values="1;1.3;1"
+        dur="2s"
+        repeatCount="indefinite"/>
+    </path>
+    <circle cx="0" cy="-3" r="2" fill="#003300" opacity="0.5"/>
+  </g>
+  
+  <!-- Promień skanujący (animowany) -->
+  <g mask="url(#sweepMask)">
+    <path d="M32,32 L32,4 A28,28 0 0,1 60,32 Z" 
+          fill="url(#sweepGradient)" opacity="0.6">
+      <animateTransform
+        attributeName="transform"
+        type="rotate"
+        from="0 32 32"
+        to="360 32 32"
+        dur="3s"
+        repeatCount="indefinite"/>
+    </path>
+  </g>
+  
+  <!-- Kropki celów (pulsujące) -->
+  <circle cx="22" cy="18" r="1.5" fill="#00ff00" opacity="0.8">
+    <animate attributeName="opacity" values="0.8;0.3;0.8" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="45" cy="25" r="1.5" fill="#00ff00" opacity="0.8">
+    <animate attributeName="opacity" values="0.3;0.8;0.3" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="38" cy="48" r="1.5" fill="#00ff00" opacity="0.8">
+    <animate attributeName="opacity" values="0.8;0.3;0.8" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="18" cy="42" r="1.5" fill="#00ff00" opacity="0.8">
+    <animate attributeName="opacity" values="0.5;0.9;0.5" dur="1.8s" repeatCount="indefinite"/>
+  </circle>
+  
+  <!-- Pulsujący pierścień zewnętrzny -->
+  <circle cx="32" cy="32" r="30" fill="none" stroke="#00ff00" stroke-width="1" opacity="0.4">
+    <animate attributeName="r" values="30;32;30" dur="2s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" values="0.4;0.1;0.4" dur="2s" repeatCount="indefinite"/>
+  </circle>
+</svg>
