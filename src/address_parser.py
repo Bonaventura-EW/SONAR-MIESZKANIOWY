@@ -45,7 +45,16 @@ class AddressParser:
         'os.': 'Osiedle',
         'osiedle': 'Osiedle'
     }
-    
+
+    # Pattern dla ulic BEZ numeru - wymaga jawnego prefiksu (ul., al., os., plac)
+    # Negative lookahead (?!\s*\d) - nie może po nazwie następować cyfra
+    STREET_ONLY_PATTERN = re.compile(
+        r'\b(ulica|ul\.|ul|aleja|aleje|al\.|al|plac|pl\.|pl|osiedle|os\.|os)\s+'
+        r'([A-ZŚĆŁĄĘÓŻŹŃ][a-zśćłąęóżźń]+(?:\s+[A-ZŚĆŁĄĘÓŻŹŃ][a-zśćłąęóżźń]+)?)'
+        r'(?!\s*\d)',
+        re.UNICODE | re.IGNORECASE
+    )
+
     def __init__(self):
         pass
     
@@ -112,7 +121,8 @@ class AddressParser:
                         return {
                             'street': street_name.capitalize(),
                             'number': number,
-                            'full': f"{street_name.capitalize()} {number}"
+                            'full': f"{street_name.capitalize()} {number}",
+                            'has_number': True
                         }
                 except ValueError:
                     pass
@@ -227,9 +237,9 @@ class AddressParser:
             return {
                 'street': street,
                 'number': number,
-                'full': f"{full_address} {number}"
+                'full': f"{full_address} {number}",
+                'has_number': True
             }
-        
         # NOWY FALLBACK: Wzorzec dla polskich nazwisk w dopełniaczu
         # Łapie przypadki jak "Langiewicza 3A", "Słowackiego 12" bez prefiksu
         surname_matches = self.POLISH_SURNAME_PATTERN.finditer(text)
@@ -257,13 +267,60 @@ class AddressParser:
             return {
                 'street': street,
                 'number': number,
-                'full': f"{street} {number}"
+                'full': f"{street} {number}",
+                'has_number': True
             }
         
-        # BRAK FALLBACK - Wymagamy NUMERU domu!
-        # Adresy bez numeru (np. "ul. Niecała") są zbyt nieprecyzyjne dla mapy
+        # FALLBACK: szukaj ulicy bez numeru (tylko z jawnym prefiksem ul./al./os./plac)
+        return self.extract_street_only(text, excluded_words_lower, non_street_names)
+
+    def extract_street_only(self, text: str, excluded_words_lower: set = None, non_street_names: set = None) -> dict | None:
+        """
+        Fallback: wyciąga samą nazwę ulicy BEZ numeru domu.
+        Działa TYLKO gdy jest jawny prefiks (ul., al., os., plac).
+        Zwraca dict z has_number=False - marker będzie kwadratowy, przybliżony.
+        """
+        if not text:
+            return None
+
+        if excluded_words_lower is None:
+            excluded_words_lower = set()
+        if non_street_names is None:
+            non_street_names = set()
+
+        for match in self.STREET_ONLY_PATTERN.finditer(text):
+            prefix = match.group(1)
+            street = match.group(2).strip()
+
+            if len(street.replace(' ', '')) < 4:
+                continue
+            if street.lower() in non_street_names:
+                continue
+            if street.lower() in excluded_words_lower:
+                continue
+
+            # Buduj pełen adres z prefixem
+            full_address = street
+            prefix_lower = prefix.lower().rstrip('.')
+            if prefix_lower in ['al', 'aleja']:
+                full_address = f"Aleja {street}"
+            elif prefix_lower in ['aleje']:
+                full_address = f"Aleje {street}"
+            elif prefix_lower in ['pl', 'plac']:
+                full_address = f"Plac {street}"
+            elif prefix_lower in ['os', 'osiedle']:
+                full_address = f"Osiedle {street}"
+
+            print(f"      📍 Fallback ulica bez numeru: {full_address}")
+            return {
+                'street': street,
+                'number': None,
+                'full': full_address,
+                'has_number': False
+            }
+
         return None
-    
+
     def validate_lublin_address(self, address: str) -> bool:
         """
         Sprawdza czy adres wygląda na prawdziwy adres w Lublinie.
