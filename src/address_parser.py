@@ -55,6 +55,17 @@ class AddressParser:
         re.UNICODE | re.IGNORECASE
     )
 
+    # 1-wyrazowy pattern z WYMAGANYM uppercase pierwszej litery (bez IGNORECASE).
+    # Używany jako drugi przebieg gdy główny pattern nie znalazł nic - łapie ulice
+    # typu "Zana 10" w kontekście "...Lublin Zana 10..." gdzie 2-słowowy pattern
+    # zachłannie zjada "Lublin Zana 10" i odrzuca przez filtr.
+    SINGLE_WORD_ADDRESS_PATTERN = re.compile(
+        r'(?:(?:ulica|ul\.?|aleja|aleje|al\.?|plac|pl\.?|osiedle|os\.?)\s+)?'
+        r'([A-ZŚĆŁĄĘÓŻŹŃ][a-zśćłąęóżźń]{3,})'
+        r'\s+(\d+[a-zA-Z]?(?:/\d+)?(?:\s+lok\.\s+\d+)?)',
+        re.UNICODE  # BEZ IGNORECASE - wymagamy WIELKIEJ litery
+    )
+
     def __init__(self):
         pass
     
@@ -132,6 +143,8 @@ class AddressParser:
             'pokój', 'przy', 'obok', 'blisko', 'centrum', 'okolice', 'minut', 'minutę', 'rok', 'lata',
             'jednoosobowy', 'dwuosobowy', 'trzoosobowy', 'osobowy',
             'dla', 'bez', 'lub', 'osób', 'osoby',
+            # KRYTYCZNE: nazwa miasta nie może być nazwą ulicy
+            'lublin', 'lublina', 'lublinie',
             # NOWE: nazwy dzielnic Lublina (nie są ulicami)
             'wieniawa', 'śródmieście', 'bronowice', 'czuby', 'kalinowszczyzna', 'tatary',
             'czechów', 'sławinek', 'sławin', 'abramowice', 'konstantynów', 'ponikwoda',
@@ -170,6 +183,12 @@ class AddressParser:
             
             # Sprawdź minimum 4 litery w nazwie ulicy (żeby wykluczyć "dla", "bez" etc)
             if len(street.replace(' ', '')) < 4:
+                continue
+            
+            # KRYTYCZNY FILTR: Każde słowo nazwy ulicy MUSI zaczynać się od WIELKIEJ litery
+            # Bez tego re.IGNORECASE łapie zwykłe słowa jak "wynajęcia śliczne"
+            street_words_check = street.split()
+            if not all(w and w[0].isupper() for w in street_words_check):
                 continue
             
             # NOWY FILTR: Sprawdź czy to nie jest fałszywy adres (np. "UMCS 10" z "UMCS 10 minut")
@@ -223,7 +242,9 @@ class AddressParser:
             full_address = street
             if prefix:
                 prefix_lower = prefix.lower().rstrip('.')
-                # Mapuj prefiks na pełną nazwę
+                # Mapuj prefiks na pełną nazwę.
+                # UWAGA: 'al.' to skrót niejednoznaczny - może być Aleja LUB Aleje.
+                # Mapujemy na "Aleja" (singular). Geocoder ma fallback na "Aleje" gdy nie znajdzie.
                 if prefix_lower in ['al', 'aleja']:
                     full_address = f"Aleja {street}"
                 elif prefix_lower in ['aleje']:
@@ -240,6 +261,45 @@ class AddressParser:
                 'full': f"{full_address} {number}",
                 'has_number': True
             }
+
+        # DRUGI PRZEBIEG: 1-wyrazowy wzorzec wymaga WIELKIEJ litery (bez IGNORECASE).
+        # Łapie ulice które główny pattern przegapił bo zachłannie zjadł większy fragment
+        # i odrzucił przez filtr. Przykład: "...Lublin Zana 10..." → łapie "Zana 10".
+        for match in self.SINGLE_WORD_ADDRESS_PATTERN.finditer(text):
+            street = match.group(1).strip()
+            number = match.group(2).strip()
+
+            # Min. 4 litery
+            if len(street) < 4:
+                continue
+            # Wykluczenia (instytucje, dzielnice, miasto)
+            if street.lower() in non_street_names:
+                continue
+            if street.lower() in excluded_words_lower:
+                continue
+            # Fałszywy adres typu "UMCS 10"
+            potential_addr = f"{street} {number.split('/')[0].split()[0]}"
+            if potential_addr.lower() in false_addresses:
+                continue
+            # Numer max 250
+            try:
+                main_num = number.split('/')[0].rstrip('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ').split()[0]
+                if int(main_num) > 250:
+                    continue
+            except ValueError:
+                continue
+            # Filtr OCR (1O zamiast 10)
+            if re.search(r'\d[Oo](?:[^a-zA-Z]|$)', number.split('/')[0].split()[0]):
+                continue
+
+            print(f"      📍 Drugi przebieg (1-słowo): {street} {number}")
+            return {
+                'street': street,
+                'number': number,
+                'full': f"{street} {number}",
+                'has_number': True
+            }
+
         # NOWY FALLBACK: Wzorzec dla polskich nazwisk w dopełniaczu
         # Łapie przypadki jak "Langiewicza 3A", "Słowackiego 12" bez prefiksu
         surname_matches = self.POLISH_SURNAME_PATTERN.finditer(text)
