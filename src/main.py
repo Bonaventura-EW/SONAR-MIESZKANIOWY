@@ -268,8 +268,9 @@ class SonarMieszkaniowy:
             'url': raw_offer['url'],
             'address': {
                 'full': address_data['full'],
-                'street': address_data['street'],
-                'number': address_data['number'],
+                'street': address_data.get('street', ''),
+                'number': address_data.get('number'),
+                'has_number': address_data.get('has_number', True),
                 'coords': coords
             },
             'price': {
