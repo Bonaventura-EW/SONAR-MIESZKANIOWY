@@ -237,6 +237,7 @@ def generate_map_data(input_file, output_file):
             'days_active': offer.get('days_active', 0),  # Dni aktywności
             'active': offer.get('active', True),
             'is_new': is_new,  # ✅ Obliczone na podstawie daty
+            'has_number': offer.get('address', {}).get('has_number', True),  # ✅ Czy znany numer domu
             'description': offer.get('description', ''),  # Pełny opis (frontend się sam obcina)
             'reactivated': offer.get('reactivated_at') is not None,  # Czy była reaktywowana
             'reactivated_at': format_datetime(offer.get('reactivated_at', '')) if offer.get('reactivated_at') else None,
