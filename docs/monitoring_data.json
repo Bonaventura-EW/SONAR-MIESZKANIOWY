@@ -1,14 +1,40 @@
 {
-  "generated_at": "2026-04-28T17:21:20.861957+02:00",
+  "generated_at": "2026-04-28T22:59:04.850495+02:00",
   "statistics": {
-    "total_scans": 1,
+    "total_scans": 2,
     "successful": 1,
-    "failed": 0,
-    "success_rate": 100.0,
-    "avg_duration": 2120.61,
-    "avg_offers_found": 652.0
+    "failed": 1,
+    "success_rate": 50.0,
+    "avg_duration": 1317.91,
+    "avg_offers_found": 326.0
   },
   "recent_scans": [
+    {
+      "timestamp": "2026-04-28T22:59:04.850495+02:00",
+      "status": "failed",
+      "phases": {
+        "scraping": {
+          "duration": 509.16,
+          "details": {
+            "offers_found": 643,
+            "max_pages": 50
+          }
+        }
+      },
+      "stats": {},
+      "errors": [
+        {
+          "timestamp": "2026-04-28T23:07:40.053555+02:00",
+          "message": "unhashable type: 'dict'"
+        }
+      ],
+      "end_timestamp": "2026-04-28T23:07:40.053567+02:00",
+      "total_duration": 515.2,
+      "performance": {
+        "pages_scanned": 50,
+        "scraping_per_page": 10.18
+      }
+    },
     {
       "timestamp": "2026-04-28T17:21:20.861957+02:00",
       "status": "completed",
@@ -81,6 +107,14 @@
         "scraping_per_page": 10.89,
         "geocoding_duration": 1575.58,
         "geocoding_per_address": 68.5
+      },
+      {
+        "timestamp": "2026-04-28T22:59:04.850495+02:00",
+        "duration": 515.2,
+        "offers_per_second": 0,
+        "scraping_per_page": 10.18,
+        "geocoding_duration": 0,
+        "geocoding_per_address": 0
       }
     ],
     "offers_over_time": [
@@ -89,6 +123,12 @@
         "raw_offers": 652,
         "processed": 23,
         "new": 23
+      },
+      {
+        "timestamp": "2026-04-28T22:59:04.850495+02:00",
+        "raw_offers": 0,
+        "processed": 0,
+        "new": 0
       }
     ],
     "success_rate": [
@@ -96,6 +136,11 @@
         "timestamp": "2026-04-28T17:21:20.861957+02:00",
         "success": 100,
         "status": "completed"
+      },
+      {
+        "timestamp": "2026-04-28T22:59:04.850495+02:00",
+        "success": 0,
+        "status": "failed"
       }
     ]
   }
