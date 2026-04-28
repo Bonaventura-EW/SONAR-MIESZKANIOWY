@@ -459,12 +459,15 @@ function createMarkerGroup(baseCoords, address, offers, isActive) {
             console.log(`💲 Zmiana ceny: ${address} | ${offer.previous_price} → ${offer.price} (${offer.price_trend})`);
         }
         
+        // Sprawdź czy oferta ma znany numer domu
+        const hasNumber = offer.has_number !== false;  // domyślnie true (wsteczna kompatybilność)
+
         // Ikona markera - pinezka z kolorem
         // Jeśli uszkodzone - pomarańczowy, jeśli nowa - czerwona obwódka, inaczej - biała
         const strokeColor = isDamagedOffer ? '#ff6600' : (isNew ? '#ff0000' : 'white');
         const strokeWidth = isDamagedOffer ? '4' : (isNew ? '3' : '2');
         const markerColor = isDamagedOffer ? '#ff9933' : color;  // Pomarańczowy dla uszkodzonych
-        
+
         // Badge zmiany ceny - ikona dolara ze strzałką
         let priceChangeBadge = '';
         if (hasPriceChange && !isDamagedOffer) {
@@ -492,8 +495,37 @@ function createMarkerGroup(baseCoords, address, offers, isActive) {
                 ">💲${arrow}</div>
             `;
         }
-        
-        const icon = L.divIcon({
+
+        let icon;
+        if (!hasNumber) {
+            // ===== MARKER KWADRATOWY dla ulic bez numeru =====
+            // Przybliżona lokalizacja - wyświetlony na środku ulicy
+            icon = L.divIcon({
+                className: 'square-marker',
+                html: `
+                    <div style="position: relative; width: 36px; height: 36px;" title="~${tooltipText}">
+                        <svg width="36" height="36" viewBox="0 0 36 36" style="filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35));">
+                            <rect x="2" y="2" width="32" height="32" rx="7" ry="7"
+                                  fill="${markerColor}"
+                                  stroke="${isDamagedOffer ? '#ff6600' : 'white'}"
+                                  stroke-width="${isDamagedOffer ? 3 : 2}"
+                                  stroke-dasharray="5 3"/>
+                            <circle cx="18" cy="18" r="7" fill="white" opacity="0.85"/>
+                            <text x="18" y="22" text-anchor="middle" font-size="10" font-weight="bold"
+                                  fill="${markerColor}" font-family="Arial,sans-serif">~</text>
+                        </svg>
+                        ${isNew && !hasPriceChange ? '<div style="position: absolute; top: -5px; right: -5px; background: #ff0000; color: white; border-radius: 50%; width: 16px; height: 16px; font-size: 10px; font-weight: bold; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">N</div>' : ''}
+                        ${priceChangeBadge}
+                        ${isDamagedOffer ? '<div style="position: absolute; top: -5px; left: -5px; background: #ff6600; color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 12px; font-weight: bold; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 3px rgba(0,0,0,0.3);">⚠</div>' : ''}
+                    </div>
+                `,
+                iconSize: [36, 36],
+                iconAnchor: [18, 18],   // Środek kwadratu (nie czubek pinezki)
+                popupAnchor: [0, -20]
+            });
+        } else {
+            // ===== MARKER PINEZKA (standardowy, z numerem domu) =====
+            icon = L.divIcon({
             className: 'pin-marker',
             html: `
                 <div style="position: relative; width: 40px; height: 50px;" title="${tooltipText}">
@@ -514,6 +546,7 @@ function createMarkerGroup(baseCoords, address, offers, isActive) {
             iconAnchor: [20, 50],
             popupAnchor: [0, -50]
         });
+        } // end if hasNumber
         
         // Popup content
         const popupContent = createPopupContent(address, [offer]);
@@ -542,6 +575,7 @@ function createMarkerGroup(baseCoords, address, offers, isActive) {
             priceRange: offerPriceRange,  // ✅ Zakres cenowy z oferty
             isActive: isActive,
             isDamaged: isDamagedOffer,
+            hasNumber: hasNumber,           // ✅ Czy znany numer domu
             primaryTag: offer.tags ? offer.tags.primary : 'pokoj',  // B1: Tag główny
             // Flagi oznaczeń pinezek (do filtrowania legendy)
             isNew: isNew,
@@ -566,11 +600,18 @@ function createPopupContent(address, offers) {
     
     offers.forEach(offer => {
         const isActive = offer.active;
-        
+        const isApprox = offer.has_number === false;
+
         html += `<div class="offer-item ${isActive ? '' : 'inactive'}" data-offer-id="${offer.id}">`;
-        
+
         if (!isActive) {
             html += `<div class="inactive-badge">❌ Nieaktywne</div>`;
+        }
+        if (isApprox) {
+            html += `<div style="background:#fff3cd;border:1px solid #ffc107;border-radius:6px;padding:5px 8px;margin-bottom:8px;font-size:12px;color:#856404;">
+                ⬜ <strong>Lokalizacja przybliżona</strong> — brak numeru domu w ogłoszeniu.<br>
+                Marker umieszczony na środku ulicy.
+            </div>`;
         }
         
         // Cena - NOWE: wyświetlanie zmiany ceny
