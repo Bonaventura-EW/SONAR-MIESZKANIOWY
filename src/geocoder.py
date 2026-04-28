@@ -5,6 +5,7 @@ Używa Nominatim API (OpenStreetMap) + cache w JSON
 """
 
 import json
+import re
 import time
 from pathlib import Path
 from typing import Optional, Dict
@@ -63,24 +64,77 @@ class Geocoder:
     def geocode_address(self, address: str, max_retries: int = 3) -> Optional[Dict[str, float]]:
         """
         Geokoduje adres na współrzędne GPS.
-        
+
         Args:
             address: Adres do geokodowania (np. "Narutowicza 5")
             max_retries: Maksymalna liczba prób
-            
+
         Returns:
             Dict z lat, lon lub None jeśli nie znaleziono
         """
         if not address:
             return None
-        
+
         # Sprawdzamy cache
         if address in self.cache:
             return self.cache[address]
-        
+
+        # Pierwsza próba: oryginalny adres
+        result = self._geocode_single(address, max_retries)
+        if result is not None:
+            return result
+
+        # FALLBACK: Aleja ↔ Aleje (skrót "al." jest niejednoznaczny)
+        # np. "Aleja Racławickie 28a" nie znajdzie, ale "Aleje Racławickie 28a" tak.
+        alt_address = None
+        if address.startswith('Aleja '):
+            alt_address = 'Aleje ' + address[len('Aleja '):]
+        elif address.startswith('Aleje '):
+            alt_address = 'Aleja ' + address[len('Aleje '):]
+
+        if alt_address and alt_address not in self.cache:
+            print(f"   🔄 Fallback geocoder: {address!r} → {alt_address!r}")
+            result = self._geocode_single(alt_address, max_retries)
+            if result is not None:
+                # Zapisz pod oryginalnym adresem - ten się uda następnym razem od razu
+                self.cache[address] = result
+                self._save_cache()
+                return result
+
+        # FALLBACK 2: usuń "lok. N" (nr lokalu) - Nominatim często go nie rozumie
+        if ' lok. ' in address:
+            simplified = re.sub(r'\s+lok\.\s+\d+', '', address)
+            if simplified != address:
+                print(f"   🔄 Fallback bez nr lokalu: {address!r} → {simplified!r}")
+                result = self._geocode_single(simplified, max_retries)
+                if result is not None:
+                    self.cache[address] = result
+                    self._save_cache()
+                    return result
+                # Spróbuj jeszcze z zamianą Aleja↔Aleje na uproszczonym
+                alt2 = None
+                if simplified.startswith('Aleja '):
+                    alt2 = 'Aleje ' + simplified[len('Aleja '):]
+                elif simplified.startswith('Aleje '):
+                    alt2 = 'Aleja ' + simplified[len('Aleje '):]
+                if alt2:
+                    print(f"   🔄 Fallback uproszczony+Aleja/Aleje: → {alt2!r}")
+                    result = self._geocode_single(alt2, max_retries)
+                    if result is not None:
+                        self.cache[address] = result
+                        self._save_cache()
+                        return result
+
+        return None
+
+    def _geocode_single(self, address: str, max_retries: int = 3) -> Optional[Dict[str, float]]:
+        """Pojedyncza próba geokodowania konkretnego adresu (bez fallbacku)."""
+        if address in self.cache:
+            return self.cache[address]
+
         # Pełny adres z miastem
         full_address = f"{address}, Lublin, Poland"
-        
+
         # Próbujemy geokodować
         for attempt in range(max_retries):
             try:
@@ -89,21 +143,19 @@ class Geocoder:
                     timeout=10,
                     language='pl'
                 )
-                
+
                 if location:
                     coords = {
                         'lat': location.latitude,
                         'lon': location.longitude
                     }
-                    
+
                     # WALIDACJA: Sprawdź czy adres jest w Lublinie
                     if not self.is_in_lublin(coords):
                         print(f"⚠️ Odrzucono {address} - poza Lublinem (lat={coords['lat']:.4f}, lon={coords['lon']:.4f})")
-                        # Zapisujemy do cache jako None (nie próbujemy ponownie)
-                        self.cache[address] = None
-                        self._save_cache()
+                        # NIE cachujemy negatywnie - może fallback Aleja/Aleje pomoże
                         return None
-                    
+
                     # Zapisujemy do cache
                     self.cache[address] = coords
                     self._save_cache()
@@ -111,8 +163,10 @@ class Geocoder:
                     return coords
                 else:
                     # Nie znaleziono - zapisujemy jako None
-                    self.cache[address] = None
-                    self._save_cache()
+                    # WYJĄTEK: nie cachuj None dla "Aleja .../Aleje ..." żeby fallback działał
+                    if not (address.startswith('Aleja ') or address.startswith('Aleje ')):
+                        self.cache[address] = None
+                        self._save_cache()
                     return None
                     
             except GeocoderTimedOut:
