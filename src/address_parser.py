@@ -190,6 +190,11 @@ class AddressParser:
             street_words_check = street.split()
             if not all(w and w[0].isupper() for w in street_words_check):
                 continue
+
+            # KRYTYCZNY FILTR 2: Żadne słowo nie może być w CAŁOŚCI uppercase
+            # Filtruje "krzykliwe" słowa typu BEZPOŚREDNIO, OKAZJA, PILNIE, WYNAJMĘ
+            if any(w.isupper() for w in street_words_check):
+                continue
             
             # NOWY FILTR: Sprawdź czy to nie jest fałszywy adres (np. "UMCS 10" z "UMCS 10 minut")
             potential_addr = f"{street} {number.split('/')[0].split()[0]}"
@@ -271,6 +276,9 @@ class AddressParser:
 
             # Min. 4 litery
             if len(street) < 4:
+                continue
+            # Filtr cała uppercase (BEZPOŚREDNIO, OKAZJA itp.)
+            if street.isupper():
                 continue
             # Wykluczenia (instytucje, dzielnice, miasto)
             if street.lower() in non_street_names:
