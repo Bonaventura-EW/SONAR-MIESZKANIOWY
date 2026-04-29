@@ -156,7 +156,50 @@ class Geocoder:
                 self._save_cache()
                 return result
 
+        # FALLBACK 5: konwersja dopełniacza → mianownik dla polskich ulic
+        # Nominatim OSM często ma nazwy ulic w mianowniku (Organowa), 
+        # a parser wyciąga dopełniacz (Organowej, Furmańskiej, Koralowej)
+        nominative = self._genitive_to_nominative(address)
+        if nominative and nominative != address and nominative not in self.cache:
+            print(f"   🔄 Fallback mianownik: {address!r} → {nominative!r}")
+            result = self._geocode_single(nominative, max_retries)
+            if result is not None:
+                self.cache[address] = result
+                self._save_cache()
+                return result
+
         return None
+
+    def _genitive_to_nominative(self, address: str) -> str:
+        """
+        Próbuje skonwertować polską nazwę ulicy z dopełniacza na mianownik.
+        Nominatim OSM ma nazwy ulic w mianowniku (Organowa nie Organowej).
+        Obsługuje najczęstsze końcówki przymiotnikowe żeńskie i rzeczownikowe.
+        """
+        parts = address.rsplit(' ', 1)
+        street = parts[0]
+        num = parts[1] if len(parts) > 1 else ''
+
+        conversions = [
+            # Żeńskie przymiotnikowe: -owej → -owa, -skiej → -ska, -nej → -na itd.
+            (r'owej$', 'owa'),
+            (r'skiej$', 'ska'),
+            (r'nej$', 'na'),
+            (r'wej$', 'wa'),
+            (r'iej$', 'ia'),
+            (r'zej$', 'za'),
+            # Dopełniacz -ej → -a (ogólna żeńska)
+            (r'([b-df-hj-np-tv-z])ej$', r'\1a'),
+            # Rzeczowniki: -iej → -ia, -skiej → -ska
+            (r'ciej$', 'cia'),
+            (r'dziej$', 'dzia'),
+        ]
+        for pattern, replacement in conversions:
+            new_street = re.sub(pattern, replacement, street, flags=re.IGNORECASE)
+            if new_street != street:
+                return (f"{new_street} {num}").strip() if num else new_street
+
+        return address
 
     def _geocode_single(self, address: str, max_retries: int = 3) -> Optional[Dict[str, float]]:
         """Pojedyncza próba geokodowania konkretnego adresu (bez fallbacku)."""
@@ -207,7 +250,14 @@ class Geocoder:
                 else:
                     return None
                     
-            except GeocoderServiceError:
+            except GeocoderServiceError as e:
+                # 429 Rate limited — czekaj dłużej i retry
+                if '429' in str(e):
+                    wait = 5 * (attempt + 1)
+                    print(f"   ⏳ Rate limit (429), czekam {wait}s...")
+                    time.sleep(wait)
+                    if attempt < max_retries - 1:
+                        continue
                 return None
         
         return None
