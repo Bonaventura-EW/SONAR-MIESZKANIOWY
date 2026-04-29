@@ -26,6 +26,7 @@ class Geocoder:
         self.cache_file = Path(cache_file)
         self.cache = self._load_cache()
         self.geolocator = Nominatim(user_agent="sonar-mieszkaniowy-lublin/1.0")
+        self._geocoding_limited = False  # Gdy True: pomija fallbacki, używa tylko cache
         
     def _load_cache(self) -> Dict:
         """Ładuje cache z pliku JSON."""
@@ -84,6 +85,10 @@ class Geocoder:
         # Sprawdzamy cache (pomijamy None-wpisy dla krótkich adresów — mogą mieć lepszy fallback)
         if address in self.cache and self.cache[address] is not None:
             return self.cache[address]
+
+        # Gdy osiągnięto limit geocodowań w tym skanie — nie rób nowych requestów
+        if self._geocoding_limited:
+            return None
 
         # Pierwsza próba: oryginalny adres
         result = self._geocode_single(address, max_retries)

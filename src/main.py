@@ -652,6 +652,8 @@ class SonarMieszkaniowy:
             skipped_no_coords = 0
             skipped_duplicate = 0
             skipped_removed = 0
+            new_geocodes_count = 0      # Ile nowych geokodowań zrobiono w tym skanie
+            MAX_NEW_GEOCODES = 150      # Limit geokodowań per skan (Nominatim rate limit)
             
             for i, raw_offer in enumerate(raw_offers, 1):
                 print(f"   [{i}/{len(raw_offers)}] Przetwarzam: {raw_offer['title'][:50]}...")
@@ -667,7 +669,15 @@ class SonarMieszkaniowy:
                 
                 # Pomiar czasu geokodowania
                 geo_start = time.time()
+                # Gdy limit geocodowań osiągnięty, wyłącz fallbacki (tylko cache)
+                if new_geocodes_count >= MAX_NEW_GEOCODES:
+                    self.geocoder._geocoding_limited = True
+                else:
+                    self.geocoder._geocoding_limited = False
+                cache_before = len(self.geocoder.cache)
                 processed = self._process_offer(raw_offer)
+                # Zlicz nowe geokodowania (wpisy dodane do cache)
+                new_geocodes_count += len(self.geocoder.cache) - cache_before
                 geocoding_time += time.time() - geo_start
                 
                 if not processed:
@@ -711,6 +721,7 @@ class SonarMieszkaniowy:
             # skipped_no_coords jest teraz 0 - oferty bez coords trafiają do bazy jako unlocalised
             unlocalised_count = sum(1 for o in processed_offers if not o.get('address', {}).get('coords'))
             print(f"   Bez lokacji GPS (warstwa dodatkowa): {unlocalised_count}")
+            print(f"   Nowe geokodowania w tym skanie: {new_geocodes_count} (limit: {MAX_NEW_GEOCODES})")
             print(f"   Pominięte - duplikaty: {skipped_duplicate}")
             print(f"   Pominięte - usunięte przez użytkownika: {skipped_removed}\n")
             
