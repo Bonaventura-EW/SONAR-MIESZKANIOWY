@@ -241,6 +241,7 @@ async function loadData() {
         initDateSlider();  // Suwak dni - wymaga wypełnionego allMarkers
         setupEventListeners();
         filterMarkers();  // ✅ Przefiltruj markery zgodnie z początkowymi stanami checkboxów
+        initUnlocalisedLayer();  // ✅ Warstwa ofert bez lokacji GPS
         
         console.log('🎉 Mapa gotowa!');
         
@@ -1296,4 +1297,129 @@ function updateBadgeCounts() {
     setText('badge-count-price-up', counts.priceUp);
     setText('badge-count-new', counts.isNew);
     setText('badge-count-damaged', counts.damaged);
+}
+
+// ============================================================
+// WARSTWA: Oferty bez precyzyjnej lokacji GPS
+// ============================================================
+
+let unlocalisedData = [];
+
+function initUnlocalisedLayer() {
+    unlocalisedData = mapData.unlocalised_offers || [];
+    const activeCount = unlocalisedData.filter(o => o.active).length;
+
+    if (unlocalisedData.length === 0) return;
+
+    // Pokaż pasek toggle
+    const toggleBar = document.getElementById('unlocalised-toggle-bar');
+    const toggleCount = document.getElementById('unlocalised-toggle-count');
+    if (toggleBar) {
+        toggleBar.style.display = 'block';
+        if (toggleCount) toggleCount.textContent = activeCount;
+    }
+
+    // Zaktualizuj badge w statystykach (jeśli jest)
+    const badge = document.getElementById('unlocalised-count-badge');
+    if (badge) badge.textContent = activeCount;
+
+    renderUnlocalised();
+}
+
+function toggleUnlocalisedSection() {
+    const section = document.getElementById('unlocalised-section');
+    const toggleBar = document.getElementById('unlocalised-toggle-bar');
+    if (!section) return;
+
+    const isHidden = section.style.display === 'none';
+    section.style.display = isHidden ? 'block' : 'none';
+    if (toggleBar) toggleBar.style.display = isHidden ? 'none' : 'block';
+
+    if (isHidden) {
+        renderUnlocalised();
+        // Scroll do sekcji
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+}
+
+function renderUnlocalised() {
+    const grid = document.getElementById('unlocalised-grid');
+    const empty = document.getElementById('unlocalised-empty');
+    const badge = document.getElementById('unlocalised-count-badge');
+    if (!grid) return;
+
+    // Odczytaj filtry
+    const filterTag = document.getElementById('unlocalised-filter-tag')?.value || 'all';
+    const filterStatus = document.getElementById('unlocalised-filter-status')?.value || 'active';
+    const priceMax = parseInt(document.getElementById('unlocalised-price-max')?.value || '0');
+    const searchQuery = (document.getElementById('unlocalised-search')?.value || '').toLowerCase().trim();
+
+    let filtered = unlocalisedData.filter(offer => {
+        // Status
+        if (filterStatus === 'active' && !offer.active) return false;
+        // Typ
+        if (filterTag !== 'all' && offer.tags?.primary !== filterTag) return false;
+        // Cena
+        if (priceMax > 0 && offer.price > priceMax) return false;
+        // Wyszukiwanie
+        if (searchQuery) {
+            const haystack = `${offer.address} ${offer.description}`.toLowerCase();
+            if (!haystack.includes(searchQuery)) return false;
+        }
+        return true;
+    });
+
+    // Sortuj: najpierw aktywne, potem po cenie
+    filtered.sort((a, b) => {
+        if (a.active !== b.active) return a.active ? -1 : 1;
+        return a.price - b.price;
+    });
+
+    if (badge) badge.textContent = filtered.filter(o => o.active).length;
+
+    if (filtered.length === 0) {
+        grid.innerHTML = '';
+        if (empty) empty.style.display = 'block';
+        return;
+    }
+    if (empty) empty.style.display = 'none';
+
+    const tagIcons = { mieszkanie: '🏢', kawalerka: '🏠', pokoj: '🛏️' };
+
+    grid.innerHTML = filtered.map(offer => {
+        const tagIcon = tagIcons[offer.tags?.primary] || '📋';
+        const tagLabel = offer.tags?.primary || 'oferta';
+        const isNew = offer.is_new ? '<span style="background:#ef4444;color:white;border-radius:4px;padding:1px 6px;font-size:10px;font-weight:700;margin-left:4px;">NOWA</span>' : '';
+        const inactive = !offer.active ? '<span style="background:#94a3b8;color:white;border-radius:4px;padding:1px 6px;font-size:10px;">nieaktywna</span>' : '';
+        const desc = offer.description ? offer.description.substring(0, 120).trim() + '…' : '';
+        const mediaInfo = offer.media_info && offer.media_info !== 'brak informacji'
+            ? `<span style="font-size:11px;color:#64748b;">💡 ${offer.media_info}</span>` : '';
+        const cardBg = offer.active ? 'white' : '#f8fafc';
+        const borderColor = offer.active ? '#f59e0b' : '#e2e8f0';
+
+        return `
+        <div style="background:${cardBg};border:1px solid ${borderColor};border-radius:8px;padding:12px;font-size:13px;opacity:${offer.active ? 1 : 0.75};">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+                <div style="font-weight:600;color:#1e293b;flex:1;margin-right:8px;">
+                    ${tagIcon} ${offer.address || 'Nieznany adres'}
+                    ${isNew}${inactive}
+                </div>
+                <div style="font-weight:700;color:#7c3aed;white-space:nowrap;font-size:15px;">
+                    ${offer.price ? offer.price.toLocaleString('pl-PL') + ' zł' : '—'}
+                </div>
+            </div>
+            ${mediaInfo ? `<div style="margin-bottom:4px;">${mediaInfo}</div>` : ''}
+            <div style="color:#475569;font-size:12px;margin-bottom:6px;line-height:1.4;">${desc}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;">
+                <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                    <span style="background:#f1f5f9;color:#64748b;border-radius:4px;padding:2px 6px;font-size:11px;">${tagIcon} ${tagLabel}</span>
+                    <span style="color:#94a3b8;font-size:11px;">📅 ${offer.first_seen || '—'}</span>
+                </div>
+                <a href="${offer.url}" target="_blank" rel="noopener"
+                   style="background:#7c3aed;color:white;border-radius:6px;padding:4px 10px;text-decoration:none;font-size:12px;font-weight:600;">
+                    Otwórz →
+                </a>
+            </div>
+        </div>`;
+    }).join('');
 }

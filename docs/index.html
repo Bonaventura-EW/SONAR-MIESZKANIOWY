@@ -282,10 +282,50 @@
         </div>
     </div>
     
+    <!-- Sekcja: Oferty bez precyzyjnej lokacji GPS -->
+    <div id="unlocalised-section" style="display:none; padding: 16px 20px; background: #fffbeb; border-top: 2px solid #f59e0b;">
+        <div style="max-width: 1400px; margin: 0 auto;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                <h2 style="margin:0; font-size:16px; color:#92400e; display:flex; align-items:center; gap:8px;">
+                    📍 Oferty bez precyzyjnej lokacji
+                    <span id="unlocalised-count-badge" style="background:#f59e0b; color:white; border-radius:12px; padding:2px 10px; font-size:13px; font-weight:600;">0</span>
+                </h2>
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <span style="font-size:12px; color:#78716c;">Oferty bez adresu GPS — nie pojawiają się na mapie, ale mogą Cię zainteresować</span>
+                    <button onclick="toggleUnlocalisedSection()" style="padding:4px 12px; background:#f59e0b; color:white; border:none; border-radius:6px; cursor:pointer; font-size:12px;">Zwiń ▲</button>
+                </div>
+            </div>
+            <!-- Filtry -->
+            <div style="display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; align-items:center;">
+                <span style="font-size:12px; color:#78716c;">Filtruj:</span>
+                <select id="unlocalised-filter-tag" onchange="renderUnlocalised()" style="padding:4px 8px; border:1px solid #d97706; border-radius:4px; font-size:12px; background:white;">
+                    <option value="all">Wszystkie typy</option>
+                    <option value="mieszkanie">🏢 Mieszkanie</option>
+                    <option value="kawalerka">🏠 Kawalerka</option>
+                    <option value="pokoj">🛏️ Pokój</option>
+                </select>
+                <select id="unlocalised-filter-status" onchange="renderUnlocalised()" style="padding:4px 8px; border:1px solid #d97706; border-radius:4px; font-size:12px; background:white;">
+                    <option value="active">Tylko aktywne</option>
+                    <option value="all">Aktywne i nieaktywne</option>
+                </select>
+                <input type="number" id="unlocalised-price-max" placeholder="Max cena zł" onchange="renderUnlocalised()" style="padding:4px 8px; border:1px solid #d97706; border-radius:4px; font-size:12px; width:120px;">
+                <input type="text" id="unlocalised-search" placeholder="🔍 Szukaj w opisie..." oninput="renderUnlocalised()" style="padding:4px 8px; border:1px solid #d97706; border-radius:4px; font-size:12px; width:180px;">
+            </div>
+            <!-- Grid ofert -->
+            <div id="unlocalised-grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:10px; max-height:480px; overflow-y:auto;"></div>
+            <div id="unlocalised-empty" style="display:none; text-align:center; padding:20px; color:#78716c; font-size:14px;">Brak ofert spełniających kryteria</div>
+        </div>
+    </div>
+
+    <!-- Przycisk pokaż oferty bez lokacji (pojawia się gdy są takie oferty) -->
+    <div id="unlocalised-toggle-bar" style="display:none; text-align:center; padding:8px; background:#fef3c7; border-top:1px solid #fcd34d; cursor:pointer;" onclick="toggleUnlocalisedSection()">
+        <span style="font-size:13px; color:#92400e;">📍 Pokaż oferty bez precyzyjnej lokacji (<span id="unlocalised-toggle-count">0</span>) ▼</span>
+    </div>
+
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     
-    <!-- Custom JS (v9 - B1: tagowanie ofert, filtry warstw) -->
-    <script src="assets/script.js?v=11"></script>
+    <!-- Custom JS -->
+    <script src="assets/script.js?v=12"></script>
 </body>
 </html>

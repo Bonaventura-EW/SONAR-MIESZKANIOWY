@@ -267,22 +267,27 @@ class SonarMieszkaniowy:
         else:
             coords = self.geocoder.geocode_address(address_data['full'])
             if not coords:
-                print(f"⚠️ Nie można geokodować: {address_data['full']}")
-                return None  # Nie znaleziono współrzędnych → ignoruj
+                print(f"⚠️ Nie można geokodować: {address_data['full']} — trafi do warstwy bez lokacji")
+                coords = None  # Zapisz bez coords — obsłużone niżej
         
         # 5. Stwórz ID z URL (unikalne)
         offer_id = raw_offer['url'].split('/')[-1].split('.')[0]
         
+        # Buduj address dict (bez coords lub z coords=None jeśli nie znaleziono)
+        address_dict = {
+            'full': address_data['full'],
+            'street': address_data.get('street', ''),
+            'number': address_data.get('number'),
+            'has_number': address_data.get('has_number', True),
+        }
+        if coords:
+            address_dict['coords'] = coords
+        # Brak coords → offer_id zapisze się do bazy BEZ coords → map_generator włączy do unlocalised
+        
         return {
             'id': offer_id,
             'url': raw_offer['url'],
-            'address': {
-                'full': address_data['full'],
-                'street': address_data.get('street', ''),
-                'number': address_data.get('number'),
-                'has_number': address_data.get('has_number', True),
-                'coords': coords
-            },
+            'address': address_dict,
             'price': {
                 'current': price,
                 'history': [price],
@@ -387,6 +392,13 @@ class SonarMieszkaniowy:
         
         # Zawsze aktualizuj media_info (może się zmienić niezależnie)
         existing['price']['media_info'] = new_data['price']['media_info']
+        
+        # Zaktualizuj coords jeśli nowe dane mają coords a stare nie
+        new_coords = new_data.get('address', {}).get('coords')
+        existing_coords = existing.get('address', {}).get('coords')
+        if new_coords and not existing_coords:
+            existing.setdefault('address', {})['coords'] = new_coords
+            print(f"      📍 Uzupełniono brakujące coords dla oferty: {existing['id']}")
         
         # Upewnij się że jest aktywne (REAKTYWACJA nieaktywnych ofert)
         was_inactive = not existing.get('active', True)
@@ -696,7 +708,9 @@ class SonarMieszkaniowy:
             print(f"\n✅ Przetworzone oferty: {len(processed_offers)}")
             print(f"   Pominięte - brak adresu: {skipped_no_address}")
             print(f"   Pominięte - brak ceny: {skipped_no_price}")
-            print(f"   Pominięte - brak współrzędnych: {skipped_no_coords}")
+            # skipped_no_coords jest teraz 0 - oferty bez coords trafiają do bazy jako unlocalised
+            unlocalised_count = sum(1 for o in processed_offers if not o.get('address', {}).get('coords'))
+            print(f"   Bez lokacji GPS (warstwa dodatkowa): {unlocalised_count}")
             print(f"   Pominięte - duplikaty: {skipped_duplicate}")
             print(f"   Pominięte - usunięte przez użytkownika: {skipped_removed}\n")
             
