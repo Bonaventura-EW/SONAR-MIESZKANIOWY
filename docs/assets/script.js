@@ -26,8 +26,9 @@ let allMarkers = [];
 let markerLayers = {
     active: L.layerGroup(),
     inactive: L.layerGroup(),
-    damaged: L.layerGroup(),  // Warstwa dla ogłoszeń oznaczonych jako uszkodzone
-    approx: L.layerGroup()    // Warstwa dla ogłoszeń bez numeru domu (kwadratowe markery)
+    damaged: L.layerGroup(),      // Warstwa dla ogłoszeń oznaczonych jako uszkodzone
+    approx: L.layerGroup(),       // Aktywne ogłoszenia bez numeru domu (kwadratowe markery)
+    approxInactive: L.layerGroup() // Nieaktywne ogłoszenia bez numeru domu (historia przybliżonych)
 };
 
 // ===== Filtr daty dodania (suwak dni) =====
@@ -201,7 +202,8 @@ function initMap() {
     markerLayers.active.addTo(map);
     markerLayers.inactive.addTo(map);
     // markerLayers.damaged NIE dodajemy - będzie domyślnie ukryta
-    // markerLayers.approx NIE dodajemy - domyślnie ukryta (przybliżone lokalizacje)
+    // markerLayers.approx NIE dodajemy - domyślnie ukryta (przybliżone aktywne)
+    // markerLayers.approxInactive NIE dodajemy - domyślnie ukryta (przybliżone nieaktywne)
     
     // Tworzenie warstw uczelni
     createUniversityLayers();
@@ -258,6 +260,7 @@ function calculateFilteredStats() {
     const showActive = document.getElementById('layer-active').checked;
     const showInactive = document.getElementById('layer-inactive').checked;
     const showApprox = document.getElementById('layer-approx')?.checked ?? false;
+    const showApproxInactive = document.getElementById('layer-approx-inactive')?.checked ?? false;
     
     // Filtr czasowy
     const timeFilter = document.getElementById('time-filter').value;
@@ -303,14 +306,17 @@ function calculateFilteredStats() {
     allMarkers.forEach(item => {
         // Sprawdź filtr warstwy
         if (item.hasNumber === false) {
-            if (!showApprox) return;  // ⬜ Warstwa przybliżona wyłączona
+            // Markery przybliżone — aktywne i nieaktywne mają osobne checkboxy
+            if (item.isActive && !showApprox) return;
+            if (!item.isActive && !showApproxInactive) return;
         } else {
             if (item.isActive && !showActive) return;
             if (!item.isActive && !showInactive) return;
         }
         
         // Sprawdź czy marker jest widoczny (jest w odpowiedniej warstwie na mapie)
-        const isOnMap = (!item.hasNumber && markerLayers.approx.hasLayer(item.marker)) ||
+        const isOnMap = (!item.hasNumber && item.isActive && markerLayers.approx.hasLayer(item.marker)) ||
+                        (!item.hasNumber && !item.isActive && markerLayers.approxInactive.hasLayer(item.marker)) ||
                         (item.hasNumber && item.isActive && markerLayers.active.hasLayer(item.marker)) ||
                         (item.hasNumber && !item.isActive && markerLayers.inactive.hasLayer(item.marker));
         
@@ -369,8 +375,13 @@ function updateStats() {
     // Licznik przybliżonych lokalizacji
     const approxCountEl = document.getElementById('approx-count');
     if (approxCountEl) {
-        const approxTotal = allMarkers.filter(m => !m.hasNumber).length;
+        const approxTotal = allMarkers.filter(m => !m.hasNumber && m.isActive).length;
         approxCountEl.textContent = approxTotal > 0 ? `(${approxTotal})` : '(0)';
+    }
+    const approxInactiveCountEl = document.getElementById('approx-inactive-count');
+    if (approxInactiveCountEl) {
+        const approxInactiveTotal = allMarkers.filter(m => !m.hasNumber && !m.isActive).length;
+        approxInactiveCountEl.textContent = approxInactiveTotal > 0 ? `(${approxInactiveTotal})` : '(0)';
     }
 }
 
@@ -576,8 +587,10 @@ function createMarkerGroup(baseCoords, address, offers, isActive) {
         // Dodaj do odpowiedniej warstwy
         if (isDamagedOffer) {
             markerObj.addTo(markerLayers.damaged);
-        } else if (!hasNumber) {
-            markerObj.addTo(markerLayers.approx);   // ⬜ Przybliżona lokalizacja — osobna warstwa
+        } else if (!hasNumber && isActive) {
+            markerObj.addTo(markerLayers.approx);          // ⬜ Aktywne przybliżone
+        } else if (!hasNumber && !isActive) {
+            markerObj.addTo(markerLayers.approxInactive);  // ⬜ Nieaktywne przybliżone (historia)
         } else if (isActive) {
             markerObj.addTo(markerLayers.active);
         } else {
@@ -744,6 +757,7 @@ function filterMarkers() {
     const showActive = document.getElementById('layer-active').checked;
     const showInactive = document.getElementById('layer-inactive').checked;
     const showApprox = document.getElementById('layer-approx')?.checked ?? false;
+    const showApproxInactive = document.getElementById('layer-approx-inactive')?.checked ?? false;
     
     // B1: Filtry tagów
     const showPokoj = document.getElementById('layer-tag-pokoj')?.checked ?? true;
@@ -783,8 +797,9 @@ function filterMarkers() {
         
         // Filtr aktywne/nieaktywne (nie dotyczy przybliżonych - mają osobny checkbox)
         if (!item.hasNumber) {
-            // Marker przybliżony — kierowany wyłącznie warstwą approx
-            if (visible && !showApprox) visible = false;
+            // Marker przybliżony — aktywne i nieaktywne mają osobne checkboxy
+            if (item.isActive && !showApprox) visible = false;
+            if (!item.isActive && !showApproxInactive) visible = false;
         } else {
             if (item.isActive && !showActive) visible = false;
             if (!item.isActive && !showInactive) visible = false;
@@ -848,8 +863,10 @@ function filterMarkers() {
         if (visible) {
             if (item.isDamaged) {
                 markerLayers.damaged.addLayer(item.marker);
-            } else if (!item.hasNumber) {
+            } else if (!item.hasNumber && item.isActive) {
                 markerLayers.approx.addLayer(item.marker);
+            } else if (!item.hasNumber && !item.isActive) {
+                markerLayers.approxInactive.addLayer(item.marker);
             } else if (item.isActive) {
                 markerLayers.active.addLayer(item.marker);
             } else {
@@ -858,8 +875,10 @@ function filterMarkers() {
         } else {
             if (item.isDamaged) {
                 markerLayers.damaged.removeLayer(item.marker);
-            } else if (!item.hasNumber) {
+            } else if (!item.hasNumber && item.isActive) {
                 markerLayers.approx.removeLayer(item.marker);
+            } else if (!item.hasNumber && !item.isActive) {
+                markerLayers.approxInactive.removeLayer(item.marker);
             } else if (item.isActive) {
                 markerLayers.active.removeLayer(item.marker);
             } else {
@@ -1082,6 +1101,14 @@ function setupEventListeners() {
             markerLayers.approx.addTo(map);
         } else {
             map.removeLayer(markerLayers.approx);
+        }
+        filterMarkers();
+    });
+    document.getElementById('layer-approx-inactive')?.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            markerLayers.approxInactive.addTo(map);
+        } else {
+            map.removeLayer(markerLayers.approxInactive);
         }
         filterMarkers();
     });
