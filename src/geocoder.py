@@ -75,6 +75,12 @@ class Geocoder:
         if not address:
             return None
 
+        # Zabezpieczenie: jeśli address jest dict (błąd wywołującego), wyciągnij string
+        if isinstance(address, dict):
+            address = address.get('full', '')
+            if not address:
+                return None
+
         # Sprawdzamy cache
         if address in self.cache:
             return self.cache[address]

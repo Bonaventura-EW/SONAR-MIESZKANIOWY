@@ -189,8 +189,18 @@ class SonarMieszkaniowy:
         use_cached_coords = False
         cached_coords = None
         if not address_data and raw_offer.get('cached_address'):
-            print(f"      🔄 Brak adresu w tekście, używam z cache: {raw_offer['cached_address']}")
-            address_data = {'full': raw_offer['cached_address']}
+            cached_addr = raw_offer['cached_address']
+            # cached_address może być dict (z indeksu) lub stringiem - obsłuż oba przypadki
+            if isinstance(cached_addr, dict):
+                addr_full = cached_addr.get('full', '')
+                # Jeśli mamy coords bezpośrednio w cached_address, użyj ich
+                if not raw_offer.get('cached_coordinates') and cached_addr.get('coords'):
+                    cached_coords = cached_addr['coords']
+                    use_cached_coords = True
+            else:
+                addr_full = str(cached_addr)
+            print(f"      🔄 Brak adresu w tekście, używam z cache: {addr_full}")
+            address_data = {'full': addr_full}
             # Jeśli mamy też współrzędne w cache, użyjemy ich zamiast geokodowania
             if raw_offer.get('cached_coordinates'):
                 cached_coords = raw_offer['cached_coordinates']
