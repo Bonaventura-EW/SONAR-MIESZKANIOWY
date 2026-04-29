@@ -81,8 +81,8 @@ class Geocoder:
             if not address:
                 return None
 
-        # Sprawdzamy cache
-        if address in self.cache:
+        # Sprawdzamy cache (pomijamy None-wpisy dla krótkich adresów — mogą mieć lepszy fallback)
+        if address in self.cache and self.cache[address] is not None:
             return self.cache[address]
 
         # Pierwsza próba: oryginalny adres
@@ -130,6 +130,31 @@ class Geocoder:
                         self.cache[address] = result
                         self._save_cache()
                         return result
+
+        # FALLBACK 3: ulice bez numeru — dodaj prefix "ul." który pomaga Nominatim
+        # np. "Organowej" → "ul. Organowej, Lublin"
+        words = address.split()
+        has_number = any(re.search(r'\d', w) for w in words)
+        if not has_number and not address.startswith('ul.') and len(words) <= 3:
+            ul_address = 'ul. ' + address
+            if ul_address not in self.cache or self.cache.get(ul_address) is None:
+                print(f"   🔄 Fallback ul. prefix: {address!r} → {ul_address!r}")
+                result = self._geocode_single(ul_address, max_retries)
+                if result is not None:
+                    self.cache[address] = result
+                    self._save_cache()
+                    return result
+
+        # FALLBACK 4: numer niestandardowy (2k, 18w, 20m) — usuń literę za numerem
+        # np. "Koralowa 20" → spróbuj bez skrótu, "Nałęczowskiej 18w" → "Nałęczowskiej 18"
+        cleaned = re.sub(r'(\d+)[a-zA-Z]+$', r'\1', address)
+        if cleaned != address and cleaned not in self.cache:
+            print(f"   🔄 Fallback bez sufiksu numeru: {address!r} → {cleaned!r}")
+            result = self._geocode_single(cleaned, max_retries)
+            if result is not None:
+                self.cache[address] = result
+                self._save_cache()
+                return result
 
         return None
 
