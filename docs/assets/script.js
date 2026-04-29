@@ -255,9 +255,9 @@ async function loadData() {
 
 // Obliczanie statystyk dla widocznych ofert (po filtrowaniu)
 function calculateFilteredStats() {
-    // Pobierz ustawienia filtrów
     const showActive = document.getElementById('layer-active').checked;
     const showInactive = document.getElementById('layer-inactive').checked;
+    const showApprox = document.getElementById('layer-approx')?.checked ?? false;
     
     // Filtr czasowy
     const timeFilter = document.getElementById('time-filter').value;
@@ -302,12 +302,17 @@ function calculateFilteredStats() {
     
     allMarkers.forEach(item => {
         // Sprawdź filtr warstwy
-        if (item.isActive && !showActive) return;
-        if (!item.isActive && !showInactive) return;
+        if (item.hasNumber === false) {
+            if (!showApprox) return;  // ⬜ Warstwa przybliżona wyłączona
+        } else {
+            if (item.isActive && !showActive) return;
+            if (!item.isActive && !showInactive) return;
+        }
         
         // Sprawdź czy marker jest widoczny (jest w odpowiedniej warstwie na mapie)
-        const isOnMap = (item.isActive && markerLayers.active.hasLayer(item.marker)) ||
-                        (!item.isActive && markerLayers.inactive.hasLayer(item.marker));
+        const isOnMap = (!item.hasNumber && markerLayers.approx.hasLayer(item.marker)) ||
+                        (item.hasNumber && item.isActive && markerLayers.active.hasLayer(item.marker)) ||
+                        (item.hasNumber && !item.isActive && markerLayers.inactive.hasLayer(item.marker));
         
         if (!isOnMap) return;
         
