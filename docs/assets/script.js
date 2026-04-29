@@ -26,7 +26,8 @@ let allMarkers = [];
 let markerLayers = {
     active: L.layerGroup(),
     inactive: L.layerGroup(),
-    damaged: L.layerGroup()  // Warstwa dla ogłoszeń oznaczonych jako uszkodzone
+    damaged: L.layerGroup(),  // Warstwa dla ogłoszeń oznaczonych jako uszkodzone
+    approx: L.layerGroup()    // Warstwa dla ogłoszeń bez numeru domu (kwadratowe markery)
 };
 
 // ===== Filtr daty dodania (suwak dni) =====
@@ -200,6 +201,7 @@ function initMap() {
     markerLayers.active.addTo(map);
     markerLayers.inactive.addTo(map);
     // markerLayers.damaged NIE dodajemy - będzie domyślnie ukryta
+    // markerLayers.approx NIE dodajemy - domyślnie ukryta (przybliżone lokalizacje)
     
     // Tworzenie warstw uczelni
     createUniversityLayers();
@@ -357,6 +359,13 @@ function updateStats() {
         document.getElementById('avg-price').textContent = '-';
         document.getElementById('min-price').textContent = '-';
         document.getElementById('max-price').textContent = '-';
+    }
+    
+    // Licznik przybliżonych lokalizacji
+    const approxCountEl = document.getElementById('approx-count');
+    if (approxCountEl) {
+        const approxTotal = allMarkers.filter(m => !m.hasNumber).length;
+        approxCountEl.textContent = approxTotal > 0 ? `(${approxTotal})` : '(0)';
     }
 }
 
@@ -562,6 +571,8 @@ function createMarkerGroup(baseCoords, address, offers, isActive) {
         // Dodaj do odpowiedniej warstwy
         if (isDamagedOffer) {
             markerObj.addTo(markerLayers.damaged);
+        } else if (!hasNumber) {
+            markerObj.addTo(markerLayers.approx);   // ⬜ Przybliżona lokalizacja — osobna warstwa
         } else if (isActive) {
             markerObj.addTo(markerLayers.active);
         } else {
@@ -727,6 +738,7 @@ function filterMarkers() {
     // Pobierz ustawienia filtrów
     const showActive = document.getElementById('layer-active').checked;
     const showInactive = document.getElementById('layer-inactive').checked;
+    const showApprox = document.getElementById('layer-approx')?.checked ?? false;
     
     // B1: Filtry tagów
     const showPokoj = document.getElementById('layer-tag-pokoj')?.checked ?? true;
@@ -764,12 +776,13 @@ function filterMarkers() {
     allMarkers.forEach(item => {
         let visible = true;
         
-        // Filtr aktywne/nieaktywne
-        if (item.isActive && !showActive) {
-            visible = false;
-        }
-        if (!item.isActive && !showInactive) {
-            visible = false;
+        // Filtr aktywne/nieaktywne (nie dotyczy przybliżonych - mają osobny checkbox)
+        if (!item.hasNumber) {
+            // Marker przybliżony — kierowany wyłącznie warstwą approx
+            if (visible && !showApprox) visible = false;
+        } else {
+            if (item.isActive && !showActive) visible = false;
+            if (!item.isActive && !showInactive) visible = false;
         }
         
         // B1: Filtr tagów
@@ -830,6 +843,8 @@ function filterMarkers() {
         if (visible) {
             if (item.isDamaged) {
                 markerLayers.damaged.addLayer(item.marker);
+            } else if (!item.hasNumber) {
+                markerLayers.approx.addLayer(item.marker);
             } else if (item.isActive) {
                 markerLayers.active.addLayer(item.marker);
             } else {
@@ -838,6 +853,8 @@ function filterMarkers() {
         } else {
             if (item.isDamaged) {
                 markerLayers.damaged.removeLayer(item.marker);
+            } else if (!item.hasNumber) {
+                markerLayers.approx.removeLayer(item.marker);
             } else if (item.isActive) {
                 markerLayers.active.removeLayer(item.marker);
             } else {
@@ -1055,6 +1072,14 @@ function setupEventListeners() {
     document.getElementById('layer-active').addEventListener('change', filterMarkers);
     document.getElementById('layer-inactive').addEventListener('change', filterMarkers);
     document.getElementById('layer-damaged').addEventListener('change', toggleDamagedLayer);
+    document.getElementById('layer-approx')?.addEventListener('change', (e) => {
+        if (e.target.checked) {
+            markerLayers.approx.addTo(map);
+        } else {
+            map.removeLayer(markerLayers.approx);
+        }
+        filterMarkers();
+    });
     
     // NOWY: Filtr czasowy
     document.getElementById('time-filter').addEventListener('change', filterMarkers);
