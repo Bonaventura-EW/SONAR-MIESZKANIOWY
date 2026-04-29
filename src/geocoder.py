@@ -208,7 +208,8 @@ class Geocoder:
 
     def _geocode_single(self, address: str, max_retries: int = 3) -> Optional[Dict[str, float]]:
         """Pojedyncza próba geokodowania konkretnego adresu (bez fallbacku)."""
-        if address in self.cache:
+        # Zwróć z cache TYLKO gdy wynik jest nie-None
+        if address in self.cache and self.cache[address] is not None:
             return self.cache[address]
 
         # Pełny adres z miastem
@@ -241,9 +242,13 @@ class Geocoder:
                     
                     return coords
                 else:
-                    # Nie znaleziono - zapisujemy jako None
-                    # WYJĄTEK: nie cachuj None dla "Aleja .../Aleje ..." żeby fallback działał
-                    if not (address.startswith('Aleja ') or address.startswith('Aleje ')):
+                    # Nie znaleziono - zapisujemy jako None TYLKO gdy nie ma sensu retryować
+                    # Nie cachuj None dla: Aleja/Aleje (fallback 1), adresów z dopełniaczem (fallback 5)
+                    no_cache_patterns = (
+                        address.startswith('Aleja ') or address.startswith('Aleje ') or
+                        re.search(r'(owej|skiej|nej|wej|iej|zej)\s*(\d|$)', address, re.IGNORECASE)
+                    )
+                    if not no_cache_patterns:
                         self.cache[address] = None
                         self._save_cache()
                     return None
