@@ -371,17 +371,23 @@ function calculateFilteredStats() {
     const prices             = [];
 
     allMarkers.forEach(item => {
+        // Filtr warstwy — identyczna logika jak w filterMarkers()
         if (!item.hasNumber) {
-            if (item.isActive && !showApprox)        return;
-            if (!item.isActive && !showApproxInactive) return;
+            if ( item.isActive && !showApprox)         return;
+            if (!item.isActive && !showApproxInactive)  return;
         } else {
-            if (item.isActive  && !showActive)   return;
+            if ( item.isActive && !showActive)   return;
             if (!item.isActive && !showInactive)  return;
         }
-        const layer = item.hasNumber
-            ? (item.isActive ? markerLayers.active : markerLayers.inactive)
-            : (item.isActive ? markerLayers.approx : markerLayers.approxInactive);
-        if (!layer.hasLayer(item.marker)) return;
+        // Sprawdź czy marker jest aktualnie widoczny (filterMarkers go nie ukrył)
+        // Używamy layerGroup.hasLayer — działa niezależnie od tego czy
+        // layerGroup jest przypięta do mapy (markerLayers.approx nie jest domyślnie)
+        const group = item.isDamaged             ? markerLayers.damaged
+            : (!item.hasNumber && item.isActive)  ? markerLayers.approx
+            : (!item.hasNumber && !item.isActive) ? markerLayers.approxInactive
+            : item.isActive                       ? markerLayers.active
+            :                                       markerLayers.inactive;
+        if (!group.hasLayer(item.marker)) return;
         if (searchTerm && !item.address.toLowerCase().includes(searchTerm)) return;
         if (!selectedRanges.includes(item.priceRange)) return;
 
