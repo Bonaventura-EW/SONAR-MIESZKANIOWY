@@ -50,7 +50,7 @@ class APIGenerator:
         - Przewidywany czas następnego skanu
         - Flagi dla powiadomień (hasErrors, isHealthy)
         """
-        recent_scans = self.logger.get_recent_scans(count=5)
+        recent_scans = self.logger.get_recent_scans(count=6)
         statistics = self.logger.get_statistics()
         
         last_scan = recent_scans[0] if recent_scans else None
@@ -91,6 +91,12 @@ class APIGenerator:
             "notification": formatted_last_scan["notification"] if formatted_last_scan else None,
             
             "lastScan": formatted_last_scan,
+            
+            # 6 ostatnich skanów w skróconym formacie — do paska historii w UI
+            # Każdy wpis: id, scanTimeFormatted, uiStatus, offers.new, hasErrors
+            "recentScans": [
+                self._format_scan_short(s) for s in recent_scans
+            ],
             
             "schedule": {
                 "times": self.SCAN_SCHEDULE,
@@ -337,6 +343,30 @@ class APIGenerator:
             "body": body,
         }
     
+    def _format_scan_short(self, scan: Dict) -> Dict:
+        """
+        Skrócony format skanu dla pola recentScans w status.json.
+        Tylko dane potrzebne do wyświetlenia paska historii w UI.
+        """
+        if not scan:
+            return {}
+        stats = scan.get('stats', {})
+        errors = scan.get('errors', [])
+
+        ui_status = "success"
+        if scan.get('status') != 'completed':
+            ui_status = "failed"
+        elif errors:
+            ui_status = "warning"
+
+        return {
+            "id": scan.get('timestamp', '')[:19].replace(':', '-'),
+            "scanTimeFormatted": self._format_scan_time(scan.get('timestamp')),
+            "uiStatus": ui_status,
+            "newOffers": stats.get('new', 0),
+            "hasErrors": len(errors) > 0,
+        }
+
     @staticmethod
     def _plural_mieszkania(n: int) -> str:
         """Polska odmiana słowa 'mieszkanie' dla liczby n."""
