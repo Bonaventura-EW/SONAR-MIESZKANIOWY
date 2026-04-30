@@ -70,6 +70,9 @@ class APIGenerator:
         # Określ status systemu
         system_status = self._determine_system_status(last_scan, statistics)
         
+        # Sformatowany ostatni skan — używamy w dwóch miejscach
+        formatted_last_scan = self._format_scan_for_api(last_scan) if last_scan else None
+        
         status_data = {
             "system": "sonar",
             "version": "1.0.0",
@@ -82,7 +85,12 @@ class APIGenerator:
                 "errorMessages": error_messages
             },
             
-            "lastScan": self._format_scan_for_api(last_scan) if last_scan else None,
+            # Gotowe teksty powiadomienia push na poziomie głównym —
+            # aplikacja Android czyta notification.title i notification.body wprost,
+            # bez zagłębiania się w lastScan.
+            "notification": formatted_last_scan["notification"] if formatted_last_scan else None,
+            
+            "lastScan": formatted_last_scan,
             
             "schedule": {
                 "times": self.SCAN_SCHEDULE,
@@ -184,6 +192,22 @@ class APIGenerator:
         elif errors:
             ui_status = "warning"
         
+        new_count = stats.get('new', 0)
+        
+        # Czytelny czas skanu (np. "15:51")
+        scan_time_formatted = self._format_scan_time(scan.get('timestamp'))
+        
+        # Czytelny powód niepowodzenia (dla UI przy failed/warning)
+        failure_reason = self._build_failure_reason(ui_status, errors, stats)
+        
+        # Gotowe teksty powiadomienia push — aplikacja wyświetla wprost
+        notification = self._build_notification(
+            ui_status=ui_status,
+            scan_time=scan_time_formatted,
+            new_count=new_count,
+            errors=errors,
+        )
+        
         return {
             "id": scan.get('timestamp', '')[:19].replace(':', '-'),  # Unikalne ID
             "timestamp": scan.get('timestamp'),
@@ -191,13 +215,18 @@ class APIGenerator:
             "durationSeconds": scan.get('total_duration'),
             "durationFormatted": self._format_duration(scan.get('total_duration')),
             
-            "uiStatus": ui_status,  # success | warning | failed
+            "uiStatus": ui_status,          # success | warning | failed
             "rawStatus": scan.get('status'),
+            "scanTimeFormatted": scan_time_formatted,  # "15:51"
+            "failureReason": failure_reason,            # None lub czytelny string
+            
+            # Gotowe teksty do powiadomienia push
+            "notification": notification,
             
             "offers": {
                 "found": stats.get('raw_offers', 0),
                 "processed": stats.get('processed', 0),
-                "new": stats.get('new', 0),
+                "new": new_count,
                 "updated": stats.get('updated', 0),
                 "active": stats.get('active', 0),
                 "inactive": stats.get('inactive', 0)
@@ -218,6 +247,104 @@ class APIGenerator:
             ],
             "hasErrors": len(errors) > 0
         }
+    
+    def _format_scan_time(self, timestamp: Optional[str]) -> Optional[str]:
+        """
+        Zwraca godzinę skanu w formacie HH:MM (np. "15:51").
+        Aplikacja wyświetla to wprost w powiadomieniu.
+        """
+        if not timestamp:
+            return None
+        try:
+            dt = datetime.fromisoformat(timestamp)
+            return dt.strftime('%H:%M')
+        except (ValueError, TypeError):
+            return None
+    
+    def _build_failure_reason(
+        self,
+        ui_status: str,
+        errors: list,
+        stats: Dict,
+    ) -> Optional[str]:
+        """
+        Buduje czytelny opis przyczyny niepowodzenia / ostrzeżenia.
+        Zwraca None gdy skan był sukcesem.
+        
+        Priorytet: błędy techniczne > brak ofert > niski wynik przetwarzania.
+        """
+        if ui_status == "success":
+            return None
+        
+        # 1. Błędy techniczne z listy errors (np. wyjątki, timeout)
+        if errors:
+            messages = [e.get('message', '') for e in errors if e.get('message')]
+            if messages:
+                return '; '.join(messages[:3])  # Maks. 3 pierwsze
+        
+        # 2. Skan ukończony, ale status != completed (np. 'failed', 'partial')
+        raw_offers = stats.get('raw_offers', 0)
+        if raw_offers == 0:
+            return "Nie pobrano żadnych ofert z OLX — możliwy problem z siecią lub zmiana struktury strony"
+        
+        # 3. Bardzo niski wynik przetwarzania
+        processed = stats.get('processed', 0)
+        if raw_offers > 0 and processed == 0:
+            return f"Pobrano {raw_offers} ofert, ale żadna nie przeszła przetwarzania (brak adresów lub współrzędnych)"
+        
+        return "Skan zakończony z ostrzeżeniami — sprawdź logi"
+    
+    def _build_notification(
+        self,
+        ui_status: str,
+        scan_time: Optional[str],
+        new_count: int,
+        errors: list,
+    ) -> Dict:
+        """
+        Generuje gotowe teksty powiadomienia push.
+        Aplikacja Android wyświetla notification.title i notification.body wprost,
+        bez żadnej dodatkowej logiki.
+        
+        Format:
+          success, new_count > 0 : "✅ Skan 15:51 — 3 nowe mieszkania"
+          success, new_count == 0: "✅ Skan 15:51 — brak nowych"
+          warning               : "⚠️ Skan 15:51 — zakończony z ostrzeżeniami"
+          failed                : "❌ Skan 15:51 — nie powiódł się"
+        """
+        time_label = f"Skan {scan_time}" if scan_time else "Skan"
+        
+        if ui_status == "success":
+            if new_count > 0:
+                title = f"✅ {time_label} — {new_count} {self._plural_mieszkania(new_count)}"
+                body = f"Znaleziono {new_count} nowych ofert mieszkań w Lublinie"
+            else:
+                title = f"✅ {time_label} — brak nowych"
+                body = "Skan zakończony, żadnych nowych mieszkań"
+        
+        elif ui_status == "warning":
+            first_error = errors[0].get('message', '') if errors else ''
+            title = f"⚠️ {time_label} — zakończony z ostrzeżeniami"
+            body = first_error if first_error else "Sprawdź szczegóły w aplikacji"
+        
+        else:  # failed
+            first_error = errors[0].get('message', '') if errors else 'Nieznany błąd'
+            title = f"❌ {time_label} — nie powiódł się"
+            body = first_error
+        
+        return {
+            "title": title,
+            "body": body,
+        }
+    
+    @staticmethod
+    def _plural_mieszkania(n: int) -> str:
+        """Polska odmiana słowa 'mieszkanie' dla liczby n."""
+        if n == 1:
+            return "nowe mieszkanie"
+        if 2 <= n <= 4:
+            return "nowe mieszkania"
+        return "nowych mieszkań"
     
     def _calculate_next_scan_time(self) -> Optional[datetime]:
         """
