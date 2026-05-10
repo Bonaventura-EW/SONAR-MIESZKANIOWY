@@ -355,6 +355,7 @@ function filterMarkers() {
 
     updateStats();
     updateBadgeCounts();
+    updatePriceRangeCounts();
 }
 
 // ─────────────────────── STATYSTYKI ──────────────────────────────────────────
@@ -439,7 +440,7 @@ function createPriceRangeFilters() {
     const container = document.getElementById('price-range-filters');
     Object.entries(mapData.price_ranges).forEach(([key, range]) => {
         const label = document.createElement('label');
-        label.innerHTML = `<input type="checkbox" class="price-range-filter" data-range="${key}" checked><span class="price-dot" style="background:${range.color}"></span>${range.label}`;
+        label.innerHTML = `<input type="checkbox" class="price-range-filter" data-range="${key}" checked><span class="price-dot" style="background:${range.color}"></span>${range.label}<span id="price-range-count-${key}" class="badge-count">(0)</span>`;
         container.appendChild(label);
     });
 }
@@ -612,6 +613,64 @@ function updateBadgeCounts() {
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = `(${v})`; };
     set('badge-count-price-down', c.priceDown); set('badge-count-price-up', c.priceUp);
     set('badge-count-new', c.isNew); set('badge-count-damaged', c.damaged);
+}
+
+function updatePriceRangeCounts() {
+    if (!mapData || !mapData.price_ranges) return;
+
+    const showActive    = document.getElementById('layer-active')?.checked ?? true;
+    const showInactive  = document.getElementById('layer-inactive')?.checked ?? true;
+    const showPokoj     = document.getElementById('layer-tag-pokoj')?.checked ?? true;
+    const showKawalerka = document.getElementById('layer-tag-kawalerka')?.checked ?? true;
+    const showMieszkanie= document.getElementById('layer-tag-mieszkanie')?.checked ?? true;
+    const showPriceDown = document.getElementById('badge-filter-price-down')?.checked ?? true;
+    const showPriceUp   = document.getElementById('badge-filter-price-up')?.checked ?? true;
+    const showNew       = document.getElementById('badge-filter-new')?.checked ?? true;
+    const showDamaged   = document.getElementById('badge-filter-damaged')?.checked ?? true;
+    const priceMin      = parseInt(document.getElementById('price-min')?.value) || 0;
+    const priceMax      = parseInt(document.getElementById('price-max')?.value) || 999999;
+    const searchTerm    = (document.getElementById('search-input')?.value || '').toLowerCase();
+    const timeFilter    = document.getElementById('time-filter')?.value || 'all';
+    const cutoffDate    = timeFilter !== 'all'
+        ? new Date(Date.now() - parseInt(timeFilter) * 86400000) : null;
+
+    const counts = {};
+    Object.keys(mapData.price_ranges).forEach(k => { counts[k] = 0; });
+
+    allMarkers.forEach(item => {
+        if (item.isActive  && !showActive)   return;
+        if (!item.isActive && !showInactive) return;
+
+        const t = item.primaryTag || 'pokoj';
+        if (t === 'pokoj'     && !showPokoj)      return;
+        if (t === 'kawalerka' && !showKawalerka)  return;
+        if (t === 'mieszkanie'&& !showMieszkanie) return;
+
+        const hasAny = item.isDamaged || item.isNew || item.priceDown || item.priceUp;
+        if (hasAny && !((item.isDamaged && showDamaged) || (item.isNew && showNew) || (item.priceDown && showPriceDown) || (item.priceUp && showPriceUp))) return;
+
+        if (cutoffDate) {
+            const firstOk = item.firstSeenDate && item.firstSeenDate >= cutoffDate;
+            const priceOk = item.priceChangedAtDate && item.priceChangedAtDate >= cutoffDate;
+            if (!firstOk && !priceOk) return;
+        }
+
+        if (!passesDaySliderFilter(item.firstSeenDate)) return;
+
+        const price = item.offers[0]?.price ?? 0;
+        if (price < priceMin || price > priceMax) return;
+
+        if (searchTerm && !item.address.toLowerCase().includes(searchTerm)) return;
+
+        if (item.priceRange && counts.hasOwnProperty(item.priceRange)) {
+            counts[item.priceRange]++;
+        }
+    });
+
+    Object.entries(counts).forEach(([key, val]) => {
+        const el = document.getElementById(`price-range-count-${key}`);
+        if (el) el.textContent = `(${val})`;
+    });
 }
 
 // ─────────────────────── DAMAGED / RESTORE / DELETE ──────────────────────────
