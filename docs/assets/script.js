@@ -123,16 +123,19 @@ async function loadData() {
 
 // ─────────────────────── IKONY MARKERÓW ──────────────────────────────────────
 
-function buildPinIcon(color, strokeColor, strokeWidth, badges) {
+function buildPinIcon(color, strokeColor, strokeWidth, badges, isActive = true) {
     const { isNew, priceDown, priceUp, isDamaged } = badges;
     let badge = '';
     if (isDamaged)      badge = '<div class="marker-badge marker-badge--warn">⚠</div>';
     else if (priceDown) badge = '<div class="marker-badge marker-badge--down">📉</div>';
     else if (priceUp)   badge = '<div class="marker-badge marker-badge--up">📈</div>';
     else if (isNew)     badge = '<div class="marker-badge marker-badge--new">N</div>';
+    const inner = isActive
+        ? `<circle cx="20" cy="18" r="8" fill="white" fill-opacity="0.9"/>`
+        : `<circle cx="20" cy="18" r="8" fill="white" fill-opacity="0.9"/><line x1="14" y1="12" x2="26" y2="24" stroke="#555" stroke-width="2.5" stroke-linecap="round"/><line x1="26" y1="12" x2="14" y2="24" stroke="#555" stroke-width="2.5" stroke-linecap="round"/>`;
     return L.divIcon({
         className: 'pin-marker',
-        html: `<div class="pin-wrap">${badge}<svg class="pin-svg" viewBox="0 0 40 50" xmlns="http://www.w3.org/2000/svg"><path d="M20 0C9 0 0 9 0 20c0 15 20 30 20 30s20-15 20-30C40 9 31 0 20 0z" fill="${color}" stroke="${strokeColor}" stroke-width="${strokeWidth}"/><circle cx="20" cy="18" r="8" fill="white" fill-opacity="0.9"/></svg></div>`,
+        html: `<div class="pin-wrap">${badge}<svg class="pin-svg" viewBox="0 0 40 50" xmlns="http://www.w3.org/2000/svg"><path d="M20 0C9 0 0 9 0 20c0 15 20 30 20 30s20-15 20-30C40 9 31 0 20 0z" fill="${color}" stroke="${strokeColor}" stroke-width="${strokeWidth}"/>${inner}</svg></div>`,
         iconSize: [40, 50], iconAnchor: [20, 50], popupAnchor: [0, -50]
     });
 }
@@ -189,7 +192,7 @@ function createMarkerGroup(baseCoords, address, offers, isActive) {
         const markerColor   = isDamagedOff ? '#ff9933' : color;
 
         const icon = hasNumber
-            ? buildPinIcon(markerColor, strokeColor, strokeWidth, { isNew, priceDown, priceUp, isDamaged: isDamagedOff })
+            ? buildPinIcon(markerColor, strokeColor, strokeWidth, { isNew, priceDown, priceUp, isDamaged: isDamagedOff }, isActive)
             : buildSquareIcon(markerColor, isDamagedOff, isNew);
 
         // KLUCZOWA OPTYMALIZACJA: popup z funkcją — HTML tworzony przy kliknięciu
