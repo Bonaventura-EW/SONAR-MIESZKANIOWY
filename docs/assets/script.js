@@ -618,28 +618,36 @@ function updateBadgeCounts() {
 function updatePriceRangeCounts() {
     if (!mapData || !mapData.price_ranges) return;
 
-    const showActive    = document.getElementById('layer-active')?.checked ?? true;
-    const showInactive  = document.getElementById('layer-inactive')?.checked ?? true;
-    const showPokoj     = document.getElementById('layer-tag-pokoj')?.checked ?? true;
-    const showKawalerka = document.getElementById('layer-tag-kawalerka')?.checked ?? true;
-    const showMieszkanie= document.getElementById('layer-tag-mieszkanie')?.checked ?? true;
-    const showPriceDown = document.getElementById('badge-filter-price-down')?.checked ?? true;
-    const showPriceUp   = document.getElementById('badge-filter-price-up')?.checked ?? true;
-    const showNew       = document.getElementById('badge-filter-new')?.checked ?? true;
-    const showDamaged   = document.getElementById('badge-filter-damaged')?.checked ?? true;
-    const priceMin      = parseInt(document.getElementById('price-min')?.value) || 0;
-    const priceMax      = parseInt(document.getElementById('price-max')?.value) || 999999;
-    const searchTerm    = (document.getElementById('search-input')?.value || '').toLowerCase();
-    const timeFilter    = document.getElementById('time-filter')?.value || 'all';
-    const cutoffDate    = timeFilter !== 'all'
+    const showActive         = document.getElementById('layer-active')?.checked         ?? true;
+    const showInactive       = document.getElementById('layer-inactive')?.checked       ?? true;
+    const showApprox         = document.getElementById('layer-approx')?.checked         ?? false;
+    const showApproxInactive = document.getElementById('layer-approx-inactive')?.checked ?? false;
+    const showPokoj          = document.getElementById('layer-tag-pokoj')?.checked       ?? true;
+    const showKawalerka      = document.getElementById('layer-tag-kawalerka')?.checked   ?? true;
+    const showMieszkanie     = document.getElementById('layer-tag-mieszkanie')?.checked  ?? true;
+    const showPriceDown      = document.getElementById('badge-filter-price-down')?.checked ?? true;
+    const showPriceUp        = document.getElementById('badge-filter-price-up')?.checked   ?? true;
+    const showNew            = document.getElementById('badge-filter-new')?.checked         ?? true;
+    const showDamaged        = document.getElementById('badge-filter-damaged')?.checked     ?? true;
+    const priceMin           = parseInt(document.getElementById('price-min')?.value)  || 0;
+    const priceMax           = parseInt(document.getElementById('price-max')?.value)  || 999999;
+    const searchTerm         = (document.getElementById('search-input')?.value || '').toLowerCase();
+    const timeFilter         = document.getElementById('time-filter')?.value || 'all';
+    const cutoffDate         = timeFilter !== 'all'
         ? new Date(Date.now() - parseInt(timeFilter) * 86400000) : null;
 
     const counts = {};
     Object.keys(mapData.price_ranges).forEach(k => { counts[k] = 0; });
 
     allMarkers.forEach(item => {
-        if (item.isActive  && !showActive)   return;
-        if (!item.isActive && !showInactive) return;
+        // Identyczna logika jak filterMarkers — warstwa aktywne/przybliżone
+        if (!item.hasNumber) {
+            if ( item.isActive && !showApprox)        return;
+            if (!item.isActive && !showApproxInactive) return;
+        } else {
+            if ( item.isActive && !showActive)   return;
+            if (!item.isActive && !showInactive)  return;
+        }
 
         const t = item.primaryTag || 'pokoj';
         if (t === 'pokoj'     && !showPokoj)      return;
