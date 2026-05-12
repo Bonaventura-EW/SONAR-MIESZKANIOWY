@@ -83,10 +83,16 @@ PRICE_RANGES = {
         'color': '#7c4dff'  # Fioletowy jasny
     },
     'range_5001_plus': {
-        'label': '5001+ zł',
+        'label': '5001-7000 zł',
         'min': 5001,
-        'max': 999999,
+        'max': 7000,
         'color': '#6200ea'  # Fioletowy ciemny
+    },
+    'range_7001_plus': {
+        'label': '7001+ zł',
+        'min': 7001,
+        'max': 999999,
+        'color': '#311b92'  # Najciemniejszy fiolet (premium)
     }
 }
 
@@ -95,7 +101,7 @@ def get_price_range(price):
     for key, range_info in PRICE_RANGES.items():
         if range_info['min'] <= price <= range_info['max']:
             return key
-    return 'range_5001_plus'  # Fallback (musi pasować do ostatniego klucza w PRICE_RANGES)
+    return 'range_7001_plus'  # Fallback (musi pasować do ostatniego klucza w PRICE_RANGES)
 
 
 def format_datetime(iso_string):

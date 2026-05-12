@@ -61,7 +61,8 @@ class PriceParser:
         Filtruje nieprawidłowe kwoty:
         - Numery domów/ulic (jeśli występują z 'ul.')
         - Lata (2024-2030)
-        - Kwoty poniżej 100 zł lub powyżej 3000 zł
+        - Kwoty poniżej 200 zł lub powyżej 10000 zł
+        FIX 2026-05: zakres dostosowany dla mieszkań (był 100-3000 dla pokoi)
         """
         filtered = []
         
@@ -70,8 +71,8 @@ class PriceParser:
             if 2020 <= price <= 2030:
                 continue
             
-            # Odrzuć kwoty poza sensownym zakresem
-            if price < 100 or price > 3000:
+            # Odrzuć kwoty poza sensownym zakresem (mieszkania w Lublinie)
+            if price < 200 or price > 10000:
                 continue
             
             # Odrzuć liczby z kontekstem "m²" lub "mkw" (powierzchnia mieszkania)
@@ -87,7 +88,8 @@ class PriceParser:
                     continue
             
             # Odrzuć numery domów - sprawdź czy występuje przy "ul.", "ulica"
-            if 100 <= price <= 300:
+            # FIX 2026-05: dla mieszkań ceny <500 zł są nierealistyczne, więc filtr działa też tam
+            if 100 <= price <= 500:
                 price_str = str(price)
                 idx = text_lower.find(price_str)
                 
@@ -115,8 +117,8 @@ class PriceParser:
             match = pattern.search(text)
             if match:
                 room_price = int(match.group(1))
-                # Walidacja
-                if 200 <= room_price <= 2500:
+                # Walidacja (FIX 2026-05: zakres dla mieszkań)
+                if 200 <= room_price <= 10000:
                     return room_price
         
         # Potem szukaj wzorców typu "X zł – pokój", "pokój X zł" itp.
@@ -124,8 +126,8 @@ class PriceParser:
             match = pattern.search(text)
             if match:
                 price = int(match.group(1))
-                # Walidacja - sensowny zakres dla pokoju
-                if 200 <= price <= 2500:
+                # Walidacja - sensowny zakres dla mieszkania (FIX 2026-05)
+                if 200 <= price <= 10000:
                     return price
         
         return None

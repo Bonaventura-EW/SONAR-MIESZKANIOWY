@@ -416,8 +416,9 @@ class OLXScraper:
                             official_price = int(price)
                             official_price_raw = f"{official_price} zł (JSON-LD)"
                             
-                            # Walidacja - sensowny zakres dla pokoi w Lublinie
-                            if 200 <= official_price <= 5000:
+                            # Walidacja - sensowny zakres dla mieszkań w Lublinie
+                            # FIX 2026-05: podniesiono z 5000 na 10000 (Spokojna 10 = 5500 zł, apartamenty premium 6-10k)
+                            if 200 <= official_price <= 10000:
                                 # Sukces - mamy niezawodną cenę z JSON-LD
                                 return {
                                     'description': description,
@@ -448,7 +449,8 @@ class OLXScraper:
                             try:
                                 price_candidate = int(price_str)
                                 # Walidacja
-                                if 200 <= price_candidate <= 5000:
+                                # FIX 2026-05: podniesiono z 5000 na 10000 zł
+                                if 200 <= price_candidate <= 10000:
                                     official_price = price_candidate
                                     break
                             except ValueError:

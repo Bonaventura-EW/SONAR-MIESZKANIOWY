@@ -88,8 +88,12 @@ class AddressParser:
         
         # FILTR 2: Wykryj fałszywe adresy typu "NAZWA 10 minut" / "NAZWA 5 min"
         # Przykład: "UMCS 10 minut pieszo" - to NIE jest adres "UMCS 10"
+        # FIX 2026-05: dodano m², m2, mkw, cale (") - dla mieszkań częste fałszywe trafienia
         false_address_pattern = re.compile(
-            r'\b([A-ZŚĆŁĄĘÓŻŹŃ][A-Za-zśćłąęóżźń]*)\s+(\d+)\s*(minut|min\.?|minuty?|sekund|sek\.?|godzin|godz\.?|metr[oó]w|km|m\b)',
+            r'\b([A-ZŚĆŁĄĘÓŻŹŃ][A-Za-zśćłąęóżźń]*)\s+'
+            r'(\d+)\s*'
+            r'(minut|min\.?|minuty?|sekund|sek\.?|godzin|godz\.?|'
+            r'metr[oó]w|km|m\b|m²|m2|mkw|cali|cale|cal\b|"|″|″)',
             re.IGNORECASE | re.UNICODE
         )
         # Zapamiętaj fałszywe "adresy" do późniejszego odrzucenia
@@ -110,7 +114,23 @@ class AddressParser:
             'carrefour', 'tesco', 'empik', 'media', 'saturn', 'decathlon',
             'poczta', 'urząd', 'sąd', 'kościół', 'cerkiew', 'meczet', 'synagoga',
             'apteka', 'bank', 'hotel', 'restauracja', 'kawiarnia', 'pub', 'klub',
-            'kino', 'teatr', 'muzeum', 'biblioteka', 'szpital', 'klinika', 'przychodnia'
+            'kino', 'teatr', 'muzeum', 'biblioteka', 'szpital', 'klinika', 'przychodnia',
+            # FIX 2026-05: AGD/wnętrza - "Telewizor 55"", "Pralka 8"
+            'telewizor', 'lodówka', 'pralka', 'zmywarka', 'piekarnik', 'mikrofalówka',
+            'kuchenka', 'ekspres', 'czajnik', 'klimatyzator', 'klimatyzacja',
+            # Pomieszczenia
+            'kuchnia', 'salon', 'sypialnia', 'łazienka', 'taras', 'garaż', 'piwnica',
+            'antresola', 'aneks', 'gabinet', 'spiżarnia', 'pokoj',
+            # Typy mieszkań - same w sobie nie są adresami
+            'apartament', 'kawalerka', 'studio', 'loft',
+            # Częste słowa-pułapki
+            'piętro', 'pietro', 'powierzchnia', 'wynajęcia', 'wynajecia', 'najem',
+            'metraż', 'czynsz', 'kaucja', 'opłaty', 'oplaty', 'zaliczki',
+            'mieszkanie', 'mieszkania', 'mieszkaniu',
+            # Słowa OCR (M zjedzone z Mieszkanie)
+            'ieszkanie', 'ieszkaniu', 'ieszkania',
+            # Nazwy budynków
+            'residence', 'residencja', 'plaza', 'tower', 'arkadia', 'reduta',
         }
         
         # SPECJALNY PRZYPADEK: znane ulice w Lublinie które mogą zaczynać się małą literą lub nie pasować do wzorca
@@ -170,7 +190,25 @@ class AddressParser:
             'carrefour', 'tesco', 'empik', 'media', 'saturn', 'decathlon',
             'poczta', 'urząd', 'sąd', 'kościół', 'cerkiew', 'meczet', 'synagoga',
             'apteka', 'bank', 'hotel', 'restauracja', 'kawiarnia', 'pub', 'klub',
-            'kino', 'teatr', 'muzeum', 'biblioteka', 'klinika', 'przychodnia'
+            'kino', 'teatr', 'muzeum', 'biblioteka', 'klinika', 'przychodnia',
+            # FIX 2026-05: znalezione w audycie produkcyjnym
+            # AGD/wnętrza - "Telewizor 55"", "Kuchenka 2"
+            'telewizor', 'lodówka', 'pralka', 'zmywarka', 'piekarnik', 'mikrofalówka',
+            'kuchenka', 'ekspres', 'czajnik', 'klimatyzator', 'klimatyzacja',
+            # Pomieszczenia
+            'kuchnia', 'salon', 'sypialnia', 'łazienka', 'pokoj', 'taras', 'garaż', 'piwnica',
+            'antresola', 'aneks', 'gabinet', 'spiżarnia',
+            # Typy mieszkań
+            'apartament', 'apartamenty', 'kawalerka', 'kawalerki', 'studio', 'loft',
+            # Częste słowa-pułapki w opisach mieszkań
+            'piętro', 'pietro', 'powierzchnia', 'wynajęcia', 'wynajecia', 'najem', 'najmu',
+            'metraż', 'rok', 'roku', 'czynsz', 'czynszu', 'media', 'mediów', 'kaucja',
+            'opłaty', 'oplaty', 'zaliczki', 'zaliczek', 'pokoi', 'pokoje',
+            # Słowa OCR/literówki (z audytu - parser je łapał)
+            'ieszkanie', 'ieszkaniu', 'ieszkania',  # M zjedzone z "Mieszkanie"
+            'panorama', 'maki', 'diamenty', 'panoramy',  # nazwy osiedli bez "Osiedle"
+            # Marki/budynki
+            'residence', 'residencja', 'plaza', 'tower', 'arkadia', 'reduta',
         }
         
         # Szukamy WSZYSTKICH dopasowań (prefiks + ulica + numer)
