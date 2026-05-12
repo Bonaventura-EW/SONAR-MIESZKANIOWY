@@ -49,7 +49,6 @@ let allMarkers = [];
 let markerLayers = {
     active:         L.layerGroup(),
     inactive:       L.layerGroup(),
-    damaged:        L.layerGroup(),
     approx:         L.layerGroup(),
     approxInactive: L.layerGroup()
 };
@@ -57,14 +56,6 @@ let markerLayers = {
 let dateSliderState = {
     enabled: false, days: [], countsPerDay: {}, selectedIndex: -1
 };
-
-// ─────────────────────── DAMAGED LISTINGS ────────────────────────────────────
-
-const DAMAGED_KEY = 'sonar_damaged_listings';
-function getDamagedListings() { try { return JSON.parse(localStorage.getItem(DAMAGED_KEY) || '[]'); } catch { return []; } }
-function addToDamaged(id)     { const l = getDamagedListings(); if (l.includes(id)) return false; l.push(id); localStorage.setItem(DAMAGED_KEY, JSON.stringify(l)); return true; }
-function removeFromDamaged(id){ localStorage.setItem(DAMAGED_KEY, JSON.stringify(getDamagedListings().filter(x => x !== id))); }
-function isDamaged(id)        { return getDamagedListings().includes(id); }
 
 // ─────────────────────── UCZELNIE ────────────────────────────────────────────
 
@@ -124,10 +115,9 @@ async function loadData() {
 // ─────────────────────── IKONY MARKERÓW ──────────────────────────────────────
 
 function buildPinIcon(color, strokeColor, strokeWidth, badges, isActive = true) {
-    const { isNew, priceDown, priceUp, isDamaged } = badges;
+    const { isNew, priceDown, priceUp } = badges;
     let badge = '';
-    if (isDamaged)      badge = '<div class="marker-badge marker-badge--warn">⚠</div>';
-    else if (priceDown) badge = '<div class="marker-badge marker-badge--down">📉</div>';
+    if (priceDown)      badge = '<div class="marker-badge marker-badge--down">📉</div>';
     else if (priceUp)   badge = '<div class="marker-badge marker-badge--up">📈</div>';
     else if (isNew)     badge = '<div class="marker-badge marker-badge--new">N</div>';
     const inner = isActive
@@ -140,13 +130,11 @@ function buildPinIcon(color, strokeColor, strokeWidth, badges, isActive = true) 
     });
 }
 
-function buildSquareIcon(color, isDamagedOffer, isNew) {
-    const badge = isDamagedOffer
-        ? '<div class="marker-badge marker-badge--warn">⚠</div>'
-        : (isNew ? '<div class="marker-badge marker-badge--new">N</div>' : '');
+function buildSquareIcon(color, isNew) {
+    const badge = isNew ? '<div class="marker-badge marker-badge--new">N</div>' : '';
     return L.divIcon({
         className: 'square-marker',
-        html: `<div class="square-wrap">${badge}<svg class="square-svg" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="32" height="32" rx="7" fill="${color}" stroke="${isDamagedOffer ? '#ff6600' : 'white'}" stroke-width="2" stroke-dasharray="5 3"/><circle cx="18" cy="18" r="7" fill="white" fill-opacity="0.85"/><text x="18" y="22" text-anchor="middle" font-size="10" font-weight="bold" fill="${color}" font-family="Arial,sans-serif">~</text></svg></div>`,
+        html: `<div class="square-wrap">${badge}<svg class="square-svg" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="32" height="32" rx="7" fill="${color}" stroke="white" stroke-width="2" stroke-dasharray="5 3"/><circle cx="18" cy="18" r="7" fill="white" fill-opacity="0.85"/><text x="18" y="22" text-anchor="middle" font-size="10" font-weight="bold" fill="${color}" font-family="Arial,sans-serif">~</text></svg></div>`,
         iconSize: [36, 36], iconAnchor: [18, 18], popupAnchor: [0, -20]
     });
 }
@@ -171,7 +159,6 @@ function createMarkerGroup(baseCoords, address, offers, isActive) {
     offers.forEach((offer, index) => {
         const priceRange    = offer.price_range;
         const color         = mapData.price_ranges[priceRange]?.color || '#808080';
-        const isDamagedOff  = isDamaged(offer.id);
         const isNew         = offer.is_new === true;
         const hasPriceChg   = !!(offer.previous_price && offer.price_trend);
         const priceUp       = offer.price_trend === 'up';
@@ -187,33 +174,32 @@ function createMarkerGroup(baseCoords, address, offers, isActive) {
         }
 
         const coords        = [baseCoords.lat + offsetLat, baseCoords.lon + offsetLon];
-        const strokeColor   = isDamagedOff ? '#ff6600' : (isNew ? '#ff0000' : 'white');
-        const strokeWidth   = isDamagedOff ? 4 : (isNew ? 3 : 2);
-        const markerColor   = isDamagedOff ? '#ff9933' : color;
+        const strokeColor   = isNew ? '#ff0000' : 'white';
+        const strokeWidth   = isNew ? 3 : 2;
+        const markerColor   = color;
 
         const icon = hasNumber
-            ? buildPinIcon(markerColor, strokeColor, strokeWidth, { isNew, priceDown, priceUp, isDamaged: isDamagedOff }, isActive)
-            : buildSquareIcon(markerColor, isDamagedOff, isNew);
+            ? buildPinIcon(markerColor, strokeColor, strokeWidth, { isNew, priceDown, priceUp }, isActive)
+            : buildSquareIcon(markerColor, isNew);
 
         // KLUCZOWA OPTYMALIZACJA: popup z funkcją — HTML tworzony przy kliknięciu
         const markerObj = L.marker(coords, { icon })
             .bindPopup(() => createPopupContent(address, [offer]), { maxWidth: 400 });
 
-        const layer = isDamagedOff             ? markerLayers.damaged
-            : (!hasNumber && isActive)         ? markerLayers.approx
-            : (!hasNumber && !isActive)        ? markerLayers.approxInactive
-            : isActive                         ? markerLayers.active
-            :                                    markerLayers.inactive;
+        const layer = (!hasNumber && isActive)         ? markerLayers.approx
+            : (!hasNumber && !isActive)                ? markerLayers.approxInactive
+            : isActive                                 ? markerLayers.active
+            :                                            markerLayers.inactive;
         markerObj.addTo(layer);
 
         allMarkers.push({
             marker: markerObj, address,
             offers: [offer], priceRange,
-            isActive, isDamaged: isDamagedOff, hasNumber,
+            isActive, hasNumber,
             primaryTag:         offer.tags?.primary || 'pokoj',
             isNew,
-            priceDown:          hasPriceChg && priceDown && !isDamagedOff,
-            priceUp:            hasPriceChg && priceUp  && !isDamagedOff,
+            priceDown:          hasPriceChg && priceDown,
+            priceUp:            hasPriceChg && priceUp,
             firstSeenDate:      parsePolishDate(offer.first_seen),
             priceChangedAtDate: parsePolishDate(offer.price_changed_at)
         });
@@ -258,10 +244,6 @@ function createPopupContent(address, offers) {
 
         html += `<a href="${offer.url}" target="_blank" class="offer-link">🔗 Otwórz ogłoszenie</a>`;
 
-        if (isDamaged(offer.id)) {
-            html += `<button class="restore-listing-btn" onclick="restoreListing('${offer.id}')">✅ Przywróć ogłoszenie</button>`;
-        }
-
         const max = 100;
         if (offer.description.length > max) {
             const uid = `desc-${offer.id}`;
@@ -298,7 +280,7 @@ function filterMarkers() {
     const showPriceDown      = document.getElementById('badge-filter-price-down')?.checked ?? true;
     const showPriceUp        = document.getElementById('badge-filter-price-up')?.checked   ?? true;
     const showNew            = document.getElementById('badge-filter-new')?.checked         ?? true;
-    const showDamaged        = document.getElementById('badge-filter-damaged')?.checked     ?? true;
+    const showNoChange       = document.getElementById('badge-filter-no-change')?.checked   ?? true;
     const timeFilter         = document.getElementById('time-filter').value;
     const priceMin           = parseInt(document.getElementById('price-min').value)  || 0;
     const priceMax           = parseInt(document.getElementById('price-max').value)  || 999999;
@@ -325,8 +307,12 @@ function filterMarkers() {
         }
 
         if (ok) {
-            const hasAny = item.isDamaged || item.isNew || item.priceDown || item.priceUp;
-            if (hasAny && !((item.isDamaged && showDamaged) || (item.isNew && showNew) || (item.priceDown && showPriceDown) || (item.priceUp && showPriceUp))) ok = false;
+            const hasAny = item.isNew || item.priceDown || item.priceUp;
+            if (hasAny) {
+                if (!((item.isNew && showNew) || (item.priceDown && showPriceDown) || (item.priceUp && showPriceUp))) ok = false;
+            } else {
+                if (!showNoChange) ok = false;
+            }
         }
 
         if (ok && cutoffDate) {
@@ -343,11 +329,10 @@ function filterMarkers() {
 
         if (ok && searchTerm && !item.address.toLowerCase().includes(searchTerm)) ok = false;
 
-        const layer = item.isDamaged             ? markerLayers.damaged
-            : (!item.hasNumber && item.isActive)  ? markerLayers.approx
-            : (!item.hasNumber && !item.isActive) ? markerLayers.approxInactive
-            : item.isActive                       ? markerLayers.active
-            :                                       markerLayers.inactive;
+        const layer = (!item.hasNumber && item.isActive)  ? markerLayers.approx
+            : (!item.hasNumber && !item.isActive)         ? markerLayers.approxInactive
+            : item.isActive                               ? markerLayers.active
+            :                                               markerLayers.inactive;
 
         if (ok) layer.addLayer(item.marker);
         else    layer.removeLayer(item.marker);
@@ -383,11 +368,10 @@ function calculateFilteredStats() {
         // Sprawdź czy marker jest aktualnie widoczny (filterMarkers go nie ukrył)
         // Używamy layerGroup.hasLayer — działa niezależnie od tego czy
         // layerGroup jest przypięta do mapy (markerLayers.approx nie jest domyślnie)
-        const group = item.isDamaged             ? markerLayers.damaged
-            : (!item.hasNumber && item.isActive)  ? markerLayers.approx
-            : (!item.hasNumber && !item.isActive) ? markerLayers.approxInactive
-            : item.isActive                       ? markerLayers.active
-            :                                       markerLayers.inactive;
+        const group = (!item.hasNumber && item.isActive)  ? markerLayers.approx
+            : (!item.hasNumber && !item.isActive)          ? markerLayers.approxInactive
+            : item.isActive                                ? markerLayers.active
+            :                                                markerLayers.inactive;
         if (!group.hasLayer(item.marker)) return;
         if (searchTerm && !item.address.toLowerCase().includes(searchTerm)) return;
         if (!selectedRanges.includes(item.priceRange)) return;
@@ -536,7 +520,7 @@ function setupEventListeners() {
     document.getElementById('layer-approx-inactive')?.addEventListener('change', e => { if (e.target.checked) markerLayers.approxInactive.addTo(map); else map.removeLayer(markerLayers.approxInactive); filterMarkers(); });
     document.getElementById('time-filter').addEventListener('change', filterMarkers);
     document.querySelectorAll('.price-range-filter').forEach(cb => cb.addEventListener('change', filterMarkers));
-    ['badge-filter-price-down','badge-filter-price-up','badge-filter-new','badge-filter-damaged'].forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('change', filterMarkers); });
+    ['badge-filter-price-down','badge-filter-price-up','badge-filter-new','badge-filter-no-change'].forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('change', filterMarkers); });
 
     // Pola tekstowe — debounce 120ms
     document.getElementById('price-min').addEventListener('input', debouncedFilter);
@@ -599,7 +583,7 @@ function filterByTags() { filterMarkers(); }
 function updateBadgeCounts() {
     const timeFilter = document.getElementById('time-filter')?.value || 'all';
     const cutoffDate = timeFilter !== 'all' ? new Date(Date.now() - parseInt(timeFilter) * 86400000) : null;
-    const c = { priceDown:0, priceUp:0, isNew:0, damaged:0 };
+    const c = { priceDown:0, priceUp:0, isNew:0, noChange:0 };
     allMarkers.forEach(item => {
         if (!passesDaySliderFilter(item.firstSeenDate)) return;
         const priceIn = !cutoffDate || (item.priceChangedAtDate && item.priceChangedAtDate >= cutoffDate);
@@ -607,11 +591,11 @@ function updateBadgeCounts() {
         if (item.priceDown && priceIn) c.priceDown++;
         if (item.priceUp   && priceIn) c.priceUp++;
         if (item.isNew     && firstIn) c.isNew++;
-        if (item.isDamaged)            c.damaged++;
+        if (!item.isNew && !item.priceDown && !item.priceUp) c.noChange++;
     });
     const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = `(${v})`; };
     set('badge-count-price-down', c.priceDown); set('badge-count-price-up', c.priceUp);
-    set('badge-count-new', c.isNew); set('badge-count-damaged', c.damaged);
+    set('badge-count-new', c.isNew); set('badge-count-no-change', c.noChange);
 }
 
 function updatePriceRangeCounts() {
@@ -627,7 +611,7 @@ function updatePriceRangeCounts() {
     const showPriceDown      = document.getElementById('badge-filter-price-down')?.checked ?? true;
     const showPriceUp        = document.getElementById('badge-filter-price-up')?.checked   ?? true;
     const showNew            = document.getElementById('badge-filter-new')?.checked         ?? true;
-    const showDamaged        = document.getElementById('badge-filter-damaged')?.checked     ?? true;
+    const showNoChange       = document.getElementById('badge-filter-no-change')?.checked   ?? true;
     const priceMin           = parseInt(document.getElementById('price-min')?.value)  || 0;
     const priceMax           = parseInt(document.getElementById('price-max')?.value)  || 999999;
     const searchTerm         = (document.getElementById('search-input')?.value || '').toLowerCase();
@@ -653,8 +637,12 @@ function updatePriceRangeCounts() {
         if (t === 'kawalerka' && !showKawalerka)  return;
         if (t === 'mieszkanie'&& !showMieszkanie) return;
 
-        const hasAny = item.isDamaged || item.isNew || item.priceDown || item.priceUp;
-        if (hasAny && !((item.isDamaged && showDamaged) || (item.isNew && showNew) || (item.priceDown && showPriceDown) || (item.priceUp && showPriceUp))) return;
+        const hasAny = item.isNew || item.priceDown || item.priceUp;
+        if (hasAny) {
+            if (!((item.isNew && showNew) || (item.priceDown && showPriceDown) || (item.priceUp && showPriceUp))) return;
+        } else {
+            if (!showNoChange) return;
+        }
 
         if (cutoffDate) {
             const firstOk = item.firstSeenDate && item.firstSeenDate >= cutoffDate;
@@ -680,13 +668,7 @@ function updatePriceRangeCounts() {
     });
 }
 
-// ─────────────────────── RESTORE ──────────────────────────────────────────────
-
-function restoreListing(offerId) {
-    if (!confirm('✅ Przywrócić to ogłoszenie?')) return;
-    removeFromDamaged(offerId);
-    setTimeout(() => location.reload(), 800);
-}
+// ─────────────────────── OPIS — TOGGLE ────────────────────────────────────────
 
 function toggleDescription(uid) {
     const s = document.getElementById(`${uid}-short`);
