@@ -153,8 +153,39 @@ Pierwszy skan ~10 min (cache geokodowania pusty). Następne ~5 min.
 | **User-Agent Nominatim** | `src/geocoder.py` | `sonar-mieszkaniowy-lublin/1.0` |
 | **Zakresy cen** | `src/map_generator.py` → `PRICE_RANGES` | 12 zakresów 0–5000+ |
 | **Próg duplikatów** | `src/main.py` | `0.95` |
-| **Cron** | `.github/workflows/scanner.yml` | `0 7,13,19 * * *` (UTC = 9/15/21 CEST) |
+| **Cron** | `.github/workflows/scanner.yml` | `0 7,13,19 * * *` UTC = 9/15/21 CEST¹ |
 | **Bbox Lublina** | `src/geocoder.py` → `LUBLIN_BBOX` | lat 51.18–51.30, lon 22.42–22.68 |
+
+¹ Faktyczne czasy uruchomienia mogą być opóźnione o 1–3h — patrz [Znane ograniczenia](#%EF%B8%8F-znane-ograniczenia).
+
+---
+
+## ⚠️ Znane ograniczenia
+
+### Opóźnienia skanów schedulowanych
+Cron jest ustawiony na **9:00 / 15:00 / 21:00 CEST** (UTC: 7/13/19), ale **GitHub Actions nie gwarantuje punktualnego uruchomienia** scheduled workflows na public repo. Oficjalna polityka GitHuba dopuszcza opóźnienia w okresach wzmożonego ruchu, a **pełne godziny (`0 * * * *`) to czas największej kolejki**, bo większość projektów ustawia takie same godziny.
+
+**Obserwowane opóźnienia (maj 2026):** typowo 60–180 minut, ekstremalnie do ~220 min. Przykłady:
+
+| Planowany start (CEST) | Faktyczny start | Opóźnienie |
+|---|---|---|
+| 09:00 | 11:45 | +2h 45 min |
+| 15:00 | 17:42 | +2h 42 min |
+| 21:00 | 22:48 | +1h 48 min |
+
+**Co to oznacza w praktyce:**
+- Sprawdzając mapę o 09:30, 15:30, 21:30 możesz nie zobaczyć jeszcze danych z planowanego skanu — to **nie awaria**, tylko skan czeka w kolejce GitHuba.
+- Dokładny czas startu można sprawdzić w `Actions → SONAR MIESZKANIOWY Scanner`.
+- Ostatni faktyczny czas skanu zawsze widać w `docs/api/status.json` → `last_scan`.
+
+**Jak to obejść (jeśli komuś przeszkadza):**
+- Manualne uruchomienie: `Actions → Run workflow → main` startuje **natychmiast** (workflow_dispatch nie ma opóźnień).
+- Alternatywnie cron z minutami nieparzystymi (`23 7,13,19 * * *` = startujący o 7:23 UTC zamiast 7:00) — średnio krótsze kolejki. **W tym projekcie świadomie zostawiono pełne godziny** — opóźnienia są akceptowalne dla danych aktualizowanych 3×/dzień.
+
+### Inne znane ograniczenia
+- **Limity Nominatim** (geokodowanie OpenStreetMap): max ~1 request/sekundę, dlatego pierwszy skan trwa ~10 min. Cache w `data/geocoding_cache.json` redukuje to do ~5 min przy kolejnych skanach.
+- **Brak adresów w meta-danych OLX** — parser polega na regex po opisie. Ok. 20–25% ofert nie ma jasno wskazanego adresu w treści (sam tytuł typu "Mieszkanie do wynajęcia") — te trafiają do warstwy "bez lokalizacji" zamiast na mapę.
+- **OLX może zmienić HTML** — wtedy success rate spada poniżej 50%, co widać w `monitoring.html`. Krytyczne selektory są w `scraper.py` → `_extract_offers_from_page()`.
 
 ---
 
