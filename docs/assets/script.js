@@ -260,8 +260,6 @@ function createPopupContent(address, offers) {
 
         if (isDamaged(offer.id)) {
             html += `<button class="restore-listing-btn" onclick="restoreListing('${offer.id}')">✅ Przywróć ogłoszenie</button>`;
-        } else {
-            html += `<button class="mark-damaged-btn" onclick="markAsDamaged('${offer.id}')">⚠️ Oznacz jako uszkodzone</button>`;
         }
 
         const max = 100;
@@ -281,7 +279,6 @@ function createPopupContent(address, offers) {
             html += `📅 Aktywna przez: ${offer.days_active} dni<br>📅 Nieaktywna od: ${offer.last_seen}<br>💰 Ostatnia cena: ${offer.price} zł`;
         }
         html += `</div>`;
-        html += `<button class="delete-offer-btn" onclick="deleteOffer('${offer.id}', '${address}')">🗑️ Usuń z mapy</button>`;
         html += `</div>`;
     });
     html += `</div>`;
@@ -535,7 +532,6 @@ function setupEventListeners() {
 
     document.getElementById('layer-active').addEventListener('change', filterMarkers);
     document.getElementById('layer-inactive').addEventListener('change', filterMarkers);
-    document.getElementById('layer-damaged').addEventListener('change', toggleDamagedLayer);
     document.getElementById('layer-approx')?.addEventListener('change', e => { if (e.target.checked) markerLayers.approx.addTo(map); else map.removeLayer(markerLayers.approx); filterMarkers(); });
     document.getElementById('layer-approx-inactive')?.addEventListener('change', e => { if (e.target.checked) markerLayers.approxInactive.addTo(map); else map.removeLayer(markerLayers.approxInactive); filterMarkers(); });
     document.getElementById('time-filter').addEventListener('change', filterMarkers);
@@ -684,38 +680,12 @@ function updatePriceRangeCounts() {
     });
 }
 
-// ─────────────────────── DAMAGED / RESTORE / DELETE ──────────────────────────
-
-function markAsDamaged(offerId) {
-    if (!confirm('⚠️ Oznaczyć to ogłoszenie jako uszkodzone?\n\nTrafi do ukrytej warstwy "Uszkodzone". Możesz je przywrócić.')) return;
-    if (addToDamaged(offerId)) setTimeout(() => location.reload(), 800);
-}
+// ─────────────────────── RESTORE ──────────────────────────────────────────────
 
 function restoreListing(offerId) {
     if (!confirm('✅ Przywrócić to ogłoszenie?')) return;
     removeFromDamaged(offerId);
     setTimeout(() => location.reload(), 800);
-}
-
-function toggleDamagedLayer() {
-    const cb = document.getElementById('layer-damaged');
-    if (cb.checked) markerLayers.damaged.addTo(map);
-    else map.removeLayer(markerLayers.damaged);
-}
-
-function deleteOffer(offerId, address) {
-    if (!confirm(`🗑️ Usunąć ofertę z mapy?\n${address}\n\n(Operacja lokalna — zniknie po odświeżeniu strony)`)) return;
-    const idx = allMarkers.findIndex(m => m.offers[0]?.id === offerId);
-    if (idx === -1) return;
-    const item = allMarkers[idx];
-    const layer = item.isDamaged             ? markerLayers.damaged
-        : (!item.hasNumber && item.isActive)  ? markerLayers.approx
-        : (!item.hasNumber && !item.isActive) ? markerLayers.approxInactive
-        : item.isActive                       ? markerLayers.active
-        :                                       markerLayers.inactive;
-    layer.removeLayer(item.marker);
-    allMarkers.splice(idx, 1);
-    updateStats(); updateBadgeCounts();
 }
 
 function toggleDescription(uid) {
