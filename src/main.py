@@ -41,6 +41,9 @@ class SonarMieszkaniowy:
         
         # Inicjalizuj scraper Z istniejącymi ofertami (inteligentne pomijanie)
         existing_offers = self._build_existing_offers_index()
+        # OPTYMALIZACJA 2026-05: zachowaj indeks jako pole klasy żeby
+        # _process_offer mógł użyć coords z istniejących ofert (omija geokoder)
+        self.existing_offers_index = existing_offers
         self.scraper = OLXScraper(delay_range=(0.5, 1), max_workers=5, existing_offers=existing_offers)
     
     def _build_existing_offers_index(self) -> Dict:
@@ -67,13 +70,19 @@ class SonarMieszkaniowy:
                 except (ValueError, KeyError):
                     continue
             
+            # FIX 2026-05: coords są w address.coords, nie w 'coordinates' top-level.
+            # Wcześniej zawsze zwracało {} → każde geocode_address robione od nowa.
+            existing_addr = offer.get('address', {})
+            existing_coords = existing_addr.get('coords') if isinstance(existing_addr, dict) else None
+            
             index[offer['id']] = {
                 'price': offer.get('price', {}).get('current'),
                 'description': offer.get('description', ''),
                 'previous_price': offer.get('price', {}).get('previous_price'),
                 'was_active': is_active,
-                'address': offer.get('address', ''),
-                'coordinates': offer.get('coordinates', {})
+                'address': existing_addr,
+                'address_full': existing_addr.get('full', '') if isinstance(existing_addr, dict) else '',
+                'coordinates': existing_coords,
             }
             
             if is_active:
@@ -265,10 +274,23 @@ class SonarMieszkaniowy:
             coords = cached_coords
             print(f"      📍 Użyto współrzędnych z cache: {coords['lat']:.4f}, {coords['lon']:.4f}")
         else:
-            coords = self.geocoder.geocode_address(address_data['full'])
-            if not coords:
-                print(f"⚠️ Nie można geokodować: {address_data['full']} — trafi do warstwy bez lokacji")
-                coords = None  # Zapisz bez coords — obsłużone niżej
+            # OPTYMALIZACJA 2026-05: jeśli oferta już istnieje w bazie i ma ten sam adres,
+            # użyj jej coords zamiast wywoływać geokoder od nowa. To eliminuje ~70% wywołań
+            # Nominatim (skan z 70 min → ~25 min).
+            offer_id_temp = raw_offer['url'].split('/')[-1].split('.')[0]
+            reused_coords = None
+            existing = self.existing_offers_index.get(offer_id_temp) if hasattr(self, 'existing_offers_index') else None
+            if existing and existing.get('coordinates') and existing.get('address_full') == address_data['full']:
+                reused_coords = existing['coordinates']
+            
+            if reused_coords:
+                coords = reused_coords
+                # Skipowy log - bez print, żeby nie zaśmiecać outputu (470x ten sam log)
+            else:
+                coords = self.geocoder.geocode_address(address_data['full'])
+                if not coords:
+                    print(f"⚠️ Nie można geokodować: {address_data['full']} — trafi do warstwy bez lokacji")
+                    coords = None  # Zapisz bez coords — obsłużone niżej
         
         # 5. Stwórz ID z URL (unikalne)
         offer_id = raw_offer['url'].split('/')[-1].split('.')[0]

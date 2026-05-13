@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 from typing import Optional, Dict
 from geopy.geocoders import Nominatim
+from geopy.extra.rate_limiter import RateLimiter
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
 
 # Bounding box Lublina (~20x25 km z marginesem)
@@ -25,7 +26,23 @@ class Geocoder:
     def __init__(self, cache_file: str = "data/geocoding_cache.json"):
         self.cache_file = Path(cache_file)
         self.cache = self._load_cache()
-        self.geolocator = Nominatim(user_agent="sonar-mieszkaniowy-lublin/1.0")
+        # User-Agent zgodny z polityką Nominatim (kontakt + nazwa projektu)
+        # FIX 2026-05: poprawiony User-Agent (był "/1.0" - za krótki, mógł powodować bany)
+        self.geolocator = Nominatim(
+            user_agent="sonar-mieszkaniowy-lublin/1.1 (https://github.com/Bonaventura-EW/SONAR-MIESZKANIOWY)",
+            timeout=10
+        )
+        # FIX 2026-05: RateLimiter wymusza min_delay między requestami
+        # Bez tego requesty lecą jeden po drugim → bany 429 → exp.backoff → 309×retry per skan = +50min
+        # min_delay 1.1s zostawia margines bezpieczeństwa nad limit Nominatim 1 req/s
+        self.geocode = RateLimiter(
+            self.geolocator.geocode,
+            min_delay_seconds=1.1,
+            max_retries=2,           # Mniej retry (był 3) - większość 429 to permanent dla danej sesji
+            error_wait_seconds=10.0, # Standardowy retry delay (był 5/10/15)
+            swallow_exceptions=False,
+            return_value_on_exception=None,
+        )
         self._geocoding_limited = False  # Gdy True: pomija fallbacki, używa tylko cache
         
     def _load_cache(self) -> Dict:
@@ -215,62 +232,46 @@ class Geocoder:
         # Pełny adres z miastem
         full_address = f"{address}, Lublin, Poland"
 
-        # Próbujemy geokodować
-        for attempt in range(max_retries):
-            try:
-                location = self.geolocator.geocode(
-                    full_address,
-                    timeout=10,
-                    language='pl'
+        # FIX 2026-05: używamy self.geocode (RateLimiter) zamiast self.geolocator.geocode.
+        # RateLimiter wymusza min 1.1s między requestami i obsługuje retry sam,
+        # więc nie potrzebujemy tu pętli retry - tylko jedno wywołanie.
+        try:
+            location = self.geocode(full_address, language='pl')
+
+            if location:
+                coords = {
+                    'lat': location.latitude,
+                    'lon': location.longitude
+                }
+
+                # WALIDACJA: Sprawdź czy adres jest w Lublinie
+                if not self.is_in_lublin(coords):
+                    print(f"⚠️ Odrzucono {address} - poza Lublinem (lat={coords['lat']:.4f}, lon={coords['lon']:.4f})")
+                    return None
+
+                # Zapisujemy do cache
+                self.cache[address] = coords
+                self._save_cache()
+                
+                return coords
+            else:
+                # Nie znaleziono - zapisujemy jako None TYLKO gdy nie ma sensu retryować
+                no_cache_patterns = (
+                    address.startswith('Aleja ') or address.startswith('Aleje ') or
+                    re.search(r'(owej|skiej|nej|wej|iej|zej)\s*(\d|$)', address, re.IGNORECASE)
                 )
-
-                if location:
-                    coords = {
-                        'lat': location.latitude,
-                        'lon': location.longitude
-                    }
-
-                    # WALIDACJA: Sprawdź czy adres jest w Lublinie
-                    if not self.is_in_lublin(coords):
-                        print(f"⚠️ Odrzucono {address} - poza Lublinem (lat={coords['lat']:.4f}, lon={coords['lon']:.4f})")
-                        # NIE cachujemy negatywnie - może fallback Aleja/Aleje pomoże
-                        return None
-
-                    # Zapisujemy do cache
-                    self.cache[address] = coords
+                if not no_cache_patterns:
+                    self.cache[address] = None
                     self._save_cache()
-                    
-                    return coords
-                else:
-                    # Nie znaleziono - zapisujemy jako None TYLKO gdy nie ma sensu retryować
-                    # Nie cachuj None dla: Aleja/Aleje (fallback 1), adresów z dopełniaczem (fallback 5)
-                    no_cache_patterns = (
-                        address.startswith('Aleja ') or address.startswith('Aleje ') or
-                        re.search(r'(owej|skiej|nej|wej|iej|zej)\s*(\d|$)', address, re.IGNORECASE)
-                    )
-                    if not no_cache_patterns:
-                        self.cache[address] = None
-                        self._save_cache()
-                    return None
-                    
-            except GeocoderTimedOut:
-                if attempt < max_retries - 1:
-                    time.sleep(2 ** attempt)  # Exponential backoff
-                    continue
-                else:
-                    return None
-                    
-            except GeocoderServiceError as e:
-                # 429 Rate limited — czekaj dłużej i retry
-                if '429' in str(e):
-                    wait = 5 * (attempt + 1)
-                    print(f"   ⏳ Rate limit (429), czekam {wait}s...")
-                    time.sleep(wait)
-                    if attempt < max_retries - 1:
-                        continue
                 return None
-        
-        return None
+
+        except (GeocoderTimedOut, GeocoderServiceError) as e:
+            # RateLimiter już zrobił własne retry, więc tu tylko logujemy
+            if '429' in str(e):
+                print(f"   ⏳ Rate limit (429) dla: {address!r}")
+            elif 'timeout' in str(e).lower():
+                pass  # Cicho - typowe dla Nominatim
+            return None
     
     def batch_geocode(self, addresses: list, delay: float = 1.0) -> Dict[str, Optional[Dict]]:
         """
