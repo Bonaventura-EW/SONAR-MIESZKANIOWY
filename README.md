@@ -173,6 +173,17 @@ Cron jest ustawiony na **9:00 / 15:00 / 21:00 CEST** (UTC: 7/13/19), ale **GitHu
 | 15:00 | 17:42 | +2h 42 min |
 | 21:00 | 22:48 | +1h 48 min |
 
+**Czas trwania skanu** (po optymalizacji z 13.05.2026):
+| Metryka | Wartość |
+|---|---|
+| Total | **~9 min** (wcześniej 70-80 min) |
+| Scraping listingu (20 stron) | ~3 min |
+| Pobieranie szczegółów (5 wątków) | ~2 min |
+| Geokodowanie + processing | ~4 min |
+| Verification (50 ofert) | <1 min |
+
+Przyspieszenie 8x uzyskane przez: (1) `RateLimiter` z geopy zamiast nagiego `geocode()` — eliminuje rate-limit 429 z Nominatim, (2) reuse coords z poprzedniego skanu gdy adres się nie zmienił, (3) sprzątanie cache geokodowania ze starych śmieci.
+
 **Co to oznacza w praktyce:**
 - Sprawdzając mapę o 09:30, 15:30, 21:30 możesz nie zobaczyć jeszcze danych z planowanego skanu — to **nie awaria**, tylko skan czeka w kolejce GitHuba.
 - Dokładny czas startu można sprawdzić w `Actions → SONAR MIESZKANIOWY Scanner`.
