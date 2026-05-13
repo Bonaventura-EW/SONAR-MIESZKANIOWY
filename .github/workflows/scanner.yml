@@ -64,7 +64,33 @@ jobs:
           
           if git diff --staged --quiet; then
             echo "No changes to commit"
-          else
-            git commit -m "🤖 Automatyczny scan: $(TZ='Europe/Warsaw' date +'%Y-%m-%d %H:%M')" || true
-            git push || echo "::warning::Push failed"
+            exit 0
           fi
+          
+          git commit -m "🤖 Automatyczny scan: $(TZ='Europe/Warsaw' date +'%Y-%m-%d %H:%M')" || true
+          
+          # FIX 2026-05: pull --rebase + retry przed push, bo długie skany kolidują
+          # z manualnymi commitami do main (push fast-forward fail).
+          for attempt in 1 2 3; do
+            echo "📤 Push attempt #$attempt..."
+            
+            # Pobierz najnowszy main i przepisz nasz commit na jego szczycie
+            if ! git pull --rebase origin main; then
+              echo "::warning::Rebase #$attempt nie powiódł się (konflikt?). Próbuję mimo to."
+              # Jeśli rebase popsuł stan, anuluj i pomiń tę próbę
+              git rebase --abort 2>/dev/null || true
+              sleep 5
+              continue
+            fi
+            
+            if git push origin main; then
+              echo "✅ Push successful (attempt #$attempt)"
+              exit 0
+            else
+              echo "::warning::Push #$attempt odrzucony. Retry za 10s..."
+              sleep 10
+            fi
+          done
+          
+          echo "::error::Push failed po 3 próbach - dane skanu zostały utracone (nie zostały zapisane do repo)"
+          exit 1
