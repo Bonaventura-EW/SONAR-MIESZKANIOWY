@@ -101,6 +101,19 @@ class DuplicateDetector:
         
         return False  # Unikalne ogłoszenie
 
+    def find_duplicate(self, new_offer: Dict, existing_offers: List[Dict]):
+        """
+        Jak filter_duplicates, ale zwraca oryginalną ofertę (lub None).
+        Używane do zbierania próbek diagnostycznych (skipped_debug).
+
+        Returns:
+            Dict — pierwsza znaleziona pasująca oferta, lub None jeśli unikalna
+        """
+        for existing in existing_offers:
+            if self.is_duplicate(new_offer, existing):
+                return existing
+        return None
+
 
 # Testy jednostkowe
 if __name__ == "__main__":

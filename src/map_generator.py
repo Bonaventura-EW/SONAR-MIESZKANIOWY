@@ -390,3 +390,11 @@ if __name__ == '__main__':
     print("\n📊 Generowanie danych monitoringu...")
     from monitoring_generator import generate_monitoring_data
     generate_monitoring_data()
+
+    # Wygeneruj stronę debug z pominiętymi ofertami
+    print("\n🐛 Generowanie strony debug pominiętych ofert...")
+    try:
+        from skipped_debug_generator import generate_skipped_debug_page
+        generate_skipped_debug_page()
+    except Exception as e:
+        print(f"⚠️  skipped_debug_generator nie powiódł się: {e}")

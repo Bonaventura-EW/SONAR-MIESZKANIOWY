@@ -676,7 +676,16 @@ class SonarMieszkaniowy:
             skipped_removed = 0
             new_geocodes_count = 0      # Ile nowych geokodowań zrobiono w tym skanie
             MAX_NEW_GEOCODES = 150      # Limit geokodowań per skan (Nominatim rate limit)
-            
+
+            # Próbki odrzuconych ofert do analizy (max 50 per kategorię)
+            skipped_samples = {
+                'no_address': [],
+                'no_price': [],
+                'no_coords': [],
+                'duplicate': []
+            }
+            SAMPLE_LIMIT = 50
+
             for i, raw_offer in enumerate(raw_offers, 1):
                 print(f"   [{i}/{len(raw_offers)}] Przetwarzam: {raw_offer['title'][:50]}...")
                 
@@ -703,25 +712,79 @@ class SonarMieszkaniowy:
                 geocoding_time += time.time() - geo_start
                 
                 if not processed:
-                    # Zlicz powody odrzucenia
+                    # Zlicz powody odrzucenia + zachowaj próbkę do analizy
                     full_text = raw_offer['title'] + " " + raw_offer.get('description', '')
+                    sample = {
+                        'url': raw_offer.get('url', ''),
+                        'title': raw_offer.get('title', '')[:200],
+                        'description_preview': (raw_offer.get('description', '') or '')[:500]
+                    }
                     if not self.address_parser.extract_address(full_text):
+                        # Sprawdź czy parser znalazłby ulicę bez numeru
+                        street_only = self.address_parser.extract_street_only(full_text)
+                        if street_only:
+                            sample['note'] = f"extract_street_only znalazłby: {street_only['full']}"
                         skipped_no_address += 1
+                        if len(skipped_samples['no_address']) < SAMPLE_LIMIT:
+                            skipped_samples['no_address'].append(sample)
                     elif not self.price_parser.extract_price(full_text) and not raw_offer.get('official_price'):
                         skipped_no_price += 1
+                        if len(skipped_samples['no_price']) < SAMPLE_LIMIT:
+                            skipped_samples['no_price'].append(sample)
                     else:
                         skipped_no_coords += 1
+                        if len(skipped_samples['no_coords']) < SAMPLE_LIMIT:
+                            addr = self.address_parser.extract_address(full_text)
+                            sample['address_parsed'] = addr['full'] if addr else None
+                            skipped_samples['no_coords'].append(sample)
                     continue
                 
-                # Sprawdź duplikaty
-                if self.duplicate_detector.filter_duplicates(processed, processed_offers):
+                # Sprawdź duplikaty (find_duplicate zwraca oryginał lub None)
+                original_dup = self.duplicate_detector.find_duplicate(processed, processed_offers)
+                if original_dup is not None:
                     skipped_duplicate += 1
                     print(f"      ⚠️ Duplikat - ignoruję")
+                    if len(skipped_samples['duplicate']) < SAMPLE_LIMIT:
+                        similarity = self.duplicate_detector.calculate_similarity(
+                            processed.get('description', ''),
+                            original_dup.get('description', '')
+                        )
+                        skipped_samples['duplicate'].append({
+                            'url': raw_offer.get('url', ''),
+                            'title': raw_offer.get('title', '')[:200],
+                            'address_parsed': processed['address']['full'],
+                            'price': processed.get('price', {}).get('current'),
+                            'duplicate_of': {
+                                'url': original_dup.get('url', ''),
+                                'id': original_dup.get('id', ''),
+                                'address': original_dup.get('address', {}).get('full', ''),
+                                'price': original_dup.get('price', {}).get('current')
+                            },
+                            'similarity': round(similarity, 4)
+                        })
                     continue
                 
                 processed_offers.append(processed)
                 print(f"      ✅ {processed['address']['full']} - {processed['price']['current']} zł")
-            
+
+            # Zapisz próbki odrzuconych do analizy (nadpisuje przy każdym skanie)
+            try:
+                samples_path = self.data_file.parent / 'skipped_offers_sample.json'
+                with open(samples_path, 'w', encoding='utf-8') as f:
+                    json.dump({
+                        'scan_timestamp': datetime.now(self.tz).isoformat(),
+                        'counts': {
+                            'no_address': skipped_no_address,
+                            'no_price': skipped_no_price,
+                            'no_coords': skipped_no_coords,
+                            'duplicate': skipped_duplicate
+                        },
+                        'samples': skipped_samples
+                    }, f, ensure_ascii=False, indent=2)
+                print(f"   📊 Zapisano próbki odrzuconych do {samples_path.name}")
+            except Exception as e:
+                print(f"   ⚠️ Nie udało się zapisać skipped_offers_sample.json: {e}")
+
             processing_duration = time.time() - processing_start
             self.scan_logger.log_phase('processing', processing_duration, {
                 'processed': len(processed_offers),
