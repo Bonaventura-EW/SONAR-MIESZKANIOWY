@@ -505,6 +505,7 @@ class AddressParser:
                             'street': street_name.capitalize(),
                             'number': number,
                             'full': f"{street_name.capitalize()} {number}",
+                            'has_number': True,
                             'alternatives': []
                         }
                 except ValueError:
@@ -677,13 +678,14 @@ class AddressParser:
             sorted_candidates = sorted(candidates, key=lambda x: x['priority'], reverse=True)
             best = sorted_candidates[0]
             alternatives = [
-                {'street': c['street'], 'number': c['number'], 'full': c['full']}
+                {'street': c['street'], 'number': c['number'], 'full': c['full'], 'has_number': True}
                 for c in sorted_candidates[1:]
             ]
             return {
                 'street': best['street'],
                 'number': best['number'],
                 'full': best['full'],
+                'has_number': True,
                 'alternatives': alternatives  # może być pustą listą []
             }
         
@@ -715,7 +717,23 @@ class AddressParser:
                 'street': street,
                 'number': number,
                 'full': f"{street} {number}",
+                'has_number': True,
                 'alternatives': []  # surname fallback - brak alternatyw
+            }
+        
+        # FIX 2026-05-16: PRZYWRÓCONO fallback do extract_street_only (znajdującego ulicę BEZ numeru).
+        # Stara wersja mieszkaniowego miała ten fallback wbudowany w extract_address;
+        # po porcie z pokojowego (Etap 1+2) został usunięty, co spowodowało utratę ~208 ofert
+        # "przybliżonych aktywnych" przy każdym skanie.
+        # Te oferty mają adres typu "ul. Lipowej" bez numeru - dla mapy są przybliżone (kwadrat).
+        street_only_result = self.extract_street_only(text)
+        if street_only_result:
+            return {
+                'street': street_only_result['street'],
+                'number': None,
+                'full': street_only_result['full'],
+                'has_number': False,
+                'alternatives': []
             }
         
         # BRAK FALLBACK - Wymagamy NUMERU domu!
@@ -818,7 +836,8 @@ class AddressParser:
         return {
             'street': best['street'],
             'number': None,
-            'full': best['full']
+            'full': best['full'],
+            'has_number': False
         }
     
     def validate_lublin_address(self, address: str) -> bool:
