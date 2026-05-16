@@ -272,6 +272,11 @@ class SonarMieszkaniowy:
         # 4. Geokoduj adres (lub użyj cache dla reaktywacji)
         if use_cached_coords and cached_coords:
             coords = cached_coords
+            # Reaktywacja: address_data['full'] to ten sam adres jaki oferta miała w bazie,
+            # więc nie próbujemy alternatyw — final_* = main
+            final_street = address_data.get('street', '')
+            final_number = address_data.get('number')
+            final_full = address_data['full']
             print(f"      📍 Użyto współrzędnych z cache: {coords['lat']:.4f}, {coords['lon']:.4f}")
         else:
             # OPTYMALIZACJA 2026-05: jeśli oferta już istnieje w bazie i ma ten sam adres,
@@ -286,20 +291,36 @@ class SonarMieszkaniowy:
             if reused_coords:
                 coords = reused_coords
                 # Skipowy log - bez print, żeby nie zaśmiecać outputu (470x ten sam log)
+                # final_* używamy z address_data bo cache hit oznacza ten sam adres co main
+                final_street = address_data.get('street', '')
+                final_number = address_data.get('number')
+                final_full = address_data['full']
             else:
-                coords = self.geocoder.geocode_address(address_data['full'])
-                if not coords:
-                    print(f"⚠️ Nie można geokodować: {address_data['full']} — trafi do warstwy bez lokacji")
-                    coords = None  # Zapisz bez coords — obsłużone niżej
+                # MIESZKANIOWY 2026-05-15: geocode_with_alternatives próbuje główny + alternatywy
+                # (parser może zwrócić "Mieszkanie 3" jako main i "Narutowicza 38" w alternatives;
+                # jeśli main nie geokoduje się do Lublina, próbujemy alternatyw)
+                result = self.geocoder.geocode_with_alternatives(address_data)
+                if result:
+                    coords, used_address = result
+                    final_street = used_address['street']
+                    final_number = used_address['number']
+                    final_full = used_address['full']
+                else:
+                    coords = None
+                    final_street = address_data.get('street', '')
+                    final_number = address_data.get('number')
+                    final_full = address_data['full']
+                    print(f"⚠️ Nie można geokodować: {final_full} (próbowano też {len(address_data.get('alternatives', []))} alt.) — trafi do warstwy bez lokacji")
         
         # 5. Stwórz ID z URL (unikalne)
         offer_id = raw_offer['url'].split('/')[-1].split('.')[0]
         
         # Buduj address dict (bez coords lub z coords=None jeśli nie znaleziono)
+        # MIESZKANIOWY: zapisujemy KTÓRY adres faktycznie się zgeokodował (może być z alternatives)
         address_dict = {
-            'full': address_data['full'],
-            'street': address_data.get('street', ''),
-            'number': address_data.get('number'),
+            'full': final_full,
+            'street': final_street,
+            'number': final_number,
             'has_number': address_data.get('has_number', True),
         }
         if coords:
