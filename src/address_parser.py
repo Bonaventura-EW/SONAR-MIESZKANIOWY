@@ -736,6 +736,22 @@ class AddressParser:
                 'alternatives': []
             }
         
+        # FIX 2026-05-16 (Whitelist fallback): jeśli extract_street_only też nie znalazł
+        # (bo tekst nie ma jawnego "ul./al./pl.") sprawdzamy czy oferta wspomina KTÓRĄKOLWIEK
+        # znaną ulicę z geocoding_cache. To ratuje oferty typu "Lublin, Narutowicza, mieszkanie"
+        # (przecinki bez prefiksu) i "Lublin Spadochroniarzy 55m2" (bez prefiksu, ulica nie pierwsza).
+        # Zero ryzyka false-positive bo whitelist zawiera tylko ulice które JUŻ raz zostały
+        # zgeokodowane przez Nominatim z coords w bbox Lublina.
+        whitelist_result = self.extract_from_whitelist(text)
+        if whitelist_result:
+            return {
+                'street': whitelist_result['street'],
+                'number': None,
+                'full': whitelist_result['full'],
+                'has_number': False,
+                'alternatives': []
+            }
+        
         # BRAK FALLBACK - Wymagamy NUMERU domu!
         # Adresy bez numeru (np. "ul. Niecała") są zbyt nieprecyzyjne dla mapy
         return None
