@@ -133,6 +133,29 @@ class AddressParser:
         'wynajme',         # "Wynajmę" bez ogonka
         'położony',
         
+        # === FIX #1 MIESZKANIOWY (2026-05-16, po analizie 35 failów ze skanu) ===
+        # Te słowa MIESZKANIOWE doklejają się jako 2. człon nazwy ulicy:
+        # "Kryształowa Mieszkanie 2", "Wallenroda Kawalerka", "Bursztynowa Mieszkanie 65m"
+        # Parser akceptuje nazwy 1-3 wyrazowe (dla "Krakowskie Przedmieście"),
+        # więc bez wykluczenia tych słów łapie 2-wyrazowe pseudo-nazwy.
+        # Diagnoza: re-analiza offers.json po skanie 16.05.2026 wykazała ~20 takich case'ów.
+        # USUWAĆ uważnie - "balkon", "piętro" zostawiamy luźne bo w mieszkaniach są normalne
+        # i nie obserwowano że się doklejają.
+        'mieszkanie', 'mieszkaniu', 'mieszkania', 'mieszkaniem',
+        'kawalerka', 'kawalerce', 'kawalerki', 'kawalerką', 'kawalerkę',
+        'apartament', 'apartamencie', 'apartamentu', 'apartamentem', 'apartamenty',
+        'studio', 'studia',
+        'komfortowe', 'komfortowy', 'komfortowa', 'komfortowych',  # "Poligonowa Komfortowe"
+        'klimatyzacja', 'klimatyzacją',  # "klimatyzacja Mieszkanie 42"
+        # Kaucja - osobna pułapka: "Kaucja 2", "Kaucja 3", "pokoje Kaucja 2"
+        # Te miały coords (false-positive z Nominatim - "ulica Kaucja" gdzieś istnieje?)
+        'kaucja', 'kaucji', 'kaucją', 'kaucję',
+        # Inne false-positives z analizy
+        'wymagana', 'wymagane', 'wymagany',  # "Wymagana 1"
+        'wysokość', 'wysokości', 'wysokoscia',  # "wysokość wnętrz 3"
+        'wnętrz', 'wnętrza', 'wnętrzem',
+        'przedpokoju', 'przedpokój', 'przedpokojem',  # "przedpokoju 2"
+        
         # === Artefakty po preprocessing (po split CamelCase) ===
         'opisduży', 'opisdwuosobowy', 'opispokój', 'opisstudio',
         'vpustreet',
@@ -551,6 +574,12 @@ class AddressParser:
                 street_words.pop()
             # Sprawdź teraz pierwsze słowo - jeśli ono jest wykluczone, to znaczy że NIE MA prawdziwej ulicy
             if not street_words or street_words[0].lower() in excluded_words_lower:
+                continue
+            # FIX #1.2 (2026-05-16): Pierwsze słowo MUSI zaczynać się dużą literą.
+            # Prawdziwe ulice w PL: "Narutowicza", "Bursztynowa", "Krakowskie Przedmieście".
+            # Po odcięciu "pokoje Kaucja" → "pokoje" - małą literą, więc to NIE jest ulica.
+            # To kasuje case'y typu: "pokoje Kaucja 2" → "pokoje" (zwrot None zamiast śmiecia).
+            if not street_words[0][0].isupper():
                 continue
             # Zaktualizuj street do oczyszczonej nazwy
             street = ' '.join(street_words)
