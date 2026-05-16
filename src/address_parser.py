@@ -142,6 +142,33 @@ class AddressParser:
         
         # === Sekcje opisu, nagłówki ===
         'lokalizacja', 'okolica',
+        
+        # === FIX 2026-05-16: słowa-pułapki specyficzne dla MIESZKANIOWYCH ofert ===
+        # Diagnoza z quick_scan na 142 ofertach: ~20/35 nieudanych geokodowań 
+        # to wzorzec "[Nazwa ulicy] [słowo mieszkaniowe] [N]" gdzie parser łapie 
+        # 2-wyrazową frazę jako nazwę ulicy. Przykłady z bazy:
+        # "Kryształowa Mieszkanie 2", "Wallenroda Kawalerka", "Północna Mieszkanie",
+        # "klimatyzacja Mieszkanie 42", "Poligonowa Komfortowe", "Kawalerka 38" (FP)
+        # 
+        # W pokojowym te słowa nie były problemem (pokoje rzadko mają takie tytuły).
+        # W mieszkaniowym tytuły OLX często mają wzorzec "Nazwa Mieszkanie/Kawalerka/Apartament 65m".
+        # Dlatego TE konkretnie wracają do listy wykluczeń:
+        'mieszkanie', 'mieszkaniu', 'mieszkania', 'mieszkaniem',
+        'kawalerka', 'kawalerce', 'kawalerką', 'kawalerki',
+        'apartament', 'apartamencie', 'apartamenty', 'apartamentu',
+        'studio', 'studia', 'studiu',
+        'komfortowe', 'komfortowy', 'komfortowa', 'komfortowych', 'komfortowym',
+        
+        # === FIX 2026-05-16: "Kaucja N" / "wysokość N" jako pseudo-adresy ===
+        # Diagnoza: 5 ofert miało adres "Kaucja 2", "Kaucja 3", "wysokość wnętrz 3", "to ok 200"
+        # Te słowa pełnią funkcję rzeczownika + liczby co regex łapie jako "ulica + numer".
+        'kaucja', 'kaucją', 'kaucji',
+        'wysokość', 'wysokości', 'wnętrz', 'wnętrza',
+        'wymagana', 'wymagane', 'wymagany',  # "Wymagana 1 miesięczna kaucja"
+        'przedpokoju', 'przedpokój',
+        'klimatyzacja', 'klimatyzację',  # "klimatyzacja Mieszkanie 42"
+        'opisduży',  # już jest, ale dla pewności
+        'opisstudio',
     }
 
     # Pattern dla ekstrakcji ulicy BEZ numeru (decyzja 1a — tylko z jawnym prefiksem)
@@ -513,15 +540,22 @@ class AddressParser:
                 continue
             
             # Sprawdź czy którekolwiek słowo w nazwie ulicy NIE jest słowem wykluczonym
+            # FIX 2026-05-16 (mieszkaniowy): zamiast odrzucać CAŁOŚĆ, ODCIĄĆ wykluczone słowa
+            # od KOŃCA nazwy. Przykład: "Bursztynowa Mieszkanie" → wykluczamy 'Mieszkanie' z końca,
+            # zostaje samo "Bursztynowa" które jest prawdziwą ulicą.
+            # WAŻNE: odcinanie tylko z końca, nie ze środka (żeby nie psuć "Pana Tadeusza").
+            # Jeśli WSZYSTKIE słowa są wykluczone (np. "Kaucja Mieszkanie") - odrzucamy całość.
             street_words = street.split()
-            is_valid = True
-            
-            for word in street_words:
-                if word.lower() in excluded_words_lower:
-                    is_valid = False
-                    break
-            
-            if not is_valid:
+            # Odcinaj od końca dopóki ostatnie słowo jest wykluczone
+            while street_words and street_words[-1].lower() in excluded_words_lower:
+                street_words.pop()
+            # Sprawdź teraz pierwsze słowo - jeśli ono jest wykluczone, to znaczy że NIE MA prawdziwej ulicy
+            if not street_words or street_words[0].lower() in excluded_words_lower:
+                continue
+            # Zaktualizuj street do oczyszczonej nazwy
+            street = ' '.join(street_words)
+            # Minimum 4 znaki po odcięciu - inaczej to za krótka nazwa
+            if len(street.replace(' ', '')) < 4:
                 continue
             
             # Wyciągnij główny numer (przed / lub lok.)
