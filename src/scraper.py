@@ -30,6 +30,8 @@ class OLXScraper:
         """
         Args:
             delay_range: Zakres opóźnień między requestami (min, max) w sekundach
+                         UWAGA: to delay PER-THREAD, nie globalny. Każdy wątek niezależnie
+                         odczekuje swój delay między swoimi requestami.
             max_workers: Liczba równoległych wątków dla pobierania szczegółów
             existing_offers: Słownik istniejących ofert {id: {'price': X, ...}} do inteligentnego pomijania
         """
@@ -38,9 +40,16 @@ class OLXScraper:
         self.session = requests.Session()
         self.session.headers.update(self.HEADERS)
         
-        # Thread-safe rate limiter
-        self._lock = threading.Lock()
-        self._last_request_time = 0
+        # Per-thread rate limiter (Etap 3 z SONAR-POKOJOWY, 2026-05-15)
+        # Wcześniej globalny self._lock + self._last_request_time powodował, że
+        # wszystkie wątki czekały sekwencyjnie w kolejce na delay - efektywnie 1 wątek.
+        # Teraz każdy wątek czeka tylko na SWÓJ ostatni request, więc 10 wątków
+        # robi 10× więcej requestów/s niż 1 wątek (ograniczone tylko siecią/serwerem).
+        self._thread_local = threading.local()
+        # Globalny "soft cap" jako zabezpieczenie przed Cloudflare - max QPS dla CAŁEGO scrapera
+        self._global_lock = threading.Lock()
+        self._global_last_request = 0
+        self._global_min_interval = 0.05  # 20 req/s górny limit (CF zwykle limituje przy 30+)
         
         # Inteligentne pomijanie - istniejące oferty
         self.existing_offers = existing_offers or {}
@@ -72,23 +81,40 @@ class OLXScraper:
         return None
     
     def _random_delay(self):
-        """Thread-safe losowe opóźnienie między requestami."""
-        with self._lock:
+        """
+        Per-thread rate limiter z globalnym soft cap.
+        
+        Logika (Etap 3 z SONAR-POKOJOWY):
+        1. Każdy wątek czeka SWÓJ delay (delay_min..delay_max) między swoimi requestami.
+           Wątek A i wątek B mogą wystrzelić requesty równocześnie - to celowe.
+        2. Globalny soft cap (20 QPS) chroni przed wystrzeleniem zbyt wielu requestów
+           naraz gdyby wszystkie wątki zsynchronizowały się przypadkiem.
+        """
+        # === KROK 1: Per-thread delay ===
+        last_req = getattr(self._thread_local, 'last_request_time', 0)
+        now = time.time()
+        time_since_last = now - last_req
+        
+        if time_since_last < self.delay_min:
+            sleep_time = self.delay_min - time_since_last
+            # Dodaj losowy jitter w zakresie [delay_min, delay_max]
+            jitter = random.uniform(0, self.delay_max - self.delay_min)
+            time.sleep(sleep_time + jitter)
+        else:
+            # Już minął delay_min - dodaj tylko jitter (jeśli jest)
+            jitter = random.uniform(0, self.delay_max - self.delay_min)
+            if jitter > 0:
+                time.sleep(jitter)
+        
+        # === KROK 2: Globalny soft cap (max 20 QPS dla całego scrapera) ===
+        with self._global_lock:
             now = time.time()
-            time_since_last = now - self._last_request_time
-            
-            # Minimalne opóźnienie między requestami
-            min_interval = self.delay_min
-            if time_since_last < min_interval:
-                sleep_time = min_interval - time_since_last
-                time.sleep(sleep_time)
-            
-            # Dodatkowe losowe opóźnienie
-            extra_delay = random.uniform(0, self.delay_max - self.delay_min)
-            if extra_delay > 0:
-                time.sleep(extra_delay)
-            
-            self._last_request_time = time.time()
+            global_since_last = now - self._global_last_request
+            if global_since_last < self._global_min_interval:
+                time.sleep(self._global_min_interval - global_since_last)
+            self._global_last_request = time.time()
+        
+        self._thread_local.last_request_time = time.time()
     
     def _fetch_page(self, url: str) -> Optional[BeautifulSoup]:
         """

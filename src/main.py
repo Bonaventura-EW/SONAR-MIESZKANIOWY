@@ -44,7 +44,7 @@ class SonarMieszkaniowy:
         # OPTYMALIZACJA 2026-05: zachowaj indeks jako pole klasy żeby
         # _process_offer mógł użyć coords z istniejących ofert (omija geokoder)
         self.existing_offers_index = existing_offers
-        self.scraper = OLXScraper(delay_range=(0.5, 1), max_workers=5, existing_offers=existing_offers)
+        self.scraper = OLXScraper(delay_range=(0.2, 0.5), max_workers=10, existing_offers=existing_offers)
     
     def _build_existing_offers_index(self) -> Dict:
         """
