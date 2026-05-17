@@ -68,11 +68,14 @@ def _build_change_entry(offer: dict) -> Optional[dict]:
     # Adres - czytelny
     addr = offer.get("address", {}) or {}
     address_full = addr.get("full") or addr.get("street") or "?"
+    coords = addr.get("coords") or {}
+    has_coords = bool(coords.get("lat") and coords.get("lon"))
 
     return {
         "id": offer.get("id"),
         "url": offer.get("url"),
         "address": address_full,
+        "has_coords": has_coords,
         "first_price": first_price,
         "current_price": current_price,
         "total_diff_pln": total_diff_pln,

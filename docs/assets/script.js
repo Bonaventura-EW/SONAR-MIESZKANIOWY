@@ -106,6 +106,8 @@ async function loadData() {
         filterMarkers();
         initUnlocalisedLayer();
         console.log('🎉 Mapa gotowa!');
+        // Deep-link: ?offer=<id> z innych stron (np. top5.html)
+        focusOfferFromUrl();
     } catch (error) {
         console.error('❌ Błąd wczytywania danych:', error);
         alert('Nie udało się wczytać danych mapy.\n\nBłąd: ' + error.message);
@@ -759,6 +761,60 @@ function renderUnlocalised() {
             </div>
         </div>`;
     }).join('');
+}
+
+// ─────────────────────── DEEP-LINK ?offer=<id> ───────────────────────────────
+// Otwiera mapę z konkretną ofertą wybraną z innej strony (np. top5.html).
+// Wymusza włączenie odpowiedniej warstwy (active/inactive/approx*) gdyby była
+// odznaczona, bo inaczej setView nie pokaże markera.
+
+function focusOfferFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const targetId = params.get('offer');
+    if (!targetId) return;
+
+    const match = allMarkers.find(item =>
+        item.offers && item.offers.some(o => o.id === targetId)
+    );
+
+    if (!match) {
+        console.warn(`⚠️ Oferta ${targetId} nie znaleziona na mapie (brak coords lub usunięta z bazy)`);
+        showOfferNotFoundToast(targetId);
+        return;
+    }
+
+    // Wybierz checkbox warstwy odpowiadający tej ofercie i upewnij się że jest zaznaczony
+    let layerCheckboxId;
+    if (!match.hasNumber && match.isActive)       layerCheckboxId = 'layer-approx';
+    else if (!match.hasNumber && !match.isActive) layerCheckboxId = 'layer-approx-inactive';
+    else if (match.isActive)                      layerCheckboxId = 'layer-active';
+    else                                          layerCheckboxId = 'layer-inactive';
+
+    const checkbox = document.getElementById(layerCheckboxId);
+    if (checkbox && !checkbox.checked) {
+        checkbox.checked = true;
+        // Przeładuj widoczność warstw po zmianie checkboxa
+        if (typeof filterMarkers === 'function') filterMarkers();
+    }
+
+    // Mała zwłoka żeby Leaflet zdążył zaktualizować warstwy
+    setTimeout(() => {
+        map.setView(match.marker.getLatLng(), 17);
+        match.marker.openPopup();
+    }, 150);
+}
+
+function showOfferNotFoundToast(offerId) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+        background: #fff3cd; color: #856404; border: 1px solid #ffeeba;
+        padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        font-size: 14px; z-index: 10000; max-width: 400px; text-align: center;
+    `;
+    toast.innerHTML = `⚠️ Oferta <code style="background:#fff;padding:2px 6px;border-radius:3px">${offerId}</code> nie ma współrzędnych na mapie (brak adresu lub została usunięta z bazy).`;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 6000);
 }
 
 // ─────────────────────── INIT ─────────────────────────────────────────────────

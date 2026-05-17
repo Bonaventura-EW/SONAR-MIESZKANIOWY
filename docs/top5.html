@@ -223,6 +223,37 @@
         }
         .drops .rank-badge { background: #2e7d32; }
         .rises .rank-badge { background: #c62828; }
+
+        .pin-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 5px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            font-size: 12px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            white-space: nowrap;
+        }
+        .pin-btn:hover { background: #5566d6; }
+        .pin-btn:active { transform: translateY(1px); }
+        .pin-btn.disabled {
+            background: #d0d4dc;
+            color: #888;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+        .header-right {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
     </style>
 </head>
 <body>
@@ -424,6 +455,11 @@
         const safeAddr = (e.address || '?').replace(/</g, '&lt;');
         const idx = rank - 1;
 
+        // Pinezka -> mapa z popupem konkretnej oferty
+        const pinBtn = e.has_coords
+            ? `<a class="pin-btn" href="index.html?offer=${encodeURIComponent(e.id)}" title="Pokaż na mapie">📍 Mapa</a>`
+            : `<span class="pin-btn disabled" title="Oferta nie ma współrzędnych - geokodowanie nie powiodło się">📍 Brak loc.</span>`;
+
         return `
             <div class="offer-row">
                 <div class="offer-header">
@@ -431,7 +467,10 @@
                         <span class="rank-badge">${rank}</span>
                         <a href="${e.url}" target="_blank" rel="noopener noreferrer">${safeAddr}</a>
                     </div>
-                    <span class="badge ${statusClass}">${statusText}</span>
+                    <div class="header-right">
+                        ${pinBtn}
+                        <span class="badge ${statusClass}">${statusText}</span>
+                    </div>
                 </div>
                 <div class="diff-line">
                     <span class="price-old">${fmtPLN(e.first_price)}</span>
