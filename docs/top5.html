@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOP 5 zmian cen - SONAR MIESZKANIOWY</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
+    <link rel="stylesheet" href="assets/style.css?v=2">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f7fa;
+            color: #1a1a1a;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 22px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .nav-links {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        .nav-links a:hover { background: rgba(255,255,255,0.35); }
+        .nav-links a.active {
+            background: rgba(255,255,255,0.45);
+            box-shadow: 0 0 0 2px rgba(255,255,255,0.4);
+        }
+
+        main { max-width: 1400px; margin: 0 auto; padding: 24px; }
+
+        .filters {
+            background: white;
+            border-radius: 10px;
+            padding: 20px 24px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            margin-bottom: 24px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: flex-end;
+        }
+        .filter-group { display: flex; flex-direction: column; gap: 6px; }
+        .filter-group label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .filter-group input[type="date"], .filter-group select {
+            padding: 8px 12px;
+            border: 1px solid #d0d7de;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            min-width: 160px;
+        }
+        .btn {
+            padding: 9px 18px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+        .btn:active { transform: translateY(1px); }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { opacity: 0.9; }
+        .btn-secondary { background: #eef0f4; color: #333; }
+        .btn-secondary:hover { background: #dde0e7; }
+
+        .info-bar {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            color: #555;
+            font-size: 13px;
+            margin-bottom: 16px;
+            padding: 0 4px;
+        }
+        .info-bar strong { color: #1a1a1a; }
+
+        .sections {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        @media (max-width: 1000px) { .sections { grid-template-columns: 1fr; } }
+
+        .section-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px 24px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        .section-card h2 {
+            margin: 0 0 16px 0;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .section-card.drops h2 { color: #2e7d32; }
+        .section-card.rises h2 { color: #c62828; }
+
+        .offer-row {
+            border: 1px solid #eef0f4;
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+            background: #fafbfc;
+            transition: box-shadow 0.2s;
+        }
+        .offer-row:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .offer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+        .offer-title {
+            flex: 1;
+            font-weight: 600;
+            font-size: 15px;
+            color: #1a1a1a;
+        }
+        .offer-title a {
+            color: #1a1a1a;
+            text-decoration: none;
+            border-bottom: 1px dashed #aaa;
+        }
+        .offer-title a:hover { color: #667eea; border-bottom-color: #667eea; }
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+        }
+        .badge-active { background: #e8f5e9; color: #2e7d32; }
+        .badge-inactive { background: #fce4ec; color: #c62828; }
+
+        .diff-line {
+            font-size: 14px;
+            color: #444;
+            margin: 6px 0;
+        }
+        .diff-down { color: #2e7d32; font-weight: 700; }
+        .diff-up   { color: #c62828; font-weight: 700; }
+        .price-old { text-decoration: line-through; color: #888; }
+        .price-new { font-weight: 700; }
+
+        .meta-line {
+            font-size: 12px;
+            color: #666;
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-top: 6px;
+        }
+        .meta-line span { white-space: nowrap; }
+
+        .chart-wrapper {
+            margin-top: 10px;
+            background: white;
+            border-radius: 6px;
+            padding: 8px 10px 4px;
+            border: 1px solid #eef0f4;
+            height: 140px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #888;
+            font-style: italic;
+        }
+
+        .rank-badge {
+            display: inline-block;
+            width: 28px; height: 28px;
+            line-height: 28px;
+            text-align: center;
+            border-radius: 50%;
+            font-weight: 800;
+            font-size: 13px;
+            margin-right: 8px;
+            color: white;
+            background: #999;
+        }
+        .drops .rank-badge { background: #2e7d32; }
+        .rises .rank-badge { background: #c62828; }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>🏆 TOP 5 zmian cen</h1>
+        <nav class="nav-links">
+            <a href="index.html">🗺️ Mapa</a>
+            <a href="analytics.html">📈 Analityka</a>
+            <a href="monitoring.html">📊 Monitoring</a>
+            <a href="market_analysis.html">🔍 Analiza Rynku</a>
+            <a href="top5.html" class="active">🏆 Top 5</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="filters">
+            <div class="filter-group">
+                <label for="date-from">Data od</label>
+                <input type="date" id="date-from">
+            </div>
+            <div class="filter-group">
+                <label for="date-to">Data do</label>
+                <input type="date" id="date-to">
+            </div>
+            <div class="filter-group">
+                <label for="status-filter">Status oferty</label>
+                <select id="status-filter">
+                    <option value="all">Wszystkie</option>
+                    <option value="active">Tylko aktywne</option>
+                    <option value="inactive">Tylko nieaktywne</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" id="apply-btn">Zastosuj</button>
+            <button class="btn btn-secondary" id="reset-btn">Reset (cały okres)</button>
+        </div>
+
+        <div class="info-bar" id="info-bar"></div>
+
+        <div class="sections">
+            <div class="section-card drops">
+                <h2>📉 TOP 5 największych obniżek</h2>
+                <div id="drops-list"></div>
+            </div>
+            <div class="section-card rises">
+                <h2>📈 TOP 5 największych podwyżek</h2>
+                <div id="rises-list"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+    // ---------- Helpers ----------
+    function fmtPLN(n) {
+        return new Intl.NumberFormat('pl-PL', { maximumFractionDigits: 0 }).format(n) + ' zł';
+    }
+    function fmtSignedPLN(n) {
+        const sign = n > 0 ? '+' : '';
+        return sign + fmtPLN(n);
+    }
+    function fmtDate(iso) {
+        if (!iso) return '?';
+        const d = new Date(iso);
+        if (isNaN(d.getTime())) return '?';
+        return d.toLocaleDateString('pl-PL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    }
+    function toISODate(d) {
+        return d.toISOString().slice(0, 10);
+    }
+    function parseISODate(s) {
+        // Zwraca Date dla początku dnia w lokalnej strefie
+        if (!s) return null;
+        const [y, m, d] = s.split('-').map(Number);
+        return new Date(y, m - 1, d);
+    }
+    function endOfDay(d) {
+        const c = new Date(d);
+        c.setHours(23, 59, 59, 999);
+        return c;
+    }
+
+    // ---------- State ----------
+    let DATA = null;       // pełny obiekt z top5_data.json
+    let ENTRIES = [];      // wszystkie wpisy
+    const charts = {};     // Chart.js instances per offer id
+
+    // ---------- Load ----------
+    async function loadData() {
+        try {
+            const resp = await fetch('top5_data.json?ts=' + Date.now());
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            DATA = await resp.json();
+            ENTRIES = DATA.entries || [];
+            initFilters();
+            applyFilters();
+        } catch (err) {
+            document.getElementById('drops-list').innerHTML =
+                '<div class="empty-state">Błąd ładowania danych: ' + err.message + '</div>';
+        }
+    }
+
+    function initFilters() {
+        // Ustaw zakres dat na globalny zakres danych
+        const dr = DATA.date_range || {};
+        const dateFrom = document.getElementById('date-from');
+        const dateTo = document.getElementById('date-to');
+
+        if (dr.min) dateFrom.value = dr.min.slice(0, 10);
+        if (dr.max) dateTo.value = dr.max.slice(0, 10);
+
+        document.getElementById('apply-btn').addEventListener('click', applyFilters);
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            if (dr.min) dateFrom.value = dr.min.slice(0, 10);
+            if (dr.max) dateTo.value = dr.max.slice(0, 10);
+            document.getElementById('status-filter').value = 'all';
+            applyFilters();
+        });
+    }
+
+    // ---------- Filter logic ----------
+    // Reguła: pokaż oferty AKTYWNE w wybranym okresie
+    // czyli takie gdzie [first_seen, last_seen] ma overlap z [from, to]
+    function overlaps(firstSeen, lastSeen, from, to) {
+        const fs = firstSeen ? new Date(firstSeen) : null;
+        const ls = lastSeen ? new Date(lastSeen) : null;
+        if (!fs || !ls) return false;
+        // overlap: fs <= to AND ls >= from
+        return fs <= to && ls >= from;
+    }
+
+    function applyFilters() {
+        const fromStr = document.getElementById('date-from').value;
+        const toStr = document.getElementById('date-to').value;
+        const status = document.getElementById('status-filter').value;
+
+        const from = fromStr ? parseISODate(fromStr) : new Date('1970-01-01');
+        const to = toStr ? endOfDay(parseISODate(toStr)) : new Date('2999-12-31');
+
+        let filtered = ENTRIES.filter(e => overlaps(e.first_seen, e.last_seen, from, to));
+
+        if (status === 'active') filtered = filtered.filter(e => e.active);
+        if (status === 'inactive') filtered = filtered.filter(e => !e.active);
+
+        // Top 5 spadków - najbardziej ujemna zmiana
+        const drops = filtered.filter(e => e.trend === 'down')
+                              .sort((a, b) => a.total_diff_pln - b.total_diff_pln)
+                              .slice(0, 5);
+        // Top 5 wzrostów - największa dodatnia zmiana
+        const rises = filtered.filter(e => e.trend === 'up')
+                              .sort((a, b) => b.total_diff_pln - a.total_diff_pln)
+                              .slice(0, 5);
+
+        renderInfoBar(filtered.length, drops.length, rises.length, fromStr, toStr);
+        renderList('drops-list', drops, 'down');
+        renderList('rises-list', rises, 'up');
+    }
+
+    function renderInfoBar(totalInRange, dropsCount, risesCount, fromStr, toStr) {
+        const generated = DATA.generated_at ? new Date(DATA.generated_at).toLocaleString('pl-PL') : '?';
+        document.getElementById('info-bar').innerHTML =
+            `<span>Zakres: <strong>${fromStr || '?'}</strong> → <strong>${toStr || '?'}</strong></span>` +
+            `<span>Ofert ze zmianą w zakresie: <strong>${totalInRange}</strong></span>` +
+            `<span>Spadki: <strong>${dropsCount}</strong></span>` +
+            `<span>Wzrosty: <strong>${risesCount}</strong></span>` +
+            `<span>Łącznie w bazie ze zmianą: <strong>${DATA.offers_with_change}</strong> z ${DATA.total_offers}</span>` +
+            `<span>Wygenerowano: <strong>${generated}</strong></span>`;
+    }
+
+    // ---------- Rendering ----------
+    function renderList(containerId, items, trend) {
+        const container = document.getElementById(containerId);
+
+        // Zniszcz poprzednie wykresy w tym kontenerze (zapobiega wyciekom Chart.js)
+        Object.keys(charts).forEach(k => {
+            if (k.startsWith(containerId + ':')) {
+                charts[k].destroy();
+                delete charts[k];
+            }
+        });
+
+        if (items.length === 0) {
+            container.innerHTML = '<div class="empty-state">Brak ofert w wybranym zakresie</div>';
+            return;
+        }
+
+        container.innerHTML = items.map((e, idx) => renderRow(e, idx + 1, containerId)).join('');
+
+        // Po wstawieniu do DOM - narysuj wykresy
+        items.forEach((e, idx) => {
+            const canvasId = containerId + ':' + idx;
+            const canvas = document.getElementById('chart-' + containerId + '-' + idx);
+            if (canvas) drawChart(canvas, e, canvasId, trend);
+        });
+    }
+
+    function renderRow(e, rank, containerId) {
+        const diffClass = e.trend === 'down' ? 'diff-down' : 'diff-up';
+        const statusClass = e.active ? 'badge-active' : 'badge-inactive';
+        const statusText = e.active ? 'Aktywne' : 'Nieaktywne';
+        const safeAddr = (e.address || '?').replace(/</g, '&lt;');
+        const idx = rank - 1;
+
+        return `
+            <div class="offer-row">
+                <div class="offer-header">
+                    <div class="offer-title">
+                        <span class="rank-badge">${rank}</span>
+                        <a href="${e.url}" target="_blank" rel="noopener noreferrer">${safeAddr}</a>
+                    </div>
+                    <span class="badge ${statusClass}">${statusText}</span>
+                </div>
+                <div class="diff-line">
+                    <span class="price-old">${fmtPLN(e.first_price)}</span>
+                    →
+                    <span class="price-new">${fmtPLN(e.current_price)}</span>
+                    &nbsp;
+                    <span class="${diffClass}">${fmtSignedPLN(e.total_diff_pln)} (${e.total_diff_pct > 0 ? '+' : ''}${e.total_diff_pct}%)</span>
+                </div>
+                <div class="meta-line">
+                    <span>📅 Od: <strong>${fmtDate(e.first_seen)}</strong></span>
+                    <span>${e.active ? '👁️ Ostatnio widziano' : '❌ Zniknęło'}: <strong>${fmtDate(e.last_seen)}</strong></span>
+                    <span>🔄 Zmian cen: <strong>${e.num_changes}</strong></span>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="chart-${containerId}-${idx}"></canvas>
+                </div>
+            </div>
+        `;
+    }
+
+    function drawChart(canvas, entry, chartKey, trend) {
+        const timeline = entry.timeline || [];
+        if (timeline.length < 2) return;
+
+        const points = timeline.map(p => ({ x: p.date, y: p.price }));
+        const color = trend === 'down' ? '#2e7d32' : '#c62828';
+        const fillColor = trend === 'down' ? 'rgba(46,125,50,0.12)' : 'rgba(198,40,40,0.12)';
+
+        charts[chartKey] = new Chart(canvas.getContext('2d'), {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: 'Cena (zł)',
+                    data: points,
+                    borderColor: color,
+                    backgroundColor: fillColor,
+                    fill: true,
+                    tension: 0.15,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: color,
+                    borderWidth: 2,
+                    stepped: false,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            title: (ctx) => fmtDate(ctx[0].parsed.x),
+                            label: (ctx) => fmtPLN(ctx.parsed.y),
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: { unit: 'day', tooltipFormat: 'dd MMM yyyy', displayFormats: { day: 'dd MMM' } },
+                        ticks: { font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 5 },
+                        grid: { display: false },
+                    },
+                    y: {
+                        ticks: {
+                            font: { size: 10 },
+                            callback: (v) => fmtPLN(v),
+                        },
+                        grid: { color: 'rgba(0,0,0,0.05)' },
+                    }
+                }
+            }
+        });
+    }
+
+    // ---------- Init ----------
+    loadData();
+    </script>
+</body>
+</html>

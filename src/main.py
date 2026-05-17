@@ -432,6 +432,17 @@ class SonarMieszkaniowy:
             
             # Dodaj do historii
             existing['price']['history'].append(new_price)
+            
+            # NOWE (top5): dodaj wpis do price_changes z timestampem
+            # Struktura: lista {old_price, new_price, changed_at, trend}
+            if 'price_changes' not in existing['price']:
+                existing['price']['price_changes'] = []
+            existing['price']['price_changes'].append({
+                'old_price': old_price,
+                'new_price': new_price,
+                'changed_at': now,
+                'trend': 'down' if new_price < old_price else 'up'
+            })
         
         # Zawsze aktualizuj media_info (może się zmienić niezależnie)
         existing['price']['media_info'] = new_data['price']['media_info']
