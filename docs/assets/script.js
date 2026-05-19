@@ -421,8 +421,8 @@ function updateStats() {
     } else {
         ['visible-count','avg-price','min-price','max-price'].forEach(id => set(id, '-'));
     }
-    set('active-count',         ` (${allMarkers.filter(m => m.isActive).length})`);
-    set('inactive-count',       ` (${allMarkers.filter(m => !m.isActive).length})`);
+    set('active-count',         ` (${allMarkers.filter(m => m.isActive && m.hasNumber).length})`);
+    set('inactive-count',       ` (${allMarkers.filter(m => !m.isActive && m.hasNumber).length})`);
     set('approx-count',         ` (${allMarkers.filter(m => !m.hasNumber && m.isActive).length})`);
     set('approx-inactive-count',` (${allMarkers.filter(m => !m.hasNumber && !m.isActive).length})`);
 }
