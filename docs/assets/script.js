@@ -132,8 +132,12 @@ function buildPinIcon(color, strokeColor, strokeWidth, badges, isActive = true) 
     });
 }
 
-function buildSquareIcon(color, isNew, isActive = true) {
-    const badge = isNew ? '<div class="marker-badge marker-badge--new">N</div>' : '';
+function buildSquareIcon(color, badges, isActive = true) {
+    const { isNew, priceDown, priceUp } = (badges && typeof badges === 'object') ? badges : { isNew: badges, priceDown: false, priceUp: false };
+    let badge = '';
+    if (priceDown)    badge = '<div class="marker-badge marker-badge--down">📉</div>';
+    else if (priceUp) badge = '<div class="marker-badge marker-badge--up">📈</div>';
+    else if (isNew)   badge = '<div class="marker-badge marker-badge--new">N</div>';
     const inner = isActive
         ? `<circle cx="18" cy="18" r="7" fill="white" fill-opacity="0.85"/><text x="18" y="22" text-anchor="middle" font-size="10" font-weight="bold" fill="${color}" font-family="Arial,sans-serif">~</text>`
         : `<circle cx="18" cy="18" r="7" fill="white" fill-opacity="0.85"/><line x1="12" y1="12" x2="24" y2="24" stroke="#555" stroke-width="2.5" stroke-linecap="round"/><line x1="24" y1="12" x2="12" y2="24" stroke="#555" stroke-width="2.5" stroke-linecap="round"/>`;
@@ -185,7 +189,7 @@ function createMarkerGroup(baseCoords, address, offers, isActive) {
 
         const icon = hasNumber
             ? buildPinIcon(markerColor, strokeColor, strokeWidth, { isNew, priceDown, priceUp }, isActive)
-            : buildSquareIcon(markerColor, isNew, isActive);
+            : buildSquareIcon(markerColor, { isNew, priceDown, priceUp }, isActive);
 
         // KLUCZOWA OPTYMALIZACJA: popup z funkcją — HTML tworzony przy kliknięciu
         const markerObj = L.marker(coords, { icon })
