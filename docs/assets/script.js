@@ -82,8 +82,8 @@ function initMap() {
         keepBuffer: 2
     }).addTo(map);
     markerLayers.active.addTo(map);
-    markerLayers.inactive.addTo(map);
     markerLayers.approx.addTo(map);
+    // markerLayers.inactive NIE dodajemy — domyślnie ukryta (checkbox odznaczony)
     createUniversityLayers();
 }
 
