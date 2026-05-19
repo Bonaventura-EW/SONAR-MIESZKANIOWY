@@ -83,6 +83,7 @@ function initMap() {
     }).addTo(map);
     markerLayers.active.addTo(map);
     markerLayers.inactive.addTo(map);
+    markerLayers.approx.addTo(map);
     createUniversityLayers();
 }
 
@@ -824,3 +825,4 @@ function showOfferNotFoundToast(offerId) {
 // ─────────────────────── INIT ─────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => { initMap(); loadData(); });
+
