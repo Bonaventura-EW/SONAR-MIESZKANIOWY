@@ -154,15 +154,38 @@ def to_nominative_singular_feminine(address: str) -> str:
 
 
 class Geocoder:
+    # Ile dni cache None jest "świeże" — po tym czasie Nominatim jest odpytywany ponownie.
+    # Chroni przed permanentnym zamrożeniem ulic które były niedostępne w Nominatim
+    # chwilowo (timeout, rate-limit) lub których OSM jeszcze nie miał a teraz ma.
+    NULL_CACHE_TTL_DAYS = 7
+
     def __init__(self, cache_file: str = "data/geocoding_cache.json"):
         self.cache_file = Path(cache_file)
         self.cache = self._load_cache()
+        # Osobny dict timestampów dla null entries: {address: epoch_float}
+        # Przechowywany w cache JSON pod kluczem "__null_timestamps__"
+        self._null_ts: Dict[str, float] = self.cache.pop('__null_timestamps__', {})
         self.geolocator = Nominatim(user_agent="sonar-mieszkaniowy-lublin/1.0")
         # Stats dla Fix #3
         self._stats_nominative_hits = 0
         # Stats dla Fix 2026-05-14: ile razy fallback "sama ulica bez numeru" zadziałał
         self._stats_number_fallback_hits = 0
-        
+
+    def _null_is_expired(self, address: str) -> bool:
+        """Zwraca True jeśli null-entry dla adresu jest starszy niż NULL_CACHE_TTL_DAYS."""
+        ts = self._null_ts.get(address)
+        if ts is None:
+            # Brak timestampa = stary null (sprzed wdrożenia TTL) — traktuj jako wygasły
+            return True
+        age_days = (time.time() - ts) / 86400
+        return age_days >= self.NULL_CACHE_TTL_DAYS
+
+    def _set_null_cache(self, address: str):
+        """Zapisuje null do cache wraz z timestampem."""
+        self.cache[address] = None
+        self._null_ts[address] = time.time()
+        self._save_cache()
+
     def _load_cache(self) -> Dict:
         """Ładuje cache z pliku JSON."""
         if self.cache_file.exists():
@@ -172,12 +195,16 @@ class Geocoder:
             except json.JSONDecodeError:
                 return {}
         return {}
-    
+
     def _save_cache(self):
-        """Zapisuje cache do pliku JSON."""
+        """Zapisuje cache do pliku JSON (wraz z __null_timestamps__)."""
         self.cache_file.parent.mkdir(parents=True, exist_ok=True)
+        # Wstrzyknij null_timestamps do kopii cache przed zapisem
+        data_to_save = dict(self.cache)
+        if self._null_ts:
+            data_to_save['__null_timestamps__'] = self._null_ts
         with open(self.cache_file, 'w', encoding='utf-8') as f:
-            json.dump(self.cache, f, ensure_ascii=False, indent=2)
+            json.dump(data_to_save, f, ensure_ascii=False, indent=2)
     
     def is_in_lublin(self, coords: Dict[str, float]) -> bool:
         """
@@ -319,10 +346,14 @@ class Geocoder:
                     # Nie ma w cache - kontynuuj normalny flow (KROK 2 niżej spróbuje Nominatim)
                     # Usuwamy zatruty wpis żeby logika niżej mogła zapisać świeży wynik
                 else:
-                    # Brak transformacji - cache None oznacza "Nominatim już próbował i nie znalazł".
-                    # Ale jeśli adres ma numer, spróbujemy fallbacku "sama ulica" (KROK 4 niżej).
+                    # Brak transformacji mianownika.
+                    # Jeśli null jest wygasły (>TTL) — usuń entry żeby KROK 1 odpytał Nominatim.
+                    if self._null_is_expired(address):
+                        print(f"      ♻️  Wygasły null-cache dla '{address}' (>{self.NULL_CACHE_TTL_DAYS}d) — retry Nominatim")
+                        del self.cache[address]
+                        # Nie usuwamy z _null_ts — _set_null_cache zaktualizuje timestamp jeśli nadal None
+                    # Jeśli nie wygasły i adres ma numer, próbujemy fallbacku "sama ulica" (KROK 4).
                     # Nie zwracamy tutaj — kontynuujemy do fallbacku.
-                    pass
             else:
                 # Cache ma koordynaty - zwróć je
                 meta['cache_hit'] = True
@@ -330,9 +361,14 @@ class Geocoder:
         
         # === KROK 1: Próba z oryginalnym adresem ===
         # Pomijamy Nominatim jeśli cache już dał None (jest tam właśnie z tego powodu).
+        # WYJĄTEK: null jest "wygasły" (starszy niż NULL_CACHE_TTL_DAYS) →
+        # próbujemy ponownie (ulica mogła pojawić się w OSM, albo poprzednia próba
+        # była timeoutem który stary kod zapisał jako None).
         coords = None
-        skip_full_lookup = (address in self.cache and self.cache[address] is None
-                           and to_nominative(address) == address)
+        null_in_cache = (address in self.cache and self.cache[address] is None)
+        skip_full_lookup = (null_in_cache
+                            and to_nominative(address) == address
+                            and not self._null_is_expired(address))
         
         if not skip_full_lookup:
             try:
@@ -457,8 +493,7 @@ class Geocoder:
                 return coords, meta
             else:
                 # Cache None dla negatywnego wyniku — ale tylko pod kluczem wariantu
-                self.cache[variant] = None
-                self._save_cache()
+                self._set_null_cache(variant)
         
         # === KROK 4 (Fix 2026-05-14): fallback "sama ulica bez numeru" ===
         # Jeśli adres ma numer i wszystkie powyższe podejścia zawiodły, spróbuj samej ulicy.
@@ -511,17 +546,10 @@ class Geocoder:
                 return coords, meta
             else:
                 # Cache None dla wariantu samej ulicy (np. literówka w nazwie)
-                self.cache[street_only] = None
-                self._save_cache()
+                self._set_null_cache(street_only)
         
         # Wszystkie podejścia zawiodły (faktyczne None od Nominatim) - cache jako None
-        self.cache[address] = None
-        self._save_cache()
-        return None, meta
-        
-        # Wszystkie podejścia zawiodły (faktyczne None od Nominatim) - cache jako None
-        self.cache[address] = None
-        self._save_cache()
+        self._set_null_cache(address)
         return None, meta
     
     @staticmethod
