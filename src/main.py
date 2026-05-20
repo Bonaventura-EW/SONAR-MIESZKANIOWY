@@ -168,22 +168,21 @@ class SonarMieszkaniowy:
         # 1. Użyj pełnego opisu (scraper już go pobrał)
         full_text = raw_offer['title'] + " " + raw_offer.get('description', '')
         
-        # FILTR: Wykluczamy ogłoszenia które nie są pokojami w mieszkaniach
+        # FILTR: Wykluczamy ogłoszenia gdzie CAŁY DOM jest przedmiotem wynajmu.
+        # NIE wykluczamy mieszkań/lokali w domach jednorodzinnych — "w domu jednorodzinnym"
+        # to opis budynku, nie typ oferty.
         excluded_phrases = [
-            'dom jednorodzinny',
-            'w domu jednorodzinnym',
-            'domek jednorodzinny',
-            'willa',
-            'domek',
-            'dom w zabudowie',
-            'segment',
-            'bliźniak'
+            'willa na wynajem',
+            'dom na wynajem',
+            'wynajmę dom',
+            'wynajem domu',
+            'dom do wynajęcia',
         ]
         
         full_text_lower = full_text.lower()
         for phrase in excluded_phrases:
             if phrase in full_text_lower:
-                print(f"      ⚠️ Wykluczono: {phrase}")
+                print(f"      ⚠️ Wykluczono (wynajem domu): {phrase}")
                 return None
         
         # 2. Parsuj adres z pełnego tekstu (tytuł + opis)
