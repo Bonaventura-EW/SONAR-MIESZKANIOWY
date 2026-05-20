@@ -41,6 +41,22 @@ jobs:
           cd src
           python main.py || echo "::warning::Scanner failed but continuing..."
       
+      # Co niedzielę (cron 7:00 UTC = 9:00 CEST) napraw oferty z brakującymi coords.
+      # Działa po main.py — ma dostęp do zaktualizowanego geocoding_cache.
+      # continue-on-error: true — nie blokuje reszty pipeline jeśli coś się posypie.
+      - name: Fix missing coords (weekly, Sunday)
+        if: github.event_name == 'schedule' && startsWith(github.event.schedule, '0 7') && github.event.schedule == '0 7,13,19 * * *'
+        continue-on-error: true
+        run: |
+          DAY=$(TZ='Europe/Warsaw' date +'%u')  # 7 = niedziela
+          if [ "$DAY" = "7" ]; then
+            echo "Niedziela — uruchamiam fix_missing_coords.py..."
+            cd src
+            python fix_missing_coords.py --active-only || echo "::warning::fix_missing_coords failed"
+          else
+            echo "Nie niedziela (dzień $DAY) — pomijam fix_missing_coords."
+          fi
+      
       - name: Generate map data
         if: success() || steps.scanner.outcome == 'failure'
         continue-on-error: true
