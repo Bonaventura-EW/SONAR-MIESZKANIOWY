@@ -83,8 +83,8 @@ function initMap() {
     }).addTo(map);
     markerLayers.active.addTo(map);
     markerLayers.approx.addTo(map);
-    markerLayers.inactive.addTo(map);
-    markerLayers.approxInactive.addTo(map);
+    // markerLayers.inactive NIE dodajemy — domyślnie ukryta (checkbox odznaczony)
+    // markerLayers.approxInactive NIE dodajemy — domyślnie ukryta (checkbox odznaczony)
     createUniversityLayers();
 }
 
