@@ -83,7 +83,8 @@ function initMap() {
     }).addTo(map);
     markerLayers.active.addTo(map);
     markerLayers.approx.addTo(map);
-    // markerLayers.inactive NIE dodajemy — domyślnie ukryta (checkbox odznaczony)
+    markerLayers.inactive.addTo(map);
+    markerLayers.approxInactive.addTo(map);
     createUniversityLayers();
 }
 
@@ -421,10 +422,10 @@ function updateStats() {
     } else {
         ['visible-count','avg-price','min-price','max-price'].forEach(id => set(id, '-'));
     }
-    set('active-count',         ` (${allMarkers.filter(m => m.isActive && m.hasNumber).length})`);
-    set('inactive-count',       ` (${allMarkers.filter(m => !m.isActive && m.hasNumber).length})`);
-    set('approx-count',         ` (${allMarkers.filter(m => !m.hasNumber && m.isActive).length})`);
-    set('approx-inactive-count',` (${allMarkers.filter(m => !m.hasNumber && !m.isActive).length})`);
+    set('active-count',         `(${allMarkers.filter(m => m.isActive && m.hasNumber).length})`);
+    set('inactive-count',       `(${allMarkers.filter(m => !m.isActive && m.hasNumber).length})`);
+    set('approx-count',         `(${allMarkers.filter(m => !m.hasNumber && m.isActive).length})`);
+    set('approx-inactive-count',`(${allMarkers.filter(m => !m.hasNumber && !m.isActive).length})`);
 }
 
 function updateScanInfo() {
@@ -527,7 +528,7 @@ function setupEventListeners() {
     const debouncedFilter = debounce(filterMarkers, 120);
 
     document.getElementById('layer-active').addEventListener('change', filterMarkers);
-    document.getElementById('layer-inactive').addEventListener('change', filterMarkers);
+    document.getElementById('layer-inactive').addEventListener('change', e => { if (e.target.checked) markerLayers.inactive.addTo(map); else map.removeLayer(markerLayers.inactive); filterMarkers(); });
     document.getElementById('layer-approx')?.addEventListener('change', e => { if (e.target.checked) markerLayers.approx.addTo(map); else map.removeLayer(markerLayers.approx); filterMarkers(); });
     document.getElementById('layer-approx-inactive')?.addEventListener('change', e => { if (e.target.checked) markerLayers.approxInactive.addTo(map); else map.removeLayer(markerLayers.approxInactive); filterMarkers(); });
     document.getElementById('time-filter').addEventListener('change', filterMarkers);
@@ -825,4 +826,5 @@ function showOfferNotFoundToast(offerId) {
 // ─────────────────────── INIT ─────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => { initMap(); loadData(); });
+
 
