@@ -212,6 +212,7 @@ function createMarkerGroup(baseCoords, address, offers, isActive) {
             priceDown:          hasPriceChg && priceDown,
             priceUp:            hasPriceChg && priceUp,
             firstSeenDate:      parsePolishDate(offer.first_seen),
+            lastSeenDate:       parsePolishDate(offer.last_seen),
             priceChangedAtDate: parsePolishDate(offer.price_changed_at)
         });
     });
@@ -327,7 +328,12 @@ function filterMarkers() {
         }
 
         if (ok && cutoffDate) {
-            if (!(item.firstSeenDate && item.firstSeenDate >= cutoffDate) && !(item.priceChangedAtDate && item.priceChangedAtDate >= cutoffDate)) ok = false;
+            // Aktywne: wystarczy że first_seen mieści się w oknie LUB cena zmieniła się w oknie
+            // Nieaktywne: wystarczy że last_seen mieści się w oknie (oferta była widoczna)
+            const inWindow = item.isActive
+                ? (item.firstSeenDate && item.firstSeenDate >= cutoffDate) || (item.priceChangedAtDate && item.priceChangedAtDate >= cutoffDate)
+                : (item.lastSeenDate  && item.lastSeenDate  >= cutoffDate);
+            if (!inWindow) ok = false;
         }
 
         if (ok && !passesDaySliderFilter(item.firstSeenDate)) ok = false;
@@ -658,9 +664,10 @@ function updatePriceRangeCounts() {
         }
 
         if (cutoffDate) {
-            const firstOk = item.firstSeenDate && item.firstSeenDate >= cutoffDate;
-            const priceOk = item.priceChangedAtDate && item.priceChangedAtDate >= cutoffDate;
-            if (!firstOk && !priceOk) return;
+            const inWindow = item.isActive
+                ? (item.firstSeenDate && item.firstSeenDate >= cutoffDate) || (item.priceChangedAtDate && item.priceChangedAtDate >= cutoffDate)
+                : (item.lastSeenDate  && item.lastSeenDate  >= cutoffDate);
+            if (!inWindow) return;
         }
 
         if (!passesDaySliderFilter(item.firstSeenDate)) return;
