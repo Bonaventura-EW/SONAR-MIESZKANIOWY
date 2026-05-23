@@ -118,6 +118,9 @@ async function loadData() {
 
 // ─────────────────────── IKONY MARKERÓW ──────────────────────────────────────
 
+// Współdzielona definicja SVG filtra — wstrzyknięta raz do DOM, używana przez wszystkie piny
+const SVG_DEFS = '<defs><filter id="ps" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.30)"/></filter></defs>';
+
 function buildPinIcon(color, strokeColor, strokeWidth, badges, isActive = true) {
     const { isNew, priceDown, priceUp } = badges;
     let badge = '';
@@ -129,7 +132,7 @@ function buildPinIcon(color, strokeColor, strokeWidth, badges, isActive = true) 
         : `<circle cx="20" cy="18" r="8" fill="white" fill-opacity="0.9"/><line x1="14" y1="12" x2="26" y2="24" stroke="#555" stroke-width="2.5" stroke-linecap="round"/><line x1="26" y1="12" x2="14" y2="24" stroke="#555" stroke-width="2.5" stroke-linecap="round"/>`;
     return L.divIcon({
         className: 'pin-marker',
-        html: `<div class="pin-wrap">${badge}<svg class="pin-svg" viewBox="0 0 40 50" xmlns="http://www.w3.org/2000/svg"><path d="M20 0C9 0 0 9 0 20c0 15 20 30 20 30s20-15 20-30C40 9 31 0 20 0z" fill="${color}" stroke="${strokeColor}" stroke-width="${strokeWidth}"/>${inner}</svg></div>`,
+        html: `<div class="pin-wrap">${badge}<svg class="pin-svg" viewBox="0 0 40 50" xmlns="http://www.w3.org/2000/svg">${SVG_DEFS}<path d="M20 0C9 0 0 9 0 20c0 15 20 30 20 30s20-15 20-30C40 9 31 0 20 0z" fill="${color}" stroke="${strokeColor}" stroke-width="${strokeWidth}" filter="url(#ps)"/>${inner}</svg></div>`,
         iconSize: [40, 50], iconAnchor: [20, 50], popupAnchor: [0, -50]
     });
 }
@@ -145,7 +148,7 @@ function buildSquareIcon(color, badges, isActive = true) {
         : `<circle cx="18" cy="18" r="7" fill="white" fill-opacity="0.85"/><line x1="12" y1="12" x2="24" y2="24" stroke="#555" stroke-width="2.5" stroke-linecap="round"/><line x1="24" y1="12" x2="12" y2="24" stroke="#555" stroke-width="2.5" stroke-linecap="round"/>`;
     return L.divIcon({
         className: 'square-marker',
-        html: `<div class="square-wrap">${badge}<svg class="square-svg" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg"><rect x="2" y="2" width="32" height="32" rx="7" fill="${color}" stroke="white" stroke-width="2" stroke-dasharray="5 3"/>${inner}</svg></div>`,
+        html: `<div class="square-wrap">${badge}<svg class="square-svg" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">${SVG_DEFS}<rect x="2" y="2" width="32" height="32" rx="7" fill="${color}" stroke="white" stroke-width="2" stroke-dasharray="5 3" filter="url(#ps)"/>${inner}</svg></div>`,
         iconSize: [36, 36], iconAnchor: [18, 18], popupAnchor: [0, -20]
     });
 }
@@ -154,17 +157,34 @@ function buildSquareIcon(color, badges, isActive = true) {
 
 function createMarkers() {
     allMarkers = [];
+
+    // Wsadowe bufory — markery zbierane najpierw do tablic, potem dodawane jednym addLayers()
+    // Dzięki temu LayerGroup triggeruje rerender raz zamiast N razy (po jednym na każdy marker)
+    const batches = {
+        active:         [],
+        inactive:       [],
+        approx:         [],
+        approxInactive: []
+    };
+
     mapData.markers.forEach(({ coords, address, offers }) => {
         const active   = offers.filter(o =>  o.active);
         const inactive = offers.filter(o => !o.active);
-        if (active.length)   createMarkerGroup(coords, address, active,   true);
-        if (inactive.length) createMarkerGroup(coords, address, inactive, false);
+        if (active.length)   createMarkerGroup(coords, address, active,   true,  batches);
+        if (inactive.length) createMarkerGroup(coords, address, inactive, false, batches);
     });
+
+    // Jeden rerender na warstwę zamiast N rerenderów
+    markerLayers.active.addLayers(batches.active);
+    markerLayers.inactive.addLayers(batches.inactive);
+    markerLayers.approx.addLayers(batches.approx);
+    markerLayers.approxInactive.addLayers(batches.approxInactive);
+
     updateTagCounts();
     updateBadgeCounts();
 }
 
-function createMarkerGroup(baseCoords, address, offers, isActive) {
+function createMarkerGroup(baseCoords, address, offers, isActive, batches) {
     const baseOffset = 0.0001;
     const total = offers.length;
     offers.forEach((offer, index) => {
@@ -197,11 +217,12 @@ function createMarkerGroup(baseCoords, address, offers, isActive) {
         const markerObj = L.marker(coords, { icon })
             .bindPopup(() => createPopupContent(address, [offer]), { maxWidth: 400 });
 
-        const layer = (!hasNumber && isActive)         ? markerLayers.approx
-            : (!hasNumber && !isActive)                ? markerLayers.approxInactive
-            : isActive                                 ? markerLayers.active
-            :                                            markerLayers.inactive;
-        markerObj.addTo(layer);
+        // Zamiast markerObj.addTo(layer) — wrzucamy do bufora wsadowego
+        const key = (!hasNumber && isActive)  ? 'approx'
+            : (!hasNumber && !isActive)        ? 'approxInactive'
+            : isActive                         ? 'active'
+            :                                    'inactive';
+        batches[key].push(markerObj);
 
         allMarkers.push({
             marker: markerObj, address,
@@ -833,5 +854,6 @@ function showOfferNotFoundToast(offerId) {
 // ─────────────────────── INIT ─────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => { initMap(); loadData(); });
+
 
 
