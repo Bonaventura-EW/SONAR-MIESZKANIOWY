@@ -545,6 +545,8 @@ class SonarMieszkaniowy:
             print(f"   ⏸️  Oznaczono jako nieaktywne: {deactivated_count}")
         if reactivated_from_skipped > 0:
             print(f"   🔄 Reaktywowano (skipped): {reactivated_from_skipped}")
+        
+        return deactivated_count
     
     def _verify_inactive_offers(self, max_to_verify: int = 50) -> Dict:
         """
@@ -909,6 +911,7 @@ class SonarMieszkaniowy:
             MIN_RATIO = 0.3  # Scrape musi zwrócić co najmniej 30% wcześniejszej liczby aktywnych
             scraped_count = len(raw_offers)
 
+            deactivated_count = 0
             if scraped_count == 0 and active_in_db > 0:
                 print(f"   ⚠️  OCHRONA: Scraper zwrócił 0 ofert a baza ma {active_in_db} aktywnych.")
                 print(f"       Pomijam dezaktywację (prawdopodobna blokada OLX).")
@@ -917,7 +920,7 @@ class SonarMieszkaniowy:
                 print(f"       Próg bezpieczeństwa: {int(active_in_db * MIN_RATIO)}. Pomijam dezaktywację.")
                 print(f"       Prawdopodobna blokada OLX lub częściowa awaria scrapera.")
             else:
-                self._mark_inactive_offers(current_offer_ids, skipped_ids)
+                deactivated_count = self._mark_inactive_offers(current_offer_ids, skipped_ids)
             
             # Aktualizuj days_active dla WSZYSTKICH ofert
             self._update_days_active()
@@ -964,6 +967,7 @@ class SonarMieszkaniowy:
                 'skipped_no_coords': skipped_no_coords,
                 'skipped_duplicate': skipped_duplicate,
                 'skipped_removed': skipped_removed,
+                'disappeared': deactivated_count,
                 'verification': verification_stats
             })
             

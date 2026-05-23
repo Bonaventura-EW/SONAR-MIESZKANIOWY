@@ -199,6 +199,7 @@ class APIGenerator:
             ui_status = "warning"
         
         new_count = stats.get('new', 0)
+        disappeared_count = stats.get('disappeared', 0)
         
         # Czytelny czas skanu (np. "15:51")
         scan_time_formatted = self._format_scan_time(scan.get('timestamp'))
@@ -211,6 +212,7 @@ class APIGenerator:
             ui_status=ui_status,
             scan_time=scan_time_formatted,
             new_count=new_count,
+            disappeared_count=disappeared_count,
             errors=errors,
         )
         
@@ -233,6 +235,7 @@ class APIGenerator:
                 "found": stats.get('raw_offers', 0),
                 "processed": stats.get('processed', 0),
                 "new": new_count,
+                "disappeared": stats.get('disappeared', 0),
                 "updated": stats.get('updated', 0),
                 "active": stats.get('active', 0),
                 "inactive": stats.get('inactive', 0)
@@ -305,6 +308,7 @@ class APIGenerator:
         ui_status: str,
         scan_time: Optional[str],
         new_count: int,
+        disappeared_count: int,
         errors: list,
     ) -> Dict:
         """
@@ -313,20 +317,29 @@ class APIGenerator:
         bez żadnej dodatkowej logiki.
         
         Format:
-          success, new_count > 0 : "✅ Skan 15:51 — 3 nowe mieszkania"
-          success, new_count == 0: "✅ Skan 15:51 — brak nowych"
-          warning               : "⚠️ Skan 15:51 — zakończony z ostrzeżeniami"
-          failed                : "❌ Skan 15:51 — nie powiódł się"
+          success, nowe>0, znikłe>0: "✅ Skan 15:51 — +3 nowe / -2 znikły"
+          success, nowe>0           : "✅ Skan 15:51 — 3 nowe mieszkania"
+          success, znikłe>0         : "✅ Skan 15:51 — 2 znikły, brak nowych"
+          success, brak zmian       : "✅ Skan 15:51 — brak zmian"
+          warning                   : "⚠️ Skan 15:51 — zakończony z ostrzeżeniami"
+          failed                    : "❌ Skan 15:51 — nie powiódł się"
         """
         time_label = f"Skan {scan_time}" if scan_time else "Skan"
         
         if ui_status == "success":
-            if new_count > 0:
+            if new_count > 0 and disappeared_count > 0:
+                title = f"✅ {time_label} — +{new_count} nowe / -{disappeared_count} znikły"
+                body = (f"Pojawiło się {new_count} nowych, "
+                        f"znikło {disappeared_count} ofert mieszkań w Lublinie")
+            elif new_count > 0:
                 title = f"✅ {time_label} — {new_count} {self._plural_mieszkania(new_count)}"
                 body = f"Znaleziono {new_count} nowych ofert mieszkań w Lublinie"
+            elif disappeared_count > 0:
+                title = f"✅ {time_label} — {disappeared_count} {self._plural_znikly(disappeared_count)}, brak nowych"
+                body = f"Znikło {disappeared_count} ofert, żadnych nowych mieszkań"
             else:
-                title = f"✅ {time_label} — brak nowych"
-                body = "Skan zakończony, żadnych nowych mieszkań"
+                title = f"✅ {time_label} — brak zmian"
+                body = "Skan zakończony, żadnych zmian w ofertach"
         
         elif ui_status == "warning":
             first_error = errors[0].get('message', '') if errors else ''
@@ -364,6 +377,7 @@ class APIGenerator:
             "scanTimeFormatted": self._format_scan_time(scan.get('timestamp')),
             "uiStatus": ui_status,
             "newOffers": stats.get('new', 0),
+            "disappearedOffers": stats.get('disappeared', 0),
             "hasErrors": len(errors) > 0,
         }
 
@@ -375,6 +389,15 @@ class APIGenerator:
         if 2 <= n <= 4:
             return "nowe mieszkania"
         return "nowych mieszkań"
+
+    @staticmethod
+    def _plural_znikly(n: int) -> str:
+        """Polska odmiana 'zniknął/znikły' dla liczby n."""
+        if n == 1:
+            return "zniknęło 1 ogłoszenie"
+        if 2 <= n <= 4:
+            return f"{n} ogłoszenia znikły"
+        return f"{n} ogłoszeń znikło"
     
     def _calculate_next_scan_time(self) -> Optional[datetime]:
         """
