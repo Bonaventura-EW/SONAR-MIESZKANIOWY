@@ -158,8 +158,7 @@ function buildSquareIcon(color, badges, isActive = true) {
 function createMarkers() {
     allMarkers = [];
 
-    // Wsadowe bufory — markery zbierane najpierw do tablic, potem dodawane jednym addLayers()
-    // Dzięki temu LayerGroup triggeruje rerender raz zamiast N razy (po jednym na każdy marker)
+    // Wsadowe bufory — markery zbierane najpierw do tablic, potem dodawane po kolei
     const batches = {
         active:         [],
         inactive:       [],
@@ -174,11 +173,11 @@ function createMarkers() {
         if (inactive.length) createMarkerGroup(coords, address, inactive, false, batches);
     });
 
-    // Jeden rerender na warstwę zamiast N rerenderów
-    markerLayers.active.addLayers(batches.active);
-    markerLayers.inactive.addLayers(batches.inactive);
-    markerLayers.approx.addLayers(batches.approx);
-    markerLayers.approxInactive.addLayers(batches.approxInactive);
+    // L.layerGroup nie ma addLayers — iterujemy po batchu
+    batches.active.forEach(m        => markerLayers.active.addLayer(m));
+    batches.inactive.forEach(m      => markerLayers.inactive.addLayer(m));
+    batches.approx.forEach(m        => markerLayers.approx.addLayer(m));
+    batches.approxInactive.forEach(m => markerLayers.approxInactive.addLayer(m));
 
     updateTagCounts();
     updateBadgeCounts();
