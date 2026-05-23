@@ -199,7 +199,8 @@ class APIGenerator:
             ui_status = "warning"
         
         new_count = stats.get('new', 0)
-        disappeared_count = stats.get('disappeared', 0)
+        # None = pole nie istnieje (stary skan przed wdrożeniem), 0 = naprawdę nic nie znikło
+        disappeared_count = stats.get('disappeared', None)
         
         # Czytelny czas skanu (np. "15:51")
         scan_time_formatted = self._format_scan_time(scan.get('timestamp'))
@@ -235,7 +236,7 @@ class APIGenerator:
                 "found": stats.get('raw_offers', 0),
                 "processed": stats.get('processed', 0),
                 "new": new_count,
-                "disappeared": stats.get('disappeared', 0),
+                "disappeared": stats.get('disappeared', None),  # null = brak danych (stary skan)
                 "updated": stats.get('updated', 0),
                 "active": stats.get('active', 0),
                 "inactive": stats.get('inactive', 0)
@@ -308,7 +309,7 @@ class APIGenerator:
         ui_status: str,
         scan_time: Optional[str],
         new_count: int,
-        disappeared_count: int,
+        disappeared_count,  # int lub None (brak danych ze starych skanów)
         errors: list,
     ) -> Dict:
         """
@@ -327,14 +328,14 @@ class APIGenerator:
         time_label = f"Skan {scan_time}" if scan_time else "Skan"
         
         if ui_status == "success":
-            if new_count > 0 and disappeared_count > 0:
+            if new_count > 0 and disappeared_count:
                 title = f"✅ {time_label} — +{new_count} nowe / -{disappeared_count} znikły"
                 body = (f"Pojawiło się {new_count} nowych, "
                         f"znikło {disappeared_count} ofert mieszkań w Lublinie")
             elif new_count > 0:
                 title = f"✅ {time_label} — {new_count} {self._plural_mieszkania(new_count)}"
                 body = f"Znaleziono {new_count} nowych ofert mieszkań w Lublinie"
-            elif disappeared_count > 0:
+            elif disappeared_count:
                 title = f"✅ {time_label} — {disappeared_count} {self._plural_znikly(disappeared_count)}, brak nowych"
                 body = f"Znikło {disappeared_count} ofert, żadnych nowych mieszkań"
             else:
@@ -377,7 +378,7 @@ class APIGenerator:
             "scanTimeFormatted": self._format_scan_time(scan.get('timestamp')),
             "uiStatus": ui_status,
             "newOffers": stats.get('new', 0),
-            "disappearedOffers": stats.get('disappeared', 0),
+            "disappearedOffers": stats.get('disappeared', None),  # null = brak danych
             "hasErrors": len(errors) > 0,
         }
 
