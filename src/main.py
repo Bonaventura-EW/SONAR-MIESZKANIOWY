@@ -452,6 +452,35 @@ class SonarMieszkaniowy:
         if new_coords and not existing_coords:
             existing.setdefault('address', {})['coords'] = new_coords
             print(f"      📍 Uzupełniono brakujące coords dla oferty: {existing['id']}")
+
+        # Zaktualizuj adres jeśli nowe parsowanie dało lepszy wynik
+        # "Lepszy" = nowy adres wygląda jak ulica (not_garbage) a stary jest śmieciem z tytułu
+        new_addr  = new_data.get('address', {})
+        old_addr  = existing.get('address', {})
+        new_full  = new_addr.get('full', '')
+        old_full  = old_addr.get('full', '')
+        new_has_num = new_addr.get('has_number', False)
+        old_has_num = old_addr.get('has_number', False)
+
+        # Wyznacznik "lepszości" — nowy ma numer którego stary nie miał, lub stary full
+        # wygląda jak śmieć z tytułu (zaczyna się wielką literą i ma liczbę bez ul./al.)
+        import re as _re
+        _garbage_addr = _re.compile(
+            r'^[A-ZŚĆŁĄĘÓŻŹŃ][a-z]+\s+\d+$',  # np. "Atrakcyjne 2", "Nowe 3"
+            _re.UNICODE
+        )
+        old_looks_like_garbage = bool(_garbage_addr.match(old_full)) and not old_has_num
+        new_looks_better = new_full and new_full != old_full and (
+            (new_has_num and not old_has_num) or
+            (old_looks_like_garbage and len(new_full) >= 5)
+        )
+
+        if new_looks_better:
+            old_coords = old_addr.get('coords')  # zachowaj coords
+            existing['address'] = dict(new_addr)
+            if old_coords and not new_addr.get('coords'):
+                existing['address']['coords'] = old_coords
+            print(f"      🏠 Zaktualizowano adres: '{old_full}' → '{new_full}'")
         
         # Upewnij się że jest aktywne (REAKTYWACJA nieaktywnych ofert)
         was_inactive = not existing.get('active', True)
