@@ -15,6 +15,16 @@ from urllib.parse import urljoin
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
+
+
+# === DEDUP HELPER (added 2026-05-24) ===
+# OLX zmienia slug w URL gdy sprzedawca edytuje tytuł. Stabilny ID = CID3-IDxxxx.
+_CID_RE = re.compile(r'(CID3-ID[A-Za-z0-9]+)')
+def extract_cid(s: str) -> str:
+    """Wyciąga stabilny identyfikator CID3-IDxxxx z URL lub slugu. Fallback: cały string."""
+    m = _CID_RE.search(s or '')
+    return m.group(1) if m else (s or '')
+
 class OLXScraper:
     BASE_URL = "https://www.olx.pl/nieruchomosci/mieszkania/wynajem/lublin/"
     
@@ -284,7 +294,8 @@ class OLXScraper:
             offers_to_skip = []
             
             for offer in all_offers:
-                offer_id = offer['url'].split('/')[-1].split('.')[0]
+                # FIX: stabilny identyfikator z CID3-IDxxxx (slug w URL bywa edytowany przez sprzedawcę)
+                offer_id = extract_cid(offer['url'])
                 listing_price = self._extract_price_number(offer['price_raw'])
                 
                 # Sprawdź czy oferta istnieje w bazie

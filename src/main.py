@@ -20,6 +20,16 @@ from geocoder import Geocoder
 from duplicate_detector import DuplicateDetector
 from scan_logger import ScanLogger
 
+
+# === DEDUP HELPER (added 2026-05-24) ===
+# OLX zmienia slug w URL gdy sprzedawca edytuje tytuł. Stabilny ID = CID3-IDxxxx.
+_CID_RE = re.compile(r'(CID3-ID[A-Za-z0-9]+)')
+def extract_cid(s: str) -> str:
+    """Wyciąga stabilny CID3-IDxxxx z URL lub slugu. Fallback: cały string."""
+    m = _CID_RE.search(s or '')
+    return m.group(1) if m else (s or '')
+
+
 class SonarMieszkaniowy:
     def __init__(self, data_file: str = "../data/offers.json", removed_file: str = "../data/removed_listings.json"):
         self.data_file = Path(data_file)
@@ -75,7 +85,8 @@ class SonarMieszkaniowy:
             existing_addr = offer.get('address', {})
             existing_coords = existing_addr.get('coords') if isinstance(existing_addr, dict) else None
             
-            index[offer['id']] = {
+            # FIX: kluczem jest CID3-IDxxxx, nie pełny slug (sprzedawca może edytować tytuł)
+            index[extract_cid(offer['id'])] = {
                 'price': offer.get('price', {}).get('current'),
                 'description': offer.get('description', ''),
                 'previous_price': offer.get('price', {}).get('previous_price'),
@@ -281,7 +292,8 @@ class SonarMieszkaniowy:
             # OPTYMALIZACJA 2026-05: jeśli oferta już istnieje w bazie i ma ten sam adres,
             # użyj jej coords zamiast wywoływać geokoder od nowa. To eliminuje ~70% wywołań
             # Nominatim (skan z 70 min → ~25 min).
-            offer_id_temp = raw_offer['url'].split('/')[-1].split('.')[0]
+            # FIX: stabilny identyfikator z CID3-IDxxxx (slug bywa edytowany)
+            offer_id_temp = extract_cid(raw_offer['url'])
             reused_coords = None
             existing = self.existing_offers_index.get(offer_id_temp) if hasattr(self, 'existing_offers_index') else None
             if existing and existing.get('coordinates') and existing.get('address_full') == address_data['full']:
@@ -344,9 +356,14 @@ class SonarMieszkaniowy:
         }
     
     def _find_existing_offer(self, offer_id: str) -> Dict:
-        """Znajduje istniejące ogłoszenie po ID."""
+        """
+        Znajduje istniejące ogłoszenie po stabilnym CID3-IDxxxx.
+        FIX 2026-05-24: porównanie po CID3 zamiast pełnego slugu, bo sprzedawca
+        może edytować tytuł ogłoszenia, co zmienia slug w URL.
+        """
+        target_cid = extract_cid(offer_id)
         for offer in self.database['offers']:
-            if offer['id'] == offer_id:
+            if extract_cid(offer['id']) == target_cid:
                 return offer
         return None
     
@@ -356,6 +373,16 @@ class SonarMieszkaniowy:
         
         # Aktualizuj last_seen
         existing['last_seen'] = now
+        
+        # FIX 2026-05-24: jeśli slug w URL się zmienił (sprzedawca edytował tytuł),
+        # zaktualizuj id i url na świeżą wersję, ale tylko gdy CID3 się zgadza.
+        if new_data.get('id') and extract_cid(existing.get('id','')) == extract_cid(new_data['id']):
+            if existing.get('id') != new_data['id']:
+                old_slug = existing.get('id','')
+                existing['id'] = new_data['id']
+                if new_data.get('url'):
+                    existing['url'] = new_data['url']
+                print(f"      🔄 Slug zaktualizowany: {old_slug[:50]}... → {new_data['id'][:50]}...")
         
         # INTELIGENTNA AKTUALIZACJA CENY - priorytetyzuj źródła
         old_price = existing['price']['current']
