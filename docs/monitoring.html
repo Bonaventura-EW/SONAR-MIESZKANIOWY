@@ -295,6 +295,7 @@
                             <th>Oferty</th>
                             <th>Przetworzone</th>
                             <th>Nowe</th>
+                            <th>Znikło</th>
                             <th>Błędy</th>
                         </tr>
                     </thead>
@@ -354,8 +355,25 @@
                     // Oferty
                     row.insertCell().textContent = scan.stats?.raw_offers || '-';
                     row.insertCell().textContent = scan.stats?.processed || '-';
-                    row.insertCell().textContent = scan.stats?.new || '-';
-                    
+
+                    // Nowe - zielona strzałka w górę
+                    const newCell = row.insertCell();
+                    const newVal = scan.stats?.new;
+                    if (newVal !== undefined && newVal !== null) {
+                        newCell.innerHTML = `<span style="color: #10b981; font-weight: 600;">↑ ${newVal}</span>`;
+                    } else {
+                        newCell.innerHTML = '<span style="color: #cbd5e1;">—</span>';
+                    }
+
+                    // Znikło - czerwona strzałka w dół (pole nie istnieje w starych skanach)
+                    const disCell = row.insertCell();
+                    const disVal = scan.stats?.disappeared;
+                    if (disVal !== undefined && disVal !== null) {
+                        disCell.innerHTML = `<span style="color: #ef4444; font-weight: 600;">↓ ${disVal}</span>`;
+                    } else {
+                        disCell.innerHTML = '<span style="color: #cbd5e1;">—</span>';
+                    }
+
                     // Błędy - z tooltipem
                     const errorsCell = row.insertCell();
                     const errorCount = scan.errors?.length || 0;
@@ -448,6 +466,11 @@
                             label: 'Nowe',
                             data: chartData.offers_over_time.map(d => d.new),
                             backgroundColor: 'rgba(245, 158, 11, 0.6)',
+                        },
+                        {
+                            label: 'Znikło',
+                            data: chartData.offers_over_time.map(d => d.disappeared ?? null),
+                            backgroundColor: 'rgba(239, 68, 68, 0.6)',
                         }
                     ]
                 },
