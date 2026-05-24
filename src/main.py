@@ -517,6 +517,7 @@ class SonarMieszkaniowy:
         if was_inactive:
             print(f"      🔄 REAKTYWOWANO ofertę: {existing['id']} (była nieaktywna)")
             existing['reactivated_at'] = now
+            existing['reactivation_source'] = 'rescrape'  # oferta wróciła w listingu
     
     def _update_days_active(self):
         """
@@ -561,6 +562,7 @@ class SonarMieszkaniowy:
                         # Reaktywacja oferty która była nieaktywna
                         offer['active'] = True
                         offer['reactivated_at'] = now
+                        offer['reactivation_source'] = 'skipped'  # cena nie zmieniła się, scraper pominął detail
                         reactivated_from_skipped += 1
                     # Aktualizuj last_seen dla skipped ofert
                     offer['last_seen'] = now
