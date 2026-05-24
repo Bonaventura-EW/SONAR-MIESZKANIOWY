@@ -45,7 +45,8 @@ def generate_monitoring_data():
                 'timestamp': timestamp,
                 'raw_offers': scan['stats'].get('raw_offers', 0),
                 'processed': scan['stats'].get('processed', 0),
-                'new': scan['stats'].get('new', 0)
+                'new': scan['stats'].get('new', 0),
+                'disappeared': scan['stats'].get('disappeared')  # None gdy stary skan
             })
         
         # Wykres success rate
