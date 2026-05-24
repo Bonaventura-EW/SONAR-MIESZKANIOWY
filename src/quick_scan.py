@@ -1,7 +1,7 @@
 """
 Quick scan - 5 stron dla szybkiej naprawy
 """
-from main import SonarMieszkaniowy
+from main import SonarMieszkaniowy, extract_cid
 
 # Nadpisz scraper na mniej stron
 class QuickSonar(SonarMieszkaniowy):
@@ -54,8 +54,10 @@ class QuickSonar(SonarMieszkaniowy):
                     print(f"   [{i}/{len(raw_offers)}]...")
                 
                 offer_id = raw_offer['url'].split('/')[-1].split('.')[0]
-                
-                if offer_id in self.removed_listings:
+                # FIX 2026-05-24: porównanie po CID3-IDxxxx (slug może się zmienić)
+                offer_cid = extract_cid(raw_offer['url'])
+                removed_cids = {extract_cid(rid) for rid in self.removed_listings}
+                if offer_cid in removed_cids or offer_id in self.removed_listings:
                     skipped_removed += 1
                     continue
                 

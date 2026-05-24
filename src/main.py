@@ -546,18 +546,21 @@ class SonarMieszkaniowy:
             skipped_offer_ids = []
         
         # Wszystkie oferty które powinny być aktywne = przetworzone + pominięte
-        all_active_ids = set(current_offer_ids + skipped_offer_ids)
-        skipped_set = set(skipped_offer_ids)
+        # FIX 2026-05-24: porównanie po CID3-IDxxxx zamiast pełnego slugu
+        # (slug może się zmienić gdy sprzedawca edytuje tytuł ogłoszenia)
+        all_active_cids = set(extract_cid(i) for i in (current_offer_ids + skipped_offer_ids))
+        skipped_cids = set(extract_cid(i) for i in skipped_offer_ids)
         
         now = datetime.now(self.tz).isoformat()
         deactivated_count = 0
         reactivated_from_skipped = 0
         
         for offer in self.database['offers']:
-            if offer['id'] in all_active_ids:
+            offer_cid = extract_cid(offer.get('id',''))
+            if offer_cid in all_active_cids:
                 # Oferta jest aktywna - upewnij się że ma active=True
                 # i zaktualizuj last_seen dla pominiętych ofert
-                if offer['id'] in skipped_set:
+                if offer_cid in skipped_cids:
                     if not offer.get('active', True):
                         # Reaktywacja oferty która była nieaktywna
                         offer['active'] = True
@@ -784,8 +787,10 @@ class SonarMieszkaniowy:
                 # Stwórz ID z URL
                 offer_id = raw_offer['url'].split('/')[-1].split('.')[0]
                 
-                # FILTR: Pomiń usunięte ogłoszenia
-                if offer_id in self.removed_listings:
+                # FILTR: Pomiń usunięte ogłoszenia (porównanie po CID3-IDxxxx)
+                offer_cid_for_filter = extract_cid(raw_offer['url'])
+                removed_cids = {extract_cid(rid) for rid in self.removed_listings}
+                if offer_cid_for_filter in removed_cids or offer_id in self.removed_listings:
                     print(f"      🚫 Pominięto - ogłoszenie usunięte przez użytkownika")
                     skipped_removed += 1
                     continue
