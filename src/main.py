@@ -11,6 +11,7 @@ import pytz
 from typing import List, Dict
 import time
 import random
+import re
 
 # Import lokalnych modułów
 from scraper import OLXScraper
