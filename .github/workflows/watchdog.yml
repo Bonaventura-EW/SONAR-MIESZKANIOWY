@@ -1,0 +1,79 @@
+name: SONAR MIESZKANIOWY Watchdog
+
+on:
+  schedule:
+    # Sprawdza co 30 min czy scan się odbył (off-peak: minuta 23 i 53)
+    - cron: '23,53 * * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write   # Pozwala odpalić scanner.yml
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Check last scan age
+        id: check
+        run: |
+          python3 <<'PY'
+          import json, os, sys
+          from datetime import datetime, timezone
+
+          THRESHOLD_HOURS = 7
+
+          with open('data/scan_history.json', 'r', encoding='utf-8') as f:
+              history = json.load(f)
+
+          # Bierzemy ostatni wpis ze statusem "completed"
+          completed = [h for h in history if h.get('status') == 'completed' and h.get('timestamp')]
+          if not completed:
+              print("Brak żadnego zakończonego scanu w historii — odpalam scanner.")
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+                  out.write("trigger=true\n")
+                  out.write("reason=no_history\n")
+              sys.exit(0)
+
+          last = completed[-1]
+          ts = datetime.fromisoformat(last['timestamp'])
+          now = datetime.now(timezone.utc)
+          age_h = (now - ts).total_seconds() / 3600
+
+          print(f"Ostatni scan: {ts.isoformat()}")
+          print(f"Teraz:        {now.isoformat()}")
+          print(f"Wiek scanu:   {age_h:.2f} h (próg: {THRESHOLD_HOURS} h)")
+
+          trigger = age_h > THRESHOLD_HOURS
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as out:
+              out.write(f"trigger={'true' if trigger else 'false'}\n")
+              out.write(f"age_hours={age_h:.2f}\n")
+              out.write(f"last_scan={ts.isoformat()}\n")
+
+          if trigger:
+              print(f"⚠️  Minęło >{THRESHOLD_HOURS}h od ostatniego scanu — wyzwalam scanner.yml")
+          else:
+              print(f"✅ Scan jest świeży, nie ma potrzeby retry'a")
+          PY
+
+      - name: Trigger scanner.yml if stale
+        if: steps.check.outputs.trigger == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Wyzwalam scanner.yml (wiek ostatniego scanu: ${{ steps.check.outputs.age_hours }}h)"
+          gh workflow run scanner.yml --ref main --repo ${{ github.repository }}
+          echo "✅ Scanner uruchomiony"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Watchdog Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- Ostatni scan: ${{ steps.check.outputs.last_scan }}" >> $GITHUB_STEP_SUMMARY
+          echo "- Wiek: ${{ steps.check.outputs.age_hours }} h" >> $GITHUB_STEP_SUMMARY
+          echo "- Próg: 7 h" >> $GITHUB_STEP_SUMMARY
+          echo "- Wyzwolono scanner: ${{ steps.check.outputs.trigger }}" >> $GITHUB_STEP_SUMMARY
