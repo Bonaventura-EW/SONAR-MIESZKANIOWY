@@ -939,10 +939,11 @@
                         </div>
                     </div>
                     <div class="filter-group">
-                        <label>📊 Tylko aktywne</label>
+                        <label>📊 Status ofert</label>
                         <div class="toggle-buttons">
-                            <button class="toggle-btn active" data-price-dist-active="true">Tak</button>
-                            <button class="toggle-btn" data-price-dist-active="false">Wszystkie</button>
+                            <button class="toggle-btn active" data-price-dist-status="active">Tylko aktywne</button>
+                            <button class="toggle-btn" data-price-dist-status="inactive">Nieaktywne</button>
+                            <button class="toggle-btn" data-price-dist-status="all">Wszystkie</button>
                         </div>
                     </div>
                 </div>
@@ -1730,7 +1731,7 @@
         // C2-A: ROZKŁAD CEN (histogram + box plot)
         // ============================================================
         let priceDistType = 'all';
-        let priceDistActiveOnly = true;
+        let priceDistStatus = 'active'; // 'active' | 'inactive' | 'all'
         let priceHistogramChart = null;
         let priceBoxPlotChart = null;
         
@@ -1740,8 +1741,10 @@
             // Filtruj oferty
             let offers = allData.offers;
             
-            if (priceDistActiveOnly) {
+            if (priceDistStatus === 'active') {
                 offers = offers.filter(o => o.active);
+            } else if (priceDistStatus === 'inactive') {
+                offers = offers.filter(o => !o.active);
             }
             
             if (priceDistType !== 'all') {
@@ -1962,10 +1965,10 @@
             });
         });
         
-        document.querySelectorAll('[data-price-dist-active]').forEach(btn => {
+        document.querySelectorAll('[data-price-dist-status]').forEach(btn => {
             btn.addEventListener('click', () => {
-                priceDistActiveOnly = btn.dataset.priceDistActive === 'true';
-                document.querySelectorAll('[data-price-dist-active]').forEach(b => b.classList.remove('active'));
+                priceDistStatus = btn.dataset.priceDistStatus;
+                document.querySelectorAll('[data-price-dist-status]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 renderPriceDistribution();
             });
