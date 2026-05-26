@@ -16,6 +16,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          token: ${{ secrets.PAT_TOKEN }}
           fetch-depth: 1
 
       - name: Check last scan age
@@ -63,7 +64,7 @@ jobs:
       - name: Trigger scanner.yml if stale
         if: steps.check.outputs.trigger == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |
           echo "Wyzwalam scanner.yml (wiek ostatniego scanu: ${{ steps.check.outputs.age_hours }}h)"
           gh workflow run scanner.yml --ref main --repo ${{ github.repository }}
