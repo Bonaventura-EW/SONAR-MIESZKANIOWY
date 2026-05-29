@@ -46,7 +46,8 @@ def generate_monitoring_data():
                 'raw_offers': scan['stats'].get('raw_offers', 0),
                 'processed': scan['stats'].get('processed', 0),
                 'new': scan['stats'].get('new', 0),
-                'disappeared': scan['stats'].get('disappeared')  # None gdy stary skan
+                'disappeared': scan['stats'].get('disappeared'),  # None gdy stary skan
+                'confirmed_inactive': (scan['stats'].get('verification') or {}).get('confirmed_inactive')
             })
         
         # Wykres success rate
