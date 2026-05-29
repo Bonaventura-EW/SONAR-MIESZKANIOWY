@@ -365,11 +365,17 @@
                         newCell.innerHTML = '<span style="color: #cbd5e1;">—</span>';
                     }
 
-                    // Znikło - czerwona strzałka w dół (pole nie istnieje w starych skanach)
+                    // Znikło - pokazujemy confirmed_inactive (po weryfikacji), z tooltipem o fałszywych alarmach
                     const disCell = row.insertCell();
-                    const disVal = scan.stats?.disappeared;
-                    if (disVal !== undefined && disVal !== null) {
-                        disCell.innerHTML = `<span style="color: #ef4444; font-weight: 600;">↓ ${disVal}</span>`;
+                    const rawDis = scan.stats?.disappeared;
+                    const verif = scan.stats?.verification;
+                    const confirmedInactive = verif?.confirmed_inactive;
+                    if (confirmedInactive !== undefined && confirmedInactive !== null) {
+                        const falseAlarms = rawDis - confirmedInactive;
+                        const tooltip = `Scraper przeoczył ${rawDis} ofert, ale ${falseAlarms} wróciło po weryfikacji (niestabilna paginacja OLX)`;
+                        disCell.innerHTML = `<span style="color: #ef4444; font-weight: 600; cursor: help;" title="${tooltip}">↓ ${confirmedInactive}</span>`;
+                    } else if (rawDis !== undefined && rawDis !== null) {
+                        disCell.innerHTML = `<span style="color: #ef4444; font-weight: 600;">↓ ${rawDis}</span>`;
                     } else {
                         disCell.innerHTML = '<span style="color: #cbd5e1;">—</span>';
                     }
@@ -468,8 +474,8 @@
                             backgroundColor: 'rgba(245, 158, 11, 0.6)',
                         },
                         {
-                            label: 'Znikło',
-                            data: chartData.offers_over_time.map(d => d.disappeared ?? null),
+                            label: 'Znikło (potwierdzone)',
+                            data: chartData.offers_over_time.map(d => d.confirmed_inactive ?? d.disappeared ?? null),
                             backgroundColor: 'rgba(239, 68, 68, 0.6)',
                         }
                     ]
