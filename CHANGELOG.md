@@ -13,13 +13,19 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 ### Dodane
 - `CLAUDE.md` — wytyczne dla agentów (uruchamianie, przepływ danych, pułapki).
 - `CHANGELOG.md` — ten plik.
+- Suite testów `pytest` (`tests/`, 36 testów) + workflow CI `tests.yml`
+  uruchamiany na push/PR dotykające `src/` lub `tests/`.
 
-### Do naprawienia (znane problemy)
-- `scanner.yml`: warunek tygodniowego `fix_missing_coords` sprawdza cron
-  `'0 7,13,19...'`, podczas gdy aktywny cron to `'17 7,13,19...'` — krok nigdy
-  się nie wykonuje (martwy kod w pipeline).
-- `extract_cid()` zduplikowane w `main.py` i `scraper.py` (powinno być wspólne).
-- `EXCLUDED_WORDS` (`address_parser.py`) zawiera zdublowane wpisy z kolejnych łatek.
+### Naprawione
+- `scanner.yml`: krok tygodniowego `fix_missing_coords` nigdy się nie wykonywał —
+  warunek `if` sprawdzał stary cron `'0 7,13,19'`, a aktywny to `'17 7,13,19'`.
+  Usunięto kruchy warunek; o dzień tygodnia pyta `date` w skrypcie.
+
+### Zmienione
+- `extract_cid()` wydzielone do wspólnego modułu `src/cid.py` (był zduplikowany
+  w `main.py` i `scraper.py`). Zachowanie identyczne.
+- `EXCLUDED_WORDS` (`address_parser.py`): usunięto ~40 zdublowanych wpisów.
+  Zawartość zbioru bez zmian (248 słów — pilnuje `tests/test_excluded_words.py`).
 
 ## [2026-05-29]
 

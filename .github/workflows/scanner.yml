@@ -41,11 +41,16 @@ jobs:
           cd src
           python main.py || echo "::warning::Scanner failed but continuing..."
       
-      # Co niedzielę (cron 7:00 UTC = 9:00 CEST) napraw oferty z brakującymi coords.
+      # Co niedzielę napraw oferty z brakującymi coords.
       # Działa po main.py — ma dostęp do zaktualizowanego geocoding_cache.
       # continue-on-error: true — nie blokuje reszty pipeline jeśli coś się posypie.
+      #
+      # FIX 2026-05-30: warunek 'if' sprawdzał cron '0 7,13,19' (stary harmonogram),
+      # ale aktywny cron to '17 7,13,19' — przez co krok NIGDY się nie wykonywał.
+      # Usunięto kruchy warunek na konkretny string crona; o dzień tygodnia i tak
+      # pyta `date` poniżej, więc działa dla dowolnego harmonogramu scheduled.
       - name: Fix missing coords (weekly, Sunday)
-        if: github.event_name == 'schedule' && startsWith(github.event.schedule, '0 7') && github.event.schedule == '0 7,13,19 * * *'
+        if: github.event_name == 'schedule'
         continue-on-error: true
         run: |
           DAY=$(TZ='Europe/Warsaw' date +'%u')  # 7 = niedziela

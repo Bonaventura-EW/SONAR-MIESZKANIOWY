@@ -11,7 +11,6 @@ import pytz
 from typing import List, Dict
 import time
 import random
-import re
 
 # Import lokalnych modułów
 from scraper import OLXScraper
@@ -21,14 +20,8 @@ from geocoder import Geocoder
 from duplicate_detector import DuplicateDetector
 from scan_logger import ScanLogger
 
-
-# === DEDUP HELPER (added 2026-05-24) ===
-# OLX zmienia slug w URL gdy sprzedawca edytuje tytuł. Stabilny ID = CID3-IDxxxx.
-_CID_RE = re.compile(r'(CID3-ID[A-Za-z0-9]+)')
-def extract_cid(s: str) -> str:
-    """Wyciąga stabilny CID3-IDxxxx z URL lub slugu. Fallback: cały string."""
-    m = _CID_RE.search(s or '')
-    return m.group(1) if m else (s or '')
+# Stabilny identyfikator oferty (CID3-IDxxxx). Współdzielony z scraper.py.
+from cid import extract_cid
 
 
 class SonarMieszkaniowy:

@@ -61,20 +61,27 @@ Skrypty pomocnicze (`src/`):
 
 ## Testy
 
-Brak suite pytest. Testy są wbudowane w moduły jako sekcje `if __name__ == "__main__"`.
-Uruchamiaj bezpośrednio z `src/`:
+Suite **pytest** w katalogu `tests/` (uruchamiana też w CI przez
+`.github/workflows/tests.yml` na każdym push/PR dotykającym `src/`):
+
+```bash
+pip install -r requirements.txt pytest
+pytest                 # z katalogu głównego repo (nie z src/)
+```
+
+Dodatkowo każdy moduł ma wbudowane testy `if __name__ == "__main__"`
+(uruchamiane z `src/`, drukują licznik `OK / FAIL`):
 
 ```bash
 cd src
-python address_parser.py      # testy ekstrakcji adresów
-python geocoder.py            # testy fleksji/fallbacków (bez live Nominatim)
-python price_parser.py        # testy parsowania cen
-python duplicate_detector.py  # testy podobieństwa
-python offer_tagger.py        # testy tagowania
+python address_parser.py   # ekstrakcja adresów
+python geocoder.py         # fleksja/fallbacki (bez live Nominatim)
+python price_parser.py     # parsowanie cen
 ```
 
-Po zmianach w parserze/geokoderze **zawsze** odpal odpowiedni moduł i sprawdź,
-czy licznik `OK / FAIL` się nie pogorszył.
+> Uwaga: część inline-testów `price_parser.py`/`address_parser.py` ma znane,
+> historyczne FAIL-e (zaszłość „pokojowa"). Miarodajna jest suite `pytest`.
+> Po zmianach w parserze/geokoderze **zawsze** odpal `pytest`.
 
 ## Pułapki i konwencje (WAŻNE)
 

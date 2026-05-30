@@ -66,23 +66,29 @@ class AddressParser:
     # USUNIĘTO: słowa typowe dla opisów mieszkań (kawalerka, mieszkanie, piętro, kaucja, apartament,
     #          pokojowy, kondygnacja, balkon, parking itp.) - dla mieszkań są one normalne
     # KRYTYCZNE: używaj lower()! Wszystkie wpisy muszą być małymi literami.
+    # FIX 2026-05-30: usunięto ~40 zdublowanych wpisów z kolejnych łatek
+    # (mieszkanie/kawalerka/apartament/studio/komfortow*/kaucja/klimatyzacja/
+    # wysokość/wnętrz/wymagan*/przedpokój/opis* były dodane 2-3 razy w różnych
+    # blokach "FIX"). To set, więc duplikaty były nieszkodliwe, ale utrudniały
+    # czytanie. Zawartość zbioru jest IDENTYCZNA jak wcześniej (248 słów) —
+    # zweryfikowane w tests/test_excluded_words.py.
     EXCLUDED_WORDS = {
         # === Słowa-spójniki, partykuły, przyimki ===
         'przy', 'obok', 'blisko', 'okolice',
         'dla', 'bez', 'lub',
         'od', 'do', 'za', 'na', 'po', 'we', 'ze',
         'co', 'oraz', 'również', 'także',
-        
+
         # === Generyczne czasowniki/spójniki gramatyczne ===
         'są', 'jest', 'się', 'znajdują', 'dyspozycji',
         'obecnie', 'aktualnie',
         'posiada', 'zajmie', 'zajmuje',
-        
+
         # === Dzielnice Lublina (NIE są ulicami) ===
         'wieniawa', 'śródmieście', 'bronowice', 'czuby', 'kalinowszczyzna', 'tatary',
         'czechów', 'czechowie', 'sławinek', 'sławin', 'abramowice', 'konstantynów',
         'ponikwoda', 'głusk', 'węglin', 'felin', 'hajdów', 'lsm', 'centrum',
-        
+
         # === Instytucje, uczelnie, sklepy, urzędy (twardy filtr) ===
         'umcs', 'kul', 'politechnika', 'up', 'uniwersytet', 'szkoła', 'szpital',
         'galeria', 'rondo', 'przystanek', 'dworzec', 'stacja', 'uczelni',
@@ -92,15 +98,15 @@ class AddressParser:
         'poczta', 'urząd', 'sąd', 'kościół', 'cerkiew', 'meczet', 'synagoga',
         'apteka', 'bank', 'hotel', 'restauracja', 'kawiarnia', 'pub', 'klub',
         'kino', 'teatr', 'muzeum', 'biblioteka', 'klinika', 'przychodnia',
-        
+
         # === Lublin sam w sobie (Fix #1 z pokojowego — "[Ulica] Lublin Witam") ===
         'lublin', 'lubelski', 'lubelska', 'lubelskiej', 'lubelskie',
-        
+
         # === Frazy reklamowe / formuły grzecznościowe ===
         'witam', 'oferuję', 'wynajmę', 'wynajem',
         'kontakt', 'kontaktu', 'kontaktowy', 'telefon', 'telefonu', 'numer', 'numerze', 'numerem', 'nr',
         'whatsapp', 'whats', 'app', 'tel',
-        
+
         # === Jednostki czasu i miary (typowe pułapki "ma 9m", "12 minut") ===
         'minut', 'minutę', 'minuty',
         'godzin', 'godzinę', 'godziny',
@@ -111,87 +117,59 @@ class AddressParser:
         'tydzień', 'tygodnia', 'tygodni',
         'dzień', 'dnia', 'dni',
         'razy', 'razu',
-        
+
         # === Komunikacja / transport (publiczna, MPK) ===
         'mpk', 'linia', 'linie', 'linii',
         'autobus', 'autobusowe', 'autobusowego', 'tramwaj',
-        
+
         # === Liczebniki słownie + literówki ===
         'dwieście', 'pięć', 'sześć',
-        
+
         # === Klasyczne "x metrów od" / "x minut do" ===
-        'wieku', 'wymiarach', 'wysokości', 'zasięgu', 'odległości',
+        'wieku', 'wymiarach', 'zasięgu', 'odległości',
         'dojazd', 'spacer', 'odjeżdżają',
-        
+
         # === Angielski szum z opisów ===
         'contact', 'rent', 'detached', 'large', 'medical', 'fees', 'deposit',
         'preferably', 'attractive', 'uniwercity', 'gyms', 'monthly',
         'montly', 'within', 'choose', 'from', 'march',
         'of', 'floor', 'street', 'available', 'meters', 'located', 'number',
-        
+
         # === Literówki obserwowane w cache ===
         'wynajme',         # "Wynajmę" bez ogonka
         'położony',
-        
-        # === FIX #1 MIESZKANIOWY (2026-05-16, po analizie 35 failów ze skanu) ===
-        # Te słowa MIESZKANIOWE doklejają się jako 2. człon nazwy ulicy:
-        # "Kryształowa Mieszkanie 2", "Wallenroda Kawalerka", "Bursztynowa Mieszkanie 65m"
-        # Parser akceptuje nazwy 1-3 wyrazowe (dla "Krakowskie Przedmieście"),
-        # więc bez wykluczenia tych słów łapie 2-wyrazowe pseudo-nazwy.
-        # Diagnoza: re-analiza offers.json po skanie 16.05.2026 wykazała ~20 takich case'ów.
-        # USUWAĆ uważnie - "balkon", "piętro" zostawiamy luźne bo w mieszkaniach są normalne
-        # i nie obserwowano że się doklejają.
+
+        # === Słowa "mieszkaniowe" doklejające się jako 2. człon nazwy ulicy ===
+        # FIX 2026-05-16 (analiza 35 failów): wzorzec "[Ulica] [słowo] [N]" gdzie
+        # parser łapie 2-wyrazową frazę jako nazwę ulicy, np. "Kryształowa Mieszkanie 2",
+        # "Wallenroda Kawalerka", "Poligonowa Komfortowe", "klimatyzacja Mieszkanie 42".
+        # W pokojowym nie były problemem; w mieszkaniowym tytuły OLX często tak wyglądają.
+        # UWAGA: 'balkon'/'piętro' zostawiamy luźne — w mieszkaniach normalne, nie doklejają się.
         'mieszkanie', 'mieszkaniu', 'mieszkania', 'mieszkaniem',
         'kawalerka', 'kawalerce', 'kawalerki', 'kawalerką', 'kawalerkę',
         'apartament', 'apartamencie', 'apartamentu', 'apartamentem', 'apartamenty',
-        'studio', 'studia',
-        'komfortowe', 'komfortowy', 'komfortowa', 'komfortowych',  # "Poligonowa Komfortowe"
-        'klimatyzacja', 'klimatyzacją',  # "klimatyzacja Mieszkanie 42"
-        # Kaucja - osobna pułapka: "Kaucja 2", "Kaucja 3", "pokoje Kaucja 2"
-        # Te miały coords (false-positive z Nominatim - "ulica Kaucja" gdzieś istnieje?)
+        'studio', 'studia', 'studiu',
+        'komfortowe', 'komfortowy', 'komfortowa', 'komfortowych', 'komfortowym',
+        'klimatyzacja', 'klimatyzacją', 'klimatyzację',
+
+        # === Pseudo-adresy "rzeczownik + liczba" (FIX 2026-05-16) ===
+        # "Kaucja 2", "Kaucja 3", "wysokość wnętrz 3", "Wymagana 1 miesięczna kaucja".
+        # Te słowa pełnią funkcję rzeczownika + liczby — regex łapie je jako "ulica + numer".
         'kaucja', 'kaucji', 'kaucją', 'kaucję',
-        # Inne false-positives z analizy
-        'wymagana', 'wymagane', 'wymagany',  # "Wymagana 1"
-        'wysokość', 'wysokości', 'wysokoscia',  # "wysokość wnętrz 3"
+        'wymagana', 'wymagane', 'wymagany',
+        'wysokość', 'wysokości', 'wysokoscia',
         'wnętrz', 'wnętrza', 'wnętrzem',
-        'przedpokoju', 'przedpokój', 'przedpokojem',  # "przedpokoju 2"
-        
+        'przedpokoju', 'przedpokój', 'przedpokojem',
+
         # === Artefakty po preprocessing (po split CamelCase) ===
         'opisduży', 'opisdwuosobowy', 'opispokój', 'opisstudio',
         'vpustreet',
-        
-        # === FIX z pokojowego: 'obowy'/'obowym' — fragment "1-osobowym" jeśli regex źle zerwie ===
+
+        # === FIX z pokojowego: 'obowy'/'obowym' — fragment "1-osobowym" gdy regex źle zerwie ===
         'obowy', 'obowym',
-        
+
         # === Sekcje opisu, nagłówki ===
         'lokalizacja', 'okolica',
-        
-        # === FIX 2026-05-16: słowa-pułapki specyficzne dla MIESZKANIOWYCH ofert ===
-        # Diagnoza z quick_scan na 142 ofertach: ~20/35 nieudanych geokodowań 
-        # to wzorzec "[Nazwa ulicy] [słowo mieszkaniowe] [N]" gdzie parser łapie 
-        # 2-wyrazową frazę jako nazwę ulicy. Przykłady z bazy:
-        # "Kryształowa Mieszkanie 2", "Wallenroda Kawalerka", "Północna Mieszkanie",
-        # "klimatyzacja Mieszkanie 42", "Poligonowa Komfortowe", "Kawalerka 38" (FP)
-        # 
-        # W pokojowym te słowa nie były problemem (pokoje rzadko mają takie tytuły).
-        # W mieszkaniowym tytuły OLX często mają wzorzec "Nazwa Mieszkanie/Kawalerka/Apartament 65m".
-        # Dlatego TE konkretnie wracają do listy wykluczeń:
-        'mieszkanie', 'mieszkaniu', 'mieszkania', 'mieszkaniem',
-        'kawalerka', 'kawalerce', 'kawalerką', 'kawalerki',
-        'apartament', 'apartamencie', 'apartamenty', 'apartamentu',
-        'studio', 'studia', 'studiu',
-        'komfortowe', 'komfortowy', 'komfortowa', 'komfortowych', 'komfortowym',
-        
-        # === FIX 2026-05-16: "Kaucja N" / "wysokość N" jako pseudo-adresy ===
-        # Diagnoza: 5 ofert miało adres "Kaucja 2", "Kaucja 3", "wysokość wnętrz 3", "to ok 200"
-        # Te słowa pełnią funkcję rzeczownika + liczby co regex łapie jako "ulica + numer".
-        'kaucja', 'kaucją', 'kaucji',
-        'wysokość', 'wysokości', 'wnętrz', 'wnętrza',
-        'wymagana', 'wymagane', 'wymagany',  # "Wymagana 1 miesięczna kaucja"
-        'przedpokoju', 'przedpokój',
-        'klimatyzacja', 'klimatyzację',  # "klimatyzacja Mieszkanie 42"
-        'opisduży',  # już jest, ale dla pewności
-        'opisstudio',
     }
 
     # Pattern dla ekstrakcji ulicy BEZ numeru (decyzja 1a — tylko z jawnym prefiksem)
