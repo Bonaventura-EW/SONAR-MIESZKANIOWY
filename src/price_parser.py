@@ -1,7 +1,13 @@
 """
-Price Parser V2 - inteligentne parsowanie cen pokoi
-Priorytet: cena pokoju (bez opłat) > cena z nagłówka
-Filtruje: liczby z adresów, lata (2024-2030), liczby <100 zł
+Price Parser V2 - inteligentne parsowanie cen najmu (mieszkania)
+Priorytet: cena najmu (bez opłat/mediów) > cena z nagłówka
+Filtruje: liczby z adresów, lata (2024-2030), liczby poza zakresem 200-10000 zł
+
+UWAGA (zaszłość): projekt powstał jako port z SONAR-POKOJOWY, stąd część
+wzorców tekstowych nadal dopasowuje słowo "pokój" — to celowe: łapie rozbicia
+typu "850 zł – pokój + 250 zł – opłaty" oraz ogłoszenia pokoi w mieszkaniach.
+Głównym źródłem ceny jest i tak JSON-LD z OLX (patrz main.py), a te wzorce to
+fallback tekstowy (PRIORYTET 3). Nie zmieniaj treści regexów bez testów.
 """
 
 import re
@@ -11,8 +17,9 @@ class PriceParser:
     # Pattern do wyciągania kwot (3-4 cyfry + opcjonalnie "zł", "PLN")
     PRICE_PATTERN = re.compile(r'(\d{3,4})\s*(?:zł|PLN|złotych)?', re.IGNORECASE)
     
-    # Wzorce na cenę pokoju (BEZ opłat/mediów)
-    ROOM_PRICE_PATTERNS = [
+    # Wzorce na cenę najmu (BEZ opłat/mediów).
+    # Treść regexów celowo niezmieniona z wersji pokojowej — patrz docstring modułu.
+    RENT_PRICE_PATTERNS = [
         re.compile(r'(\d{3,4})\s*(?:zł|PLN)?\s*[-–—]\s*pokój', re.IGNORECASE),
         re.compile(r'pokój\s*[-–—]?\s*(\d{3,4})\s*(?:zł|PLN)?', re.IGNORECASE),
         re.compile(r'za\s*pokój\s*(\d{3,4})\s*(?:zł|PLN)?', re.IGNORECASE),
@@ -107,9 +114,9 @@ class PriceParser:
         
         return filtered
     
-    def _extract_room_price(self, text: str) -> Optional[int]:
+    def _extract_rent_price(self, text: str) -> Optional[int]:
         """
-        Próbuje wyciągnąć cenę pokoju (bez opłat) używając wzorców.
+        Próbuje wyciągnąć cenę najmu (bez opłat) używając wzorców tekstowych.
         Zwraca None jeśli nie znaleziono.
         """
         # Najpierw sprawdź rozbicie: "850 zł – pokój + 250 zł – opłaty"
@@ -122,7 +129,7 @@ class PriceParser:
                     return room_price
         
         # Potem szukaj wzorców typu "X zł – pokój", "pokój X zł" itp.
-        for pattern in self.ROOM_PRICE_PATTERNS:
+        for pattern in self.RENT_PRICE_PATTERNS:
             match = pattern.search(text)
             if match:
                 price = int(match.group(1))
@@ -132,7 +139,7 @@ class PriceParser:
         
         return None
     
-    def _detect_media_info_advanced(self, text_lower: str, room_price: int) -> str:
+    def _detect_media_info_advanced(self, text_lower: str, rent_price: int) -> str:
         """
         Wykrywa informację o mediach - zaawansowana wersja.
         Próbuje wyciągnąć konkretną kwotę opłat jeśli jest podana.
@@ -185,17 +192,17 @@ class PriceParser:
         
         text_lower = text.lower()
         
-        # PRIORYTET 1: Szukaj ceny pokoju w opisie (wzorce)
-        room_price = self._extract_room_price(text)
-        
-        if room_price:
-            # Znaleziono cenę pokoju - wykryj info o mediach
-            media_info = self._detect_media_info_advanced(text_lower, room_price)
-            
+        # PRIORYTET 1: Szukaj ceny najmu w opisie (wzorce)
+        rent_price = self._extract_rent_price(text)
+
+        if rent_price:
+            # Znaleziono cenę najmu - wykryj info o mediach
+            media_info = self._detect_media_info_advanced(text_lower, rent_price)
+
             return {
-                'price': room_price,
+                'price': rent_price,
                 'media_info': media_info,
-                'raw_text': self._extract_price_context(text, room_price)
+                'raw_text': self._extract_price_context(text, rent_price)
             }
         
         # PRIORYTET 2: Nie znaleziono wzorców - ODRZUĆ
