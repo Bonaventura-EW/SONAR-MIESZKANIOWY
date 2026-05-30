@@ -5,11 +5,11 @@
 [![Scan Status](https://img.shields.io/badge/Skany-3x%20dziennie-brightgreen)](https://bonaventura-ew.github.io/SONAR-MIESZKANIOWY/)
 [![GitHub Pages](https://img.shields.io/badge/Demo-Live-blue)](https://bonaventura-ew.github.io/SONAR-MIESZKANIOWY/)
 
-> Status: 🚧 Świeżo zainicjowany. Pierwszy skan po włączeniu GitHub Actions / Pages — patrz sekcja "Pierwsze uruchomienie".
+> Status: ✅ Działa produkcyjnie. Skan 3×/dzień (GitHub Actions), frontend na GitHub Pages.
 
 ---
 
-## 🌐 Demo na żywo (po włączeniu Pages)
+## 🌐 Demo na żywo
 
 | Strona | Opis |
 |--------|------|
@@ -21,7 +21,7 @@
 
 ---
 
-## ✨ Funkcje (skopiowane 1:1 z SONAR-POKOJOWY)
+## ✨ Funkcje
 
 ### 🔄 Automatyczne skanowanie
 - **3 skany dziennie** (09:00, 15:00, 21:00 CET)
@@ -202,14 +202,17 @@ Przyspieszenie 8x uzyskane przez: (1) `RateLimiter` z geopy zamiast nagiego `geo
 
 ## 🛣️ Roadmap
 
-- [x] Etap 0: Setup + skopiowanie z SONAR-POKOJOWY + podmiany
-- [ ] Etap 1: Pierwszy automatyczny skan + weryfikacja danych
-- [ ] Etap 2: Tuning `PRICE_RANGES` na podstawie faktycznego rozkładu
-- [ ] Etap A: Powiadomienia email (filtry per cena/dzielnica/słowa kluczowe)
-- [ ] Etap B: Detekcja podejrzanych ofert + analiza historii cen
-- [ ] Etap C: Heatmap cen + indeks wartości
-- [ ] Etap D: Filtry słów kluczowych + ulubione (localStorage)
-- [ ] Etap E: Dodatkowe źródła (Otodom, Gratka), PWA push
+- [x] Setup + port z SONAR-POKOJOWY
+- [x] Automatyczne skany 3×/dzień + monitoring + mobile API
+- [x] Tagowanie ofert (kawalerka/pokój/mieszkanie) + analiza zmian cen (TOP5)
+- [x] Suite testów `pytest` + CI (`tests.yml`)
+- [ ] Powiadomienia email (filtry per cena/dzielnica/słowa kluczowe)
+- [ ] Detekcja podejrzanych ofert (anomalie cenowe)
+- [ ] Heatmap cen + indeks wartości
+- [ ] Filtry słów kluczowych + ulubione (localStorage)
+- [ ] Dodatkowe źródła (Otodom, Gratka), PWA push
+
+> Pełna historia zmian: [CHANGELOG.md](./CHANGELOG.md)
 
 ---
 

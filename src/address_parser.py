@@ -840,33 +840,6 @@ class AddressParser:
             'full': best['full'],
             'has_number': False
         }
-    
-    def validate_lublin_address(self, address: str) -> bool:
-        """
-        Sprawdza czy adres wygląda na prawdziwy adres w Lublinie.
-        Filtruje oczywiste błędy typu "123 abc" itp.
-        
-        Args:
-            address: Pełny adres do walidacji
-            
-        Returns:
-            True jeśli adres wygląda poprawnie
-        """
-        if not address:
-            return False
-        
-        # Musi zawierać przynajmniej jedną literę i jedną cyfrę
-        has_letter = any(c.isalpha() for c in address)
-        has_digit = any(c.isdigit() for c in address)
-        
-        if not (has_letter and has_digit):
-            return False
-        
-        # Nie może być zbyt krótki (min. "A 1")
-        if len(address) < 3:
-            return False
-        
-        return True
 
 
 # Testy jednostkowe

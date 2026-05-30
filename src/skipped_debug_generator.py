@@ -2,8 +2,8 @@
 Skipped Debug Generator - generuje statyczną stronę docs/skipped_debug.html
 z listą ofert pominiętych w ostatnim skanie (no_address / no_coords / duplicate / no_price).
 
-Strona tymczasowa - do diagnostyki błędów parsera/geokodera.
-Po naprawie głównych problemów można ją usunąć.
+Stała strona diagnostyczna parsera/geokodera (pomaga wyłapywać regresje w
+ekstrakcji adresów/cen po zmianach w scraperze lub OLX).
 
 Źródło danych: data/skipped_offers_sample.json (zapisywany przez main.py podczas skanu).
 """
@@ -358,8 +358,8 @@ header .nav-links a.tmp {{ background: rgba(255,200,0,0.4); border: 1px dashed w
 </header>
 
 <div class="banner">
-  ⚠️ <strong>Strona tymczasowa</strong> do analizy błędów parsera. Pokazuje oferty które scraper pobrał ale nie trafiły na mapę.
-  Zostanie usunięta po naprawie głównych problemów.
+  🐛 <strong>Diagnostyka parsera</strong> — oferty, które scraper pobrał, ale nie trafiły na mapę
+  (brak adresu/ceny/współrzędnych lub duplikat). Aktualizowana przy każdym skanie.
 </div>
 
 <div class="container">

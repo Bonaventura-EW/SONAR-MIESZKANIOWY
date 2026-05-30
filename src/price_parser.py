@@ -14,9 +14,6 @@ import re
 from typing import Optional, Dict, List
 
 class PriceParser:
-    # Pattern do wyciągania kwot (3-4 cyfry + opcjonalnie "zł", "PLN")
-    PRICE_PATTERN = re.compile(r'(\d{3,4})\s*(?:zł|PLN|złotych)?', re.IGNORECASE)
-    
     # Wzorce na cenę najmu (BEZ opłat/mediów).
     # Treść regexów celowo niezmieniona z wersji pokojowej — patrz docstring modułu.
     RENT_PRICE_PATTERNS = [
@@ -253,32 +250,7 @@ class PriceParser:
         
         # Domyślnie - brak jasnej informacji
         return "sprawdź w opisie"
-    
-    def _detect_media_info_simple(self, text_lower: str, prices: list) -> str:
-        """
-        Wykrywa informację o mediach (stara metoda - dla przypadków bez wzorców).
-        """
-        # Sprawdzamy czy media są wliczone
-        for phrase in self.MEDIA_INCLUDED:
-            if phrase in text_lower:
-                return "wliczone"
-        
-        # Sprawdzamy czy media są osobno
-        for phrase in self.MEDIA_SEPARATE:
-            if phrase in text_lower:
-                # Próbujemy znaleźć kwotę mediów
-                if len(prices) >= 2:
-                    media_cost = prices[1]
-                    # Sprawdź czy druga kwota jest mniejsza (typowo media < czynsz)
-                    if media_cost < prices[0]:
-                        return f"+ ~{media_cost} zł"
-                
-                # Jeśli nie znaleziono drugiej kwoty, ogólna informacja
-                return "+ media"
-        
-        # Jeśli nie ma informacji
-        return "brak informacji"
-    
+
     def _extract_price_context(self, text: str, price: int) -> str:
         """
         Wyciąga fragment tekstu wokół ceny (kontekst).

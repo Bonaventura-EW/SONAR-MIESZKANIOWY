@@ -10,6 +10,19 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Usunięte (sprzątanie)
+- Martwy kod (0 użyć w repo): `PriceParser._detect_media_info_simple`,
+  `PriceParser.PRICE_PATTERN`, `DuplicateDetector.find_duplicates_in_batch`,
+  `Geocoder.batch_geocode`, `AddressParser.validate_lublin_address` (~90 linii).
+- `src/migrate_price_changes.py` — jednorazowa migracja, już wykonana
+  (134/148 ofert ma `price_changes`).
+
+### Zmienione (sprzątanie)
+- README zaktualizowany: status „działa produkcyjnie" zamiast „świeżo
+  zainicjowany", realna roadmapa (done/todo), usunięte „skopiowane 1:1".
+- `skipped_debug.html` przestaje być „tymczasowa" — to stała strona
+  diagnostyczna parsera (zaktualizowany baner i docstring generatora).
+
 ### Dodane
 - `CLAUDE.md` — wytyczne dla agentów (uruchamianie, przepływ danych, pułapki).
 - `CHANGELOG.md` — ten plik.

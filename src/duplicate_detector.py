@@ -71,26 +71,7 @@ class DuplicateDetector:
         similarity = self.calculate_similarity(desc1, desc2)
         
         return similarity >= self.threshold
-    
-    def find_duplicates_in_batch(self, offers: List[Dict]) -> List[tuple]:
-        """
-        Znajduje wszystkie pary duplikatów w liście ogłoszeń.
-        
-        Args:
-            offers: Lista ogłoszeń
-            
-        Returns:
-            Lista tupli (index1, index2) wskazujących na duplikaty
-        """
-        duplicates = []
-        
-        for i in range(len(offers)):
-            for j in range(i + 1, len(offers)):
-                if self.is_duplicate(offers[i], offers[j]):
-                    duplicates.append((i, j))
-        
-        return duplicates
-    
+
     def filter_duplicates(self, new_offer: Dict, existing_offers: List[Dict]) -> bool:
         """
         Sprawdza czy nowe ogłoszenie jest duplikatem któregoś z istniejących.

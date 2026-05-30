@@ -667,29 +667,6 @@ class Geocoder:
                 raise
         
         return None
-    
-    def batch_geocode(self, addresses: list, delay: float = 1.0) -> Dict[str, Optional[Dict]]:
-        """
-        Geokoduje wiele adresów z opóźnieniem (Nominatim wymaga max 1 req/s).
-        
-        Args:
-            addresses: Lista adresów
-            delay: Opóźnienie między requestami (sekundy)
-            
-        Returns:
-            Dict {adres: {lat, lon}}
-        """
-        results = {}
-        
-        for i, address in enumerate(addresses):
-            coords = self.geocode_address(address)
-            results[address] = coords
-            
-            # Opóźnienie między requestami (polityka Nominatim)
-            if i < len(addresses) - 1:
-                time.sleep(delay)
-        
-        return results
 
 
 # Testy jednostkowe
