@@ -13,7 +13,7 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 ### Dodane
 - `CLAUDE.md` — wytyczne dla agentów (uruchamianie, przepływ danych, pułapki).
 - `CHANGELOG.md` — ten plik.
-- Suite testów `pytest` (`tests/`, 43 testy) + workflow CI `tests.yml`
+- Suite testów `pytest` (`tests/`, 46 testów) + workflow CI `tests.yml`
   uruchamiany na push/PR dotykające `src/` lub `tests/`.
 - Lazy-loading opisów na mapie: `data.json` zawiera tylko podgląd (200 znaków),
   pełne opisy w osobnym `docs/descriptions.json` doczytywanym po kliknięciu
@@ -34,6 +34,15 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 - Ścieżki do danych/docs wydzielone do `src/paths.py` (kotwiczone do lokalizacji
   repo, nie do CWD). Skrypty działają teraz także uruchamiane spoza `src/`
   (np. z roota albo przez pytest). Domyślne argumenty bez zmian dla `cd src`.
+- `price_parser.py`: nazewnictwo z „pokojowego" na „najmu/mieszkania”
+  (`ROOM_PRICE_PATTERNS`→`RENT_PRICE_PATTERNS`, `_extract_room_price`→
+  `_extract_rent_price`, docstringi). Treść regexów i publiczne API bez zmian —
+  zachowanie identyczne (zaszłość po porcie z SONAR-POKOJOWY).
+
+### Niezmienione (świadomie)
+- `PRICE_RANGES` (zakresy/kolory mapy) — pozostawione bez zmian po analizie
+  rozkładu (mediana 2300 zł, ~75% ofert w 1750–2750 zł, obecne progi pokrywają
+  ten przedział wystarczająco gęsto).
 
 ### Naprawione
 - `scanner.yml`: krok tygodniowego `fix_missing_coords` nigdy się nie wykonywał —
