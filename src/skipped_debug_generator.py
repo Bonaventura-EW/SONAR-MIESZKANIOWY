@@ -13,6 +13,8 @@ import html
 from pathlib import Path
 from datetime import datetime
 
+import paths
+
 
 # Mapowanie kategorii → metadane wyświetlania
 CATEGORY_LABELS = {
@@ -149,8 +151,8 @@ def _build_offer_card(category: str, sample: dict) -> str:
 
 
 def generate_skipped_debug_page(
-    sample_path: str = "../data/skipped_offers_sample.json",
-    output_path: str = "../docs/skipped_debug.html"
+    sample_path: str = paths.SKIPPED_SAMPLE_JSON,
+    output_path: str = paths.DOCS_SKIPPED_DEBUG_HTML
 ) -> bool:
     """
     Generuje docs/skipped_debug.html z aktualnymi próbkami pominiętych ofert.

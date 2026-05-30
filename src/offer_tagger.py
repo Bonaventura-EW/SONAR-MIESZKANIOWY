@@ -249,6 +249,29 @@ def get_tag_info(tag_type: str) -> Dict:
     return TAGS.get(tag_type, TAGS['pokoj'])
 
 
+def build_tags(title: str, description: str) -> Dict:
+    """Zwraca tagi w kształcie używanym przez frontend/data.json.
+
+    Jedno źródło prawdy dla struktury {primary, secondary, all, confidence}.
+    Liczone raz w main.py przy przetwarzaniu oferty i zapisywane w offers.json;
+    map_generator tylko je odczytuje (z fallbackiem na żywo dla starych ofert).
+    """
+    r = tag_offer(title, description)
+    return {
+        'primary': r['primary'],
+        'secondary': r['secondary'],
+        'all': r['all_tags'],
+        'confidence': r['confidence'],
+    }
+
+
+def title_from_url(url: str) -> str:
+    """Wyciąga „tytuł" ze slugu URL (część przed CID), do tagowania."""
+    if not url:
+        return ''
+    return url.split('/')[-1].split('.')[0].replace('-', ' ')
+
+
 def format_tags_for_display(tag_result: Dict) -> str:
     """Formatuje tagi do wyświetlenia (np. w popupie)."""
     primary = tag_result['primary']

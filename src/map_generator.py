@@ -10,7 +10,24 @@ from collections import defaultdict
 from pathlib import Path
 
 # Import taggera ofert (B1)
-from offer_tagger import tag_offer, TAGS as OFFER_TAGS
+from offer_tagger import build_tags, title_from_url, TAGS as OFFER_TAGS
+
+
+def resolve_tags(offer):
+    """Zwraca tagi oferty w kształcie dla frontendu.
+
+    Preferuje tagi zapisane w offers.json (liczone raz w main.py). Dla starych
+    ofert bez pola 'tags' liczy je w locie (fallback wsteczny).
+    """
+    tags = offer.get('tags')
+    if isinstance(tags, dict) and 'primary' in tags:
+        return {
+            'primary': tags['primary'],
+            'secondary': tags.get('secondary', []),
+            'all': tags.get('all') or tags.get('all_tags') or [tags['primary']],
+            'confidence': tags.get('confidence', 0),
+        }
+    return build_tags(title_from_url(offer.get('url', '')), offer.get('description', ''))
 
 # Definicja zakresów cenowych - 12 przedziałów z gradientem
 # DOSTOSOWANE DLA MIESZKAŃ (rynek wynajmu Lublin: kawalerki ~1500-2200, 2-pok ~2000-3500, 3-pok 2800-4500+)
@@ -224,10 +241,8 @@ def generate_map_data(input_file, output_file):
                     is_new = (first_seen_dt.date() == today_date)
                 except (ValueError, AttributeError):
                     pass
-            url = offer.get('url', '')
-            title_from_url = url.split('/')[-1].split('.')[0].replace('-', ' ') if url else ''
             full_desc = offer.get('description', '')
-            tag_result = tag_offer(title_from_url, full_desc)
+            tags = resolve_tags(offer)
             desc_preview, desc_truncated = split_description(full_desc)
             if desc_truncated:
                 full_descriptions[offer.get('id')] = full_desc
@@ -245,12 +260,7 @@ def generate_map_data(input_file, output_file):
                 'is_new': is_new,
                 'description': desc_preview,
                 'desc_truncated': desc_truncated,
-                'tags': {
-                    'primary': tag_result['primary'],
-                    'secondary': tag_result['secondary'],
-                    'all': tag_result['all_tags'],
-                    'confidence': tag_result['confidence']
-                }
+                'tags': tags
             })
             continue
         
@@ -283,13 +293,9 @@ def generate_map_data(input_file, output_file):
         current_price = price_data.get('current', 0)
         offer_price_range = get_price_range(current_price)
         
-        # B1: Tagowanie oferty (kawalerka/pokój/mieszkanie)
+        # B1: Tagi oferty (kawalerka/pokój/mieszkanie) — z offers.json lub fallback
         description_text = offer.get('description', '')
-        # Wyciągnij tytuł z URL (pierwsza część przed CID)
-        url = offer.get('url', '')
-        title_from_url = url.split('/')[-1].split('.')[0].replace('-', ' ') if url else ''
-        
-        tag_result = tag_offer(title_from_url, description_text)
+        tags = resolve_tags(offer)
 
         desc_preview, desc_truncated = split_description(description_text)
         if desc_truncated:
@@ -315,13 +321,8 @@ def generate_map_data(input_file, output_file):
             'desc_truncated': desc_truncated,   # True → frontend doczytuje pełny opis na żądanie
             'reactivated': offer.get('reactivated_at') is not None,  # Czy była reaktywowana
             'reactivated_at': format_datetime(offer.get('reactivated_at', '')) if offer.get('reactivated_at') else None,
-            # B1: Tagi oferty
-            'tags': {
-                'primary': tag_result['primary'],
-                'secondary': tag_result['secondary'],
-                'all': tag_result['all_tags'],
-                'confidence': tag_result['confidence']
-            }
+            # B1: Tagi oferty (liczone raz w main.py, tu tylko odczyt)
+            'tags': tags
         }
         
         markers_dict[key].append({

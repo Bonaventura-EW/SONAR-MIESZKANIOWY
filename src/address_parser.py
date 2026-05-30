@@ -244,12 +244,19 @@ class AddressParser:
         text = cls._MULTIPLE_WHITESPACE.sub(' ', text)
         return text.strip()
 
-    def __init__(self, geocoding_cache_path: str = "../data/geocoding_cache.json"):
+    def __init__(self, geocoding_cache_path: str = None):
         """
         Args:
             geocoding_cache_path: ścieżka do JSON z geocoding cache (do whitelist Fix #4).
                 Jeśli plik nie istnieje, whitelist pozostaje pusty (parser działa bez fallbacku #4).
+                None → ścieżka domyślna z paths.py (kotwiczona do repo, nie do CWD).
         """
+        if geocoding_cache_path is None:
+            try:
+                from paths import GEOCODING_CACHE_JSON
+                geocoding_cache_path = GEOCODING_CACHE_JSON
+            except ImportError:  # pragma: no cover
+                geocoding_cache_path = "../data/geocoding_cache.json"
         # === FIX #4 (2026-05-11): whitelist znanych ulic Lublina z geocoding_cache ===
         # Wczytuje 148+ znanych nazw ulic które już raz geokodowaliśmy.
         # Używane jako TRZECI fallback po extract_address i extract_street_only.

@@ -13,6 +13,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+import paths
+
 
 def _parse_iso_safe(s: Optional[str]) -> Optional[datetime]:
     if not s:
@@ -90,8 +92,8 @@ def _build_change_entry(offer: dict) -> Optional[dict]:
 
 
 def generate(
-    offers_path: str = "../data/offers.json",
-    output_path: str = "../docs/top5_data.json",
+    offers_path: str = paths.OFFERS_JSON,
+    output_path: str = paths.DOCS_TOP5_JSON,
 ) -> dict:
     """Generuje docs/top5_data.json. Zwraca statystyki."""
     p_in = Path(offers_path)
@@ -142,8 +144,8 @@ def generate(
 
 if __name__ == "__main__":
     import sys
-    offers_arg = sys.argv[1] if len(sys.argv) > 1 else "../data/offers.json"
-    out_arg = sys.argv[2] if len(sys.argv) > 2 else "../docs/top5_data.json"
+    offers_arg = sys.argv[1] if len(sys.argv) > 1 else paths.OFFERS_JSON
+    out_arg = sys.argv[2] if len(sys.argv) > 2 else paths.DOCS_TOP5_JSON
     stats = generate(offers_arg, out_arg)
     print("📊 TOP5 generator zakończony:")
     print(f"   Łącznie ofert:        {stats['total_offers']}")

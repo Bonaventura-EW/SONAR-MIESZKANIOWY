@@ -10,8 +10,14 @@ from typing import Dict, List
 import pytz
 
 
+try:
+    from paths import SCAN_HISTORY_JSON as _DEFAULT_LOG
+except ImportError:  # pragma: no cover - fallback gdy paths niedostępne
+    _DEFAULT_LOG = "../data/scan_history.json"
+
+
 class ScanLogger:
-    def __init__(self, log_file: str = "../data/scan_history.json"):
+    def __init__(self, log_file: str = _DEFAULT_LOG):
         self.log_file = Path(log_file)
         self.tz = pytz.timezone('Europe/Warsaw')
         self.current_scan = None

@@ -16,6 +16,7 @@ from typing import Dict, List, Optional
 import pytz
 
 from scan_logger import ScanLogger
+import paths
 
 
 class APIGenerator:
@@ -24,11 +25,11 @@ class APIGenerator:
     # Harmonogram skanów (CET)
     SCAN_SCHEDULE = ["09:00", "15:00", "21:00"]
     
-    def __init__(self, output_dir: str = "../docs/api"):
+    def __init__(self, output_dir: str = paths.DOCS_API_DIR):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.tz = pytz.timezone('Europe/Warsaw')
-        self.logger = ScanLogger(log_file="../data/scan_history.json")
+        self.logger = ScanLogger(log_file=paths.SCAN_HISTORY_JSON)
     
     def generate_all(self):
         """Generuje wszystkie pliki API."""

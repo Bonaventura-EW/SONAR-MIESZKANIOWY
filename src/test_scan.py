@@ -20,7 +20,8 @@ print("="*60 + "\n")
 scraper = OLXScraper(delay_range=(1, 2))
 address_parser = AddressParser()
 price_parser = PriceParser()
-geocoder = Geocoder(cache_file="../data/geocoding_cache.json")
+import paths
+geocoder = Geocoder(cache_file=paths.GEOCODING_CACHE_JSON)
 
 # Pobierz tylko pierwszą stronę
 print("📡 Pobieram pierwszą stronę OLX...")

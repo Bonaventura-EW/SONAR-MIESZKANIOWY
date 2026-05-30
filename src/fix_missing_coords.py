@@ -11,9 +11,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 from geocoder import Geocoder
+import paths
 
-OFFERS_FILE = Path('../data/offers.json')
-CACHE_FILE  = Path('../data/geocoding_cache.json')
+OFFERS_FILE = Path(paths.OFFERS_JSON)
+CACHE_FILE  = Path(paths.GEOCODING_CACHE_JSON)
 
 # Sygnały że adres to efekt złego parsowania — nie ma sensu geocodować
 GARBAGE_SIGNALS = [

@@ -159,7 +159,13 @@ class Geocoder:
     # chwilowo (timeout, rate-limit) lub których OSM jeszcze nie miał a teraz ma.
     NULL_CACHE_TTL_DAYS = 7
 
-    def __init__(self, cache_file: str = "data/geocoding_cache.json"):
+    def __init__(self, cache_file: str = None):
+        if cache_file is None:
+            try:
+                from paths import GEOCODING_CACHE_JSON
+                cache_file = GEOCODING_CACHE_JSON
+            except ImportError:  # pragma: no cover
+                cache_file = "../data/geocoding_cache.json"
         self.cache_file = Path(cache_file)
         self.cache = self._load_cache()
         # Osobny dict timestampów dla null entries: {address: epoch_float}

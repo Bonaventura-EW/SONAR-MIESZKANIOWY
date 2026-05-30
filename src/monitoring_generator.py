@@ -5,13 +5,14 @@ Monitoring Data Generator - przygotowuje dane dla dashboardu monitoringu
 import json
 from pathlib import Path
 from scan_logger import ScanLogger
+import paths
 
 
 def generate_monitoring_data():
     """
     Generuje plik monitoring_data.json z pełnymi statystykami dla dashboardu.
     """
-    logger = ScanLogger(log_file="../data/scan_history.json")
+    logger = ScanLogger(log_file=paths.SCAN_HISTORY_JSON)
     
     # Pobierz ostatnie 100 skanów (dla wykresów ~33 dni) i statystyki
     recent_scans = logger.get_recent_scans(count=100)
@@ -72,7 +73,7 @@ def generate_monitoring_data():
     }
     
     # Zapisz do docs/
-    output_file = Path("../docs/monitoring_data.json")
+    output_file = Path(paths.DOCS_MONITORING_JSON)
     output_file.parent.mkdir(parents=True, exist_ok=True)
     
     with open(output_file, 'w', encoding='utf-8') as f:

@@ -25,6 +25,15 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
   [oferty]`. Duplikat wymaga identycznego adresu, więc kosztowny Levenshtein
   liczony tylko w obrębie tego samego adresu (zwykle 1–2 oferty). Wynik
   identyczny — pilnuje `tests/test_duplicate_detector.py`.
+- Tagi ofert (kawalerka/pokój/mieszkanie) liczone RAZ w `main.py` przy
+  przetwarzaniu i zapisywane w `offers.json`. `map_generator` tylko je odczytuje
+  (`resolve_tags`) zamiast liczyć regexy na każdym opisie przy każdej generacji.
+  Dla starych ofert bez `tags` — fallback liczy w locie (zero regresji).
+
+### Zmienione
+- Ścieżki do danych/docs wydzielone do `src/paths.py` (kotwiczone do lokalizacji
+  repo, nie do CWD). Skrypty działają teraz także uruchamiane spoza `src/`
+  (np. z roota albo przez pytest). Domyślne argumenty bez zmian dla `cd src`.
 
 ### Naprawione
 - `scanner.yml`: krok tygodniowego `fix_missing_coords` nigdy się nie wykonywał —

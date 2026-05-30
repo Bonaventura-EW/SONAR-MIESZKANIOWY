@@ -22,17 +22,19 @@ from scan_logger import ScanLogger
 
 # Stabilny identyfikator oferty (CID3-IDxxxx). Współdzielony z scraper.py.
 from cid import extract_cid
+from offer_tagger import build_tags
+import paths
 
 
 class SonarMieszkaniowy:
-    def __init__(self, data_file: str = "../data/offers.json", removed_file: str = "../data/removed_listings.json"):
+    def __init__(self, data_file: str = paths.OFFERS_JSON, removed_file: str = paths.REMOVED_JSON):
         self.data_file = Path(data_file)
         self.removed_file = Path(removed_file)
         self.address_parser = AddressParser()
         self.price_parser = PriceParser()
-        self.geocoder = Geocoder(cache_file="../data/geocoding_cache.json")
+        self.geocoder = Geocoder(cache_file=paths.GEOCODING_CACHE_JSON)
         self.duplicate_detector = DuplicateDetector(similarity_threshold=0.95)
-        self.scan_logger = ScanLogger(log_file="../data/scan_history.json")
+        self.scan_logger = ScanLogger(log_file=paths.SCAN_HISTORY_JSON)
         
         # Strefa czasowa polska
         self.tz = pytz.timezone('Europe/Warsaw')
@@ -343,6 +345,10 @@ class SonarMieszkaniowy:
                 'source': price_source  # Dodane: JSON-LD / Parser / HTML fallback
             },
             'description': full_text,
+            # Tagi liczone RAZ tutaj (kawalerka/pokój/mieszkanie) i zapisywane w
+            # offers.json — map_generator tylko je odczytuje zamiast liczyć regexy
+            # na każdym opisie przy każdej generacji.
+            'tags': build_tags(raw_offer.get('title', ''), full_text),
             'first_seen': datetime.now(self.tz).isoformat(),
             'last_seen': datetime.now(self.tz).isoformat(),
             'active': True,
@@ -1028,5 +1034,5 @@ class SonarMieszkaniowy:
 
 
 if __name__ == "__main__":
-    agent = SonarMieszkaniowy(data_file="../data/offers.json")
+    agent = SonarMieszkaniowy(data_file=paths.OFFERS_JSON)
     agent.run_scan()
