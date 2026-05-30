@@ -96,6 +96,24 @@ PRICE_RANGES = {
     }
 }
 
+# Długość podglądu opisu w data.json. Pełne opisy (gdy dłuższe) trafiają do
+# osobnego docs/descriptions.json i są doczytywane przez frontend dopiero po
+# kliknięciu "Pokaż całość" — patrz punkt 6 audytu (data.json był w 59% opisami).
+DESC_PREVIEW_LEN = 200
+
+
+def split_description(full_text):
+    """Zwraca (podgląd, czy_obcięto) dla opisu oferty.
+
+    Jeśli opis mieści się w DESC_PREVIEW_LEN, podglądem jest cały tekst i
+    czy_obcięto=False (frontend nie pokazuje "Pokaż całość", nie ma czego doczytać).
+    """
+    full_text = full_text or ''
+    if len(full_text) <= DESC_PREVIEW_LEN:
+        return full_text, False
+    return full_text[:DESC_PREVIEW_LEN].rstrip() + '…', True
+
+
 def get_price_range(price):
     """Przypisz cenę do zakresu"""
     for key, range_info in PRICE_RANGES.items():
@@ -182,6 +200,7 @@ def generate_map_data(input_file, output_file):
     # 2. Grupuj oferty według adresów
     markers_dict = defaultdict(list)
     unlocalised_offers = []  # Oferty bez precyzyjnej lokacji GPS
+    full_descriptions = {}   # {offer_id: pełny_opis} — tylko dla obciętych (lazy-load)
     
     for offer in offers:
         address_full = offer.get('address', {}).get('full', 'Nieznany adres')
@@ -207,7 +226,11 @@ def generate_map_data(input_file, output_file):
                     pass
             url = offer.get('url', '')
             title_from_url = url.split('/')[-1].split('.')[0].replace('-', ' ') if url else ''
-            tag_result = tag_offer(title_from_url, offer.get('description', ''))
+            full_desc = offer.get('description', '')
+            tag_result = tag_offer(title_from_url, full_desc)
+            desc_preview, desc_truncated = split_description(full_desc)
+            if desc_truncated:
+                full_descriptions[offer.get('id')] = full_desc
             unlocalised_offers.append({
                 'id': offer.get('id'),
                 'url': offer.get('url'),
@@ -220,7 +243,8 @@ def generate_map_data(input_file, output_file):
                 'days_active': offer.get('days_active', 0),
                 'active': offer.get('active', True),
                 'is_new': is_new,
-                'description': offer.get('description', ''),
+                'description': desc_preview,
+                'desc_truncated': desc_truncated,
                 'tags': {
                     'primary': tag_result['primary'],
                     'secondary': tag_result['secondary'],
@@ -266,7 +290,11 @@ def generate_map_data(input_file, output_file):
         title_from_url = url.split('/')[-1].split('.')[0].replace('-', ' ') if url else ''
         
         tag_result = tag_offer(title_from_url, description_text)
-        
+
+        desc_preview, desc_truncated = split_description(description_text)
+        if desc_truncated:
+            full_descriptions[offer.get('id')] = description_text
+
         offer_data = {
             'id': offer.get('id'),
             'url': offer.get('url'),
@@ -283,7 +311,8 @@ def generate_map_data(input_file, output_file):
             'active': offer.get('active', True),
             'is_new': is_new,  # ✅ Obliczone na podstawie daty
             'has_number': offer.get('address', {}).get('has_number', True),  # ✅ Czy znany numer domu
-            'description': offer.get('description', ''),  # Pełny opis (frontend się sam obcina)
+            'description': desc_preview,        # Podgląd; pełny opis w descriptions.json
+            'desc_truncated': desc_truncated,   # True → frontend doczytuje pełny opis na żądanie
             'reactivated': offer.get('reactivated_at') is not None,  # Czy była reaktywowana
             'reactivated_at': format_datetime(offer.get('reactivated_at', '')) if offer.get('reactivated_at') else None,
             # B1: Tagi oferty
@@ -366,8 +395,17 @@ def generate_map_data(input_file, output_file):
     # 7. Zapisz do pliku
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(map_data, f, ensure_ascii=False, indent=2)
-    
+
+    # 8. Zapisz pełne opisy do osobnego pliku (lazy-load przez frontend).
+    #    Tylko opisy obcięte w podglądzie — reszta i tak jest w całości w data.json.
+    descriptions_file = Path(output_file).parent / 'descriptions.json'
+    with open(descriptions_file, 'w', encoding='utf-8') as f:
+        json.dump(full_descriptions, f, ensure_ascii=False)
+
+    data_mb = Path(output_file).stat().st_size / 1e6
+    desc_mb = descriptions_file.stat().st_size / 1e6
     print(f"✅ Zapisano map_data.json ({len(markers)} markerów, {stats['active_count']} aktywnych ofert, {len(unlocalised_offers)} bez lokacji)")
+    print(f"   data.json: {data_mb:.2f} MB | descriptions.json: {desc_mb:.2f} MB ({len(full_descriptions)} pełnych opisów)")
     print(f"   Ostatni scan: {scan_info['last']}")
     print(f"   Następny scan: {scan_info['next']}")
 

@@ -276,12 +276,12 @@ function createPopupContent(address, offers) {
 
         html += `<a href="${offer.url}" target="_blank" class="offer-link">🔗 Otwórz ogłoszenie</a>`;
 
-        const max = 100;
-        if (offer.description.length > max) {
+        // Opis: data.json zawiera tylko podgląd. Pełna treść (gdy desc_truncated)
+        // jest doczytywana z descriptions.json dopiero po kliknięciu "Pokaż całość".
+        if (offer.desc_truncated) {
             const uid = `desc-${offer.id}`;
-            html += `<div class="offer-description">
-                <div id="${uid}-short">📝 ${offer.description.substring(0,max)}... <br><a href="javascript:void(0)" onclick="toggleDescription('${uid}')" class="show-more-link">▼ Pokaż całość</a></div>
-                <div id="${uid}-full" style="display:none">📝 ${offer.description}<br><a href="javascript:void(0)" onclick="toggleDescription('${uid}')" class="show-more-link">▲ Zwiń</a></div></div>`;
+            html += `<div class="offer-description" id="${uid}-box">📝 <span id="${uid}-text">${offer.description}</span>
+                <a href="javascript:void(0)" id="${uid}-link" onclick="toggleDescription('${uid}','${offer.id}')" class="show-more-link">▼ Pokaż całość</a></div>`;
         } else {
             html += `<div class="offer-description">📝 ${offer.description}</div>`;
         }
@@ -710,13 +710,48 @@ function updatePriceRangeCounts() {
 
 // ─────────────────────── OPIS — TOGGLE ────────────────────────────────────────
 
-function toggleDescription(uid) {
-    const s = document.getElementById(`${uid}-short`);
-    const f = document.getElementById(`${uid}-full`);
-    if (!s || !f) return;
-    const showFull = s.style.display !== 'none';
-    s.style.display = showFull ? 'none' : 'block';
-    f.style.display = showFull ? 'block' : 'none';
+// Cache pełnych opisów doczytanych z descriptions.json (lazy-load).
+// `null` = jeszcze nie pobrano pliku; po pobraniu = obiekt {id: opis}.
+let fullDescriptions = null;
+let fullDescriptionsPromise = null;
+
+function loadFullDescriptions() {
+    // Pobierz descriptions.json raz; kolejne wywołania zwracają ten sam promise.
+    if (fullDescriptions) return Promise.resolve(fullDescriptions);
+    if (fullDescriptionsPromise) return fullDescriptionsPromise;
+    const base = window.location.pathname.includes('/SONAR-MIESZKANIOWY/')
+        ? '/SONAR-MIESZKANIOWY/descriptions.json' : '/descriptions.json';
+    fullDescriptionsPromise = fetch(`${base}?v=${Date.now()}`)
+        .then(r => r.ok ? r.json() : {})
+        .then(j => { fullDescriptions = j; return j; })
+        .catch(() => { fullDescriptions = {}; return {}; });
+    return fullDescriptionsPromise;
+}
+
+async function toggleDescription(uid, offerId) {
+    const textEl = document.getElementById(`${uid}-text`);
+    const linkEl = document.getElementById(`${uid}-link`);
+    if (!textEl || !linkEl) return;
+
+    const box = document.getElementById(`${uid}-box`);
+    const expanded = box?.dataset.expanded === '1';
+
+    if (expanded) {
+        // Zwiń — przywróć podgląd zapamiętany przy pierwszym rozwinięciu.
+        textEl.textContent = box.dataset.preview || textEl.textContent;
+        box.dataset.expanded = '0';
+        linkEl.textContent = '▼ Pokaż całość';
+        return;
+    }
+
+    // Rozwiń — doczytaj pełny opis (raz na sesję pobiera plik, potem z cache).
+    if (box && !box.dataset.preview) box.dataset.preview = textEl.textContent;
+    linkEl.textContent = '… ładowanie';
+    const map = await loadFullDescriptions();
+    const full = map[offerId];
+    textEl.textContent = full || box?.dataset.preview || '';
+    if (box) box.dataset.expanded = '1';
+    linkEl.textContent = '▲ Zwiń';
 }
 
 // ─────────────────────── NIEULOKALIZOWANE ────────────────────────────────────

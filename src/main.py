@@ -757,6 +757,10 @@ class SonarMieszkaniowy:
             geocoding_time = 0  # Czas geokodowania
             
             processed_offers = []
+            # Indeks {address_key: [oferty]} do deduplikacji w O(n·k) zamiast O(n²).
+            # Duplikat wymaga identycznego adresu, więc porównujemy opisy tylko
+            # w obrębie tego samego adresu (zwykle 1-2 oferty na adres).
+            processed_by_address = {}
             skipped_no_address = 0
             skipped_no_price = 0
             skipped_no_coords = 0
@@ -829,8 +833,8 @@ class SonarMieszkaniowy:
                             skipped_samples['no_coords'].append(sample)
                     continue
                 
-                # Sprawdź duplikaty (find_duplicate zwraca oryginał lub None)
-                original_dup = self.duplicate_detector.find_duplicate(processed, processed_offers)
+                # Sprawdź duplikaty — tylko wśród ofert pod tym samym adresem (indeks).
+                original_dup = self.duplicate_detector.find_duplicate_indexed(processed, processed_by_address)
                 if original_dup is not None:
                     skipped_duplicate += 1
                     print(f"      ⚠️ Duplikat - ignoruję")
@@ -855,6 +859,9 @@ class SonarMieszkaniowy:
                     continue
                 
                 processed_offers.append(processed)
+                processed_by_address.setdefault(
+                    self.duplicate_detector.address_key(processed), []
+                ).append(processed)
                 print(f"      ✅ {processed['address']['full']} - {processed['price']['current']} zł")
 
             # Zapisz próbki odrzuconych do analizy (nadpisuje przy każdym skanie)

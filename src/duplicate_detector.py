@@ -40,21 +40,28 @@ class DuplicateDetector:
         
         return similarity
     
+    @staticmethod
+    def address_key(offer: Dict) -> str:
+        """Znormalizowany klucz adresu używany do grupowania/porównań.
+
+        Duplikat MUSI mieć identyczny adres, więc ten klucz pozwala zawęzić
+        kosztowne porównanie opisów (Levenshtein) tylko do ofert pod tym samym
+        adresem — zamiast O(n²) po całej liście.
+        """
+        return offer.get('address', {}).get('full', '').lower().strip()
+
     def is_duplicate(self, offer1: Dict, offer2: Dict) -> bool:
         """
         Sprawdza czy dwa ogłoszenia to duplikaty.
-        
+
         Args:
             offer1, offer2: Dicts z kluczami: address, description
-            
+
         Returns:
             True jeśli duplikat, False jeśli nie
         """
         # 1. Adres musi być identyczny
-        addr1 = offer1.get('address', {}).get('full', '').lower().strip()
-        addr2 = offer2.get('address', {}).get('full', '').lower().strip()
-        
-        if addr1 != addr2:
+        if self.address_key(offer1) != self.address_key(offer2):
             return False
         
         # 2. Sprawdzamy podobieństwo opisów
@@ -110,6 +117,30 @@ class DuplicateDetector:
             Dict — pierwsza znaleziona pasująca oferta, lub None jeśli unikalna
         """
         for existing in existing_offers:
+            if self.is_duplicate(new_offer, existing):
+                return existing
+        return None
+
+    def find_duplicate_indexed(self, new_offer: Dict, index: Dict[str, List[Dict]]):
+        """
+        Jak find_duplicate, ale zamiast skanować całą listę przegląda tylko
+        oferty pod tym samym adresem (z indeksu address_key → [oferty]).
+
+        Zmienia złożoność z O(n²) na O(n·k), gdzie k to liczba ofert pod jednym
+        adresem (zwykle 1–2). Wynik identyczny jak find_duplicate, bo is_duplicate
+        i tak najpierw wymaga identycznego adresu.
+
+        Args:
+            new_offer: sprawdzana oferta
+            index: słownik {address_key: [oferty]} budowany przez callera
+
+        Returns:
+            Dict — pierwsza pasująca oferta z tego samego adresu, lub None.
+        """
+        bucket = index.get(self.address_key(new_offer))
+        if not bucket:
+            return None
+        for existing in bucket:
             if self.is_duplicate(new_offer, existing):
                 return existing
         return None

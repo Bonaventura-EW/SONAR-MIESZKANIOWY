@@ -13,8 +13,18 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 ### Dodane
 - `CLAUDE.md` — wytyczne dla agentów (uruchamianie, przepływ danych, pułapki).
 - `CHANGELOG.md` — ten plik.
-- Suite testów `pytest` (`tests/`, 36 testów) + workflow CI `tests.yml`
+- Suite testów `pytest` (`tests/`, 43 testy) + workflow CI `tests.yml`
   uruchamiany na push/PR dotykające `src/` lub `tests/`.
+- Lazy-loading opisów na mapie: `data.json` zawiera tylko podgląd (200 znaków),
+  pełne opisy w osobnym `docs/descriptions.json` doczytywanym po kliknięciu
+  „Pokaż całość" (fetch raz, cache w pamięci). `data.json` 2,04 MB → 1,51 MB
+  (−26%), 1,28 MB opisów ładowane na żądanie zamiast przy starcie.
+
+### Wydajność
+- Deduplikacja ofert w skanie: O(n²) → O(n·k) przez indeks `address_key →
+  [oferty]`. Duplikat wymaga identycznego adresu, więc kosztowny Levenshtein
+  liczony tylko w obrębie tego samego adresu (zwykle 1–2 oferty). Wynik
+  identyczny — pilnuje `tests/test_duplicate_detector.py`.
 
 ### Naprawione
 - `scanner.yml`: krok tygodniowego `fix_missing_coords` nigdy się nie wykonywał —
