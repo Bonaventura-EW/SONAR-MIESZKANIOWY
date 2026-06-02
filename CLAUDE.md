@@ -37,6 +37,11 @@ skipped_debug_generator.py → docs/skipped_debug.html (diagnostyka odrzuconych)
 
 ## Jak uruchomić
 
+> 🏷️ **„Uruchom scan" (polecenie użytkownika) = odpal workflow GitHub Actions
+> `scanner.yml` na gałęzi `main`** (manualny `workflow_dispatch`), a NIE lokalne
+> `python main.py`. Workflow sam commituje wyniki na `main`. Lokalne `main.py`
+> uruchamiaj tylko gdy użytkownik wprost o to poprosi (np. „uruchom lokalnie").
+
 > ⚠️ **WSZYSTKIE skrypty zakładają uruchomienie z katalogu `src/`.**
 > Ścieżki do danych są względne (`../data/...`). Bez `cd src` skrypty nie znajdą plików.
 
