@@ -10,6 +10,15 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Naprawione
+- `api_generator.py`: liczba ofert „które znikły" w API (`status.json`,
+  `history.json`) jest teraz spójna z kolumną „Znikło" w dashboardzie
+  monitoringu. Wcześniej API pokazywało surowe `disappeared` (oferty
+  przeoczone przez scraper, zawyżone przez niestabilną paginację OLX), a
+  dashboard `confirmed_inactive` (po weryfikacji). Nowy helper
+  `_disappeared_count()` używa priorytetu `confirmed_inactive > disappeared`,
+  identycznie jak `docs/monitoring.html`.
+
 ### Usunięte (sprzątanie)
 - Martwy kod (0 użyć w repo): `PriceParser._detect_media_info_simple`,
   `PriceParser.PRICE_PATTERN`, `DuplicateDetector.find_duplicates_in_batch`,
