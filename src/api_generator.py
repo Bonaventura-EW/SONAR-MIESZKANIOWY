@@ -201,7 +201,7 @@ class APIGenerator:
         
         new_count = stats.get('new', 0)
         # None = pole nie istnieje (stary skan przed wdrożeniem), 0 = naprawdę nic nie znikło
-        disappeared_count = stats.get('disappeared', None)
+        disappeared_count = self._disappeared_count(stats)
         
         # Czytelny czas skanu (np. "15:51")
         scan_time_formatted = self._format_scan_time(scan.get('timestamp'))
@@ -237,7 +237,7 @@ class APIGenerator:
                 "found": stats.get('raw_offers', 0),
                 "processed": stats.get('processed', 0),
                 "new": new_count,
-                "disappeared": stats.get('disappeared', None),  # null = brak danych (stary skan)
+                "disappeared": self._disappeared_count(stats),  # spójne z kolumną „Znikło" w monitoringu
                 "updated": stats.get('updated', 0),
                 "active": stats.get('active', 0),
                 "inactive": stats.get('inactive', 0)
@@ -379,9 +379,26 @@ class APIGenerator:
             "scanTimeFormatted": self._format_scan_time(scan.get('timestamp')),
             "uiStatus": ui_status,
             "newOffers": stats.get('new', 0),
-            "disappearedOffers": stats.get('disappeared', None),  # null = brak danych
+            "disappearedOffers": self._disappeared_count(stats),  # spójne z „Znikło" w monitoringu
             "hasErrors": len(errors) > 0,
         }
+
+    @staticmethod
+    def _disappeared_count(stats: Dict):
+        """
+        Liczba ofert, które „znikły" — spójna z kolumną „Znikło" w dashboardzie monitoringu.
+
+        Priorytet (jak w docs/monitoring.html):
+          1. verification.confirmed_inactive — liczba potwierdzona po re-weryfikacji,
+             bez fałszywych alarmów z niestabilnej paginacji OLX (właściwa wartość),
+          2. disappeared — surowa liczba przeoczonych przez scraper (gdy brak weryfikacji),
+          3. None — stary skan sprzed wdrożenia pola.
+        """
+        verification = stats.get('verification') or {}
+        confirmed_inactive = verification.get('confirmed_inactive')
+        if confirmed_inactive is not None:
+            return confirmed_inactive
+        return stats.get('disappeared', None)
 
     @staticmethod
     def _plural_mieszkania(n: int) -> str:
