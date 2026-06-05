@@ -6,7 +6,7 @@ co do zawartości. Ten test pilnuje, że przyszłe porządki nie zgubią słowa.
 
 from address_parser import AddressParser
 
-EXPECTED_COUNT = 248
+EXPECTED_COUNT = 249
 
 
 def test_count():

@@ -134,6 +134,7 @@ class AddressParser:
         'preferably', 'attractive', 'uniwercity', 'gyms', 'monthly',
         'montly', 'within', 'choose', 'from', 'march',
         'of', 'floor', 'street', 'available', 'meters', 'located', 'number',
+        'nice',  # nazwa osiedla/kompleksu budynków (np. "Nice 2"), nie ulica
 
         # === Literówki obserwowane w cache ===
         'wynajme',         # "Wynajmę" bez ogonka
