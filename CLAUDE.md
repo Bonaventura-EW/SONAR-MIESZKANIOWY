@@ -116,7 +116,11 @@ python price_parser.py     # parsowanie cen
    `# FIX YYYY-MM-DD: opis` lub `# OPTYMALIZACJA YYYY-MM:` przy zmienianym kodzie,
    a istotne zmiany dopisuj do `CHANGELOG.md`.
 
-8. **Workflow CI używa `secrets.PAT_TOKEN`** (nie domyślnego `GITHUB_TOKEN`).
+8. **Po każdym mergu** dopisz wpis do `CHANGELOG.md` opisujący co zostało zmienione
+   (sekcja `## [Niewydane]` → odpowiedni podtytuł: `Naprawione`, `Dodane`, `Zmienione`).
+   Commit z wpisem pushuj bezpośrednio na `main`.
+
+9. **Workflow CI używa `secrets.PAT_TOKEN`** (nie domyślnego `GITHUB_TOKEN`).
 
 ## Konwencja commitów
 
