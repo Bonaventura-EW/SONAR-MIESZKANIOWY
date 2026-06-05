@@ -11,6 +11,11 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 ## [Niewydane]
 
 ### Naprawione
+- `address_parser.py`: dodano `'nice'` do `EXCLUDED_WORDS` — nazwa osiedla/kompleksu
+  „Nice 2" była błędnie traktowana jako adres ulicy (oferta przy ul. Beliniaków
+  dostawała adres `Nice 2` zamiast właściwego).
+
+
 - `api_generator.py`: liczba ofert „które znikły" w API (`status.json`,
   `history.json`) jest teraz spójna z kolumną „Znikło" w dashboardzie
   monitoringu. Wcześniej API pokazywało surowe `disappeared` (oferty
