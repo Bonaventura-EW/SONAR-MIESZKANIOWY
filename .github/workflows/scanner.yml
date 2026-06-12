@@ -10,6 +10,13 @@ on:
   # Możliwość manualnego uruchomienia
   workflow_dispatch:
 
+# FIX 2026-06-12: nigdy dwa skany równolegle (cron + watchdog + manualny dispatch
+# mogą się nałożyć — dwa joby commitujące data/offers.json to ryzyko utraty danych
+# mimo pętli pull --rebase). Nowy run czeka aż poprzedni skończy.
+concurrency:
+  group: sonar-scanner
+  cancel-in-progress: false
+
 jobs:
   scan:
     runs-on: ubuntu-latest
