@@ -953,13 +953,28 @@ class SonarMieszkaniowy:
             scraped_count = len(raw_offers)
 
             deactivated_count = 0
+            # FIX 2026-06-12: blokada OLX była raportowana jako "✅ sukces, brak zmian"
+            # (status completed, zero errors). Teraz logujemy błąd do scan_history —
+            # api_generator zamieni go na uiStatus=warning i powiadomienie ⚠️.
+            scrape_blocked = False
             if scraped_count == 0 and active_in_db > 0:
                 print(f"   ⚠️  OCHRONA: Scraper zwrócił 0 ofert a baza ma {active_in_db} aktywnych.")
                 print(f"       Pomijam dezaktywację (prawdopodobna blokada OLX).")
+                scrape_blocked = True
+                self.scan_logger.log_error(
+                    f"Scraper zwrócił 0 ofert (baza: {active_in_db} aktywnych) — "
+                    f"prawdopodobna blokada OLX/Cloudflare. Dezaktywacja pominięta."
+                )
             elif active_in_db >= 10 and scraped_count < active_in_db * MIN_RATIO:
                 print(f"   ⚠️  OCHRONA: Scraper zwrócił tylko {scraped_count} ofert, w bazie jest {active_in_db} aktywnych.")
                 print(f"       Próg bezpieczeństwa: {int(active_in_db * MIN_RATIO)}. Pomijam dezaktywację.")
                 print(f"       Prawdopodobna blokada OLX lub częściowa awaria scrapera.")
+                scrape_blocked = True
+                self.scan_logger.log_error(
+                    f"Scraper zwrócił tylko {scraped_count} ofert przy {active_in_db} aktywnych "
+                    f"w bazie (próg: {int(active_in_db * MIN_RATIO)}) — prawdopodobna blokada OLX. "
+                    f"Dezaktywacja pominięta."
+                )
             else:
                 deactivated_count = self._mark_inactive_offers(current_offer_ids, skipped_ids)
             
@@ -972,8 +987,14 @@ class SonarMieszkaniowy:
                 print(f"   🔄 Reaktywowane: {reactivated_count}")
             
             # 4. Weryfikacja nieaktywnych ofert
+            # FIX 2026-06-12: przy blokadzie OLX pomijamy weryfikację — 50 requestów
+            # i tak skończyłoby się błędami (w skanach z 11-12.06 errors=50/50).
             print("\n🔍 Krok 4: Weryfikacja nieaktywnych ofert...")
-            verification_stats = self._verify_inactive_offers(max_to_verify=50)
+            if scrape_blocked:
+                print("   ⏭️  Pominięto (blokada OLX wykryta w tym skanie)")
+                verification_stats = {'verified': 0, 'reactivated': 0, 'confirmed_inactive': 0, 'errors': 0, 'skipped_blocked': True}
+            else:
+                verification_stats = self._verify_inactive_offers(max_to_verify=50)
             reactivated_count += verification_stats.get('reactivated', 0)
             
             # 5. Czyszczenie starych ofert
