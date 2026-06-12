@@ -361,18 +361,9 @@ class SonarMieszkaniowy:
             'days_active': 0
         }
     
-    def _find_existing_offer(self, offer_id: str) -> Dict:
-        """
-        Znajduje istniejące ogłoszenie po stabilnym CID3-IDxxxx.
-        FIX 2026-05-24: porównanie po CID3 zamiast pełnego slugu, bo sprzedawca
-        może edytować tytuł ogłoszenia, co zmienia slug w URL.
-        """
-        target_cid = extract_cid(offer_id)
-        for offer in self.database['offers']:
-            if extract_cid(offer['id']) == target_cid:
-                return offer
-        return None
-    
+    # FIX 2026-06-12: usunięto _find_existing_offer (liniowy skan bazy per oferta) —
+    # run_scan używa teraz indeksu cid_index {CID3 → oferta} budowanego raz.
+
     def _update_existing_offer(self, existing: Dict, new_data: Dict):
         """Aktualizuje istniejące ogłoszenie z inteligentnym zarządzaniem ceną."""
         now = datetime.now(self.tz).isoformat()
@@ -813,15 +804,18 @@ class SonarMieszkaniowy:
             }
             SAMPLE_LIMIT = 50
 
+            # FIX 2026-06-12 (perf): set CID-ów usuniętych liczony RAZ, nie w pętli
+            # (wcześniej przeliczany od nowa dla każdej z ~530 ofert)
+            removed_cids = {extract_cid(rid) for rid in self.removed_listings}
+
             for i, raw_offer in enumerate(raw_offers, 1):
                 print(f"   [{i}/{len(raw_offers)}] Przetwarzam: {raw_offer['title'][:50]}...")
-                
+
                 # Stwórz ID z URL
                 offer_id = raw_offer['url'].split('/')[-1].split('.')[0]
-                
+
                 # FILTR: Pomiń usunięte ogłoszenia (porównanie po CID3-IDxxxx)
                 offer_cid_for_filter = extract_cid(raw_offer['url'])
-                removed_cids = {extract_cid(rid) for rid in self.removed_listings}
                 if offer_cid_for_filter in removed_cids or offer_id in self.removed_listings:
                     print(f"      🚫 Pominięto - ogłoszenie usunięte przez użytkownika")
                     skipped_removed += 1
@@ -949,12 +943,20 @@ class SonarMieszkaniowy:
             new_offers_count = 0
             updated_offers_count = 0
             reactivated_count = 0
-            
+
+            # FIX 2026-06-12 (perf): indeks CID → oferta zamiast liniowego skanu
+            # całej bazy dla każdej przetworzonej oferty (~500 × 1375 porównań
+            # z extract_cid per porównanie). setdefault zachowuje semantykę
+            # "pierwsza pasująca" z _find_existing_offer.
+            cid_index = {}
+            for offer in self.database['offers']:
+                cid_index.setdefault(extract_cid(offer.get('id', '')), offer)
+
             for processed in processed_offers:
                 current_offer_ids.append(processed['id'])
-                
-                existing = self._find_existing_offer(processed['id'])
-                
+
+                existing = cid_index.get(extract_cid(processed['id']))
+
                 if existing:
                     was_inactive = not existing.get('active', True)
                     self._update_existing_offer(existing, processed)
@@ -963,6 +965,7 @@ class SonarMieszkaniowy:
                         reactivated_count += 1
                 else:
                     self.database['offers'].append(processed)
+                    cid_index.setdefault(extract_cid(processed['id']), processed)
                     new_offers_count += 1
             
             # Oznacz nieaktywne (ale pominij oferty które były skipped - one są nadal aktywne)
