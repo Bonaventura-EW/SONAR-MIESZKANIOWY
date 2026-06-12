@@ -60,57 +60,9 @@ class PriceParser:
     def __init__(self):
         pass
     
-    def _filter_invalid_prices(self, prices: List[int], text_lower: str) -> List[int]:
-        """
-        Filtruje nieprawidłowe kwoty:
-        - Numery domów/ulic (jeśli występują z 'ul.')
-        - Lata (2024-2030)
-        - Kwoty poniżej 200 zł lub powyżej 10000 zł
-        FIX 2026-05: zakres dostosowany dla mieszkań (był 100-3000 dla pokoi)
-        """
-        filtered = []
-        
-        for price in prices:
-            # Odrzuć lata (2020-2030)
-            if 2020 <= price <= 2030:
-                continue
-            
-            # Odrzuć kwoty poza sensownym zakresem (mieszkania w Lublinie)
-            if price < 200 or price > 10000:
-                continue
-            
-            # Odrzuć liczby z kontekstem "m²" lub "mkw" (powierzchnia mieszkania)
-            price_str = str(price)
-            idx = text_lower.find(price_str)
-            
-            if idx != -1:
-                # Sprawdź 20 znaków PO liczbie
-                context_after = text_lower[idx + len(price_str):idx + len(price_str) + 20]
-                
-                # Jeśli zaraz po liczbie jest "m²", "mkw", "m2" - to powierzchnia, nie cena
-                if any(unit in context_after for unit in ['m²', 'mkw', 'm2', 'm²', 'metr']):
-                    continue
-            
-            # Odrzuć numery domów - sprawdź czy występuje przy "ul.", "ulica"
-            # FIX 2026-05: dla mieszkań ceny <500 zł są nierealistyczne, więc filtr działa też tam
-            if 100 <= price <= 500:
-                price_str = str(price)
-                idx = text_lower.find(price_str)
-                
-                if idx != -1:
-                    # Sprawdź 30 znaków przed i po
-                    context_start = max(0, idx - 30)
-                    context_end = min(len(text_lower), idx + len(price_str) + 30)
-                    context = text_lower[context_start:context_end]
-                    
-                    # Jeśli w kontekście jest "ul.", "ulica" - to prawdopodobnie numer domu
-                    if any(word in context for word in ['ul.', 'ulica', 'ulicy', 'ulicę', 'przy']):
-                        continue
-            
-            filtered.append(price)
-        
-        return filtered
-    
+    # FIX 2026-06-12: usunięto martwe _filter_invalid_prices — nieużywane od czasu
+    # usunięcia fallbacku "pierwsza sensowna kwota" (extract_price PRIORYTET 2).
+
     def _extract_rent_price(self, text: str) -> Optional[int]:
         """
         Próbuje wyciągnąć cenę najmu (bez opłat) używając wzorców tekstowych.
