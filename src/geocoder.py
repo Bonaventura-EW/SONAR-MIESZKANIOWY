@@ -172,6 +172,11 @@ class Geocoder:
         # Przechowywany w cache JSON pod kluczem "__null_timestamps__"
         self._null_ts: Dict[str, float] = self.cache.pop('__null_timestamps__', {})
         self.geolocator = Nominatim(user_agent="sonar-mieszkaniowy-lublin/1.0")
+        # FIX 2026-06-12: limit geokodowań per skan (MAX_NEW_GEOCODES w main.py).
+        # main.py ustawiał tę flagę od dawna, ale geocoder nigdy jej nie czytał,
+        # więc limit faktycznie NIE działał. Gdy True: tylko cache, zero zapytań
+        # do Nominatim (i zero zapisów None do cache — patrz _try_nominatim).
+        self._geocoding_limited = False
         # Stats dla Fix #3
         self._stats_nominative_hits = 0
         # Stats dla Fix 2026-05-14: ile razy fallback "sama ulica bez numeru" zadziałał
@@ -614,9 +619,16 @@ class Geocoder:
             GeocoderRateLimited / GeocoderServiceError (429): tymczasowy błąd serwera,
                 NIE zapisuj wyniku do cache - propagujemy żeby caller obsłużył.
         """
+        # FIX 2026-06-12: tryb limited (MAX_NEW_GEOCODES) — nie odpytuj Nominatim.
+        # Rzucamy GeocoderServiceError, bo wszystkie miejsca wywołania traktują go
+        # jak błąd tymczasowy: zwracają None BEZ zapisu None do cache, więc adres
+        # zostanie normalnie zgeokodowany w następnym skanie.
+        if self._geocoding_limited:
+            raise GeocoderServiceError('limit geokodowań osiągnięty (MAX_NEW_GEOCODES)')
+
         # Pełny adres z miastem
         full_address = f"{address}, Lublin, Poland"
-        
+
         for attempt in range(max_retries):
             try:
                 location = self.geolocator.geocode(
