@@ -411,12 +411,24 @@ class SonarMieszkaniowy:
         
         should_update = False
         update_reason = None
-        
+        is_source_upgrade_correction = False
+
         if new_priority > old_priority:
             # Lepsze źródło - aktualizuj
             should_update = True
             update_reason = f"Upgrade źródła: {old_source} → {new_source}"
             print(f"      💰 {update_reason}")
+            # FIX 2026-06-12: upgrade źródła omijał sanity-check 50%. Cena z lepszego
+            # źródła nadal wygrywa, ale różnica >=50% to niemal na pewno KOREKTA
+            # błędnej ceny ze słabszego źródła (np. parser tekstowy złapał kwotę
+            # mediów), a nie realna zmiana ceny — nie zapisujemy jej jako
+            # price_change (trend/previous_price/top5), tylko cicho poprawiamy.
+            if old_price and new_price != old_price:
+                upgrade_diff_percent = abs(new_price - old_price) / old_price * 100
+                if upgrade_diff_percent >= 50:
+                    is_source_upgrade_correction = True
+                    print(f"      🔧 Różnica {upgrade_diff_percent:.0f}% przy upgrade źródła — "
+                          f"traktuję jako korektę, nie zmianę ceny")
         elif new_priority == old_priority and old_price != new_price:
             # To samo źródło ale inna cena - sprawdź czy zmiana sensowna
             price_diff_percent = abs(new_price - old_price) / old_price * 100
@@ -435,7 +447,20 @@ class SonarMieszkaniowy:
             # Ta sama cena, to samo źródło - brak zmian
             print(f"      ✓ Cena bez zmian: {old_price} zł")
         
-        if should_update and old_price != new_price:
+        if should_update and old_price != new_price and is_source_upgrade_correction:
+            # Korekta (upgrade źródła, różnica >=50%): aktualizuj cenę, ale bez
+            # previous_price/price_trend/price_changes — to nie jest rynkowa zmiana
+            # ceny tylko poprawa błędu parsera. W history NADPISUJEMY błędny wpis
+            # zamiast dopisywać (top5 liczy diff z history[0] → current; dopisanie
+            # sfabrykowałoby gigantyczną "zmianę ceny" na liście okazji).
+            existing['price']['current'] = new_price
+            existing['price']['source'] = new_source
+            history = existing['price'].setdefault('history', [])
+            if history and history[-1] == old_price:
+                history[-1] = new_price
+            else:
+                history.append(new_price)
+        elif should_update and old_price != new_price:
             # NOWE: Zapisz poprzednią cenę przed aktualizacją
             existing['price']['previous_price'] = old_price
             existing['price']['price_changed_at'] = now

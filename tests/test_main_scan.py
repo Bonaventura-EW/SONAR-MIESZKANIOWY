@@ -39,6 +39,51 @@ def agent(tmp_path):
     )
 
 
+class TestPriceUpdateLogic:
+    """FIX 2026-06-12: upgrade źródła z różnicą >=50% = korekta błędu parsera,
+    nie rynkowa zmiana ceny (bez trend/previous_price/price_changes/top5)."""
+
+    def _existing(self, price=800, source='Parser tekstowy'):
+        return {
+            'id': 'x-CID3-IDabc', 'url': 'https://olx.pl/d/oferta/x-CID3-IDabc.html',
+            'active': True,
+            'price': {'current': price, 'history': [price], 'source': source,
+                      'media_info': 'brak informacji'},
+            'address': {'full': 'Testowa 1', 'has_number': True},
+        }
+
+    def _new(self, price, source='JSON-LD (OLX)'):
+        return {
+            'id': 'x-CID3-IDabc', 'url': 'https://olx.pl/d/oferta/x-CID3-IDabc.html',
+            'price': {'current': price, 'history': [price], 'source': source,
+                      'media_info': 'brak informacji'},
+            'address': {'full': 'Testowa 1', 'has_number': True},
+        }
+
+    def test_source_upgrade_with_huge_diff_is_silent_correction(self, agent):
+        existing = self._existing(price=800, source='Parser tekstowy')
+        agent._update_existing_offer(existing, self._new(price=2400))
+        assert existing['price']['current'] == 2400          # cena poprawiona
+        assert existing['price']['source'] == 'JSON-LD (OLX)'
+        assert 'price_trend' not in existing['price']        # bez "zmiany ceny"
+        assert 'previous_price' not in existing['price']
+        assert 'price_changes' not in existing['price']
+        assert existing['price']['history'] == [2400]        # nadpisany błędny wpis
+
+    def test_source_upgrade_with_small_diff_is_real_change(self, agent):
+        existing = self._existing(price=2000, source='Parser tekstowy')
+        agent._update_existing_offer(existing, self._new(price=1900))
+        assert existing['price']['current'] == 1900
+        assert existing['price']['price_trend'] == 'down'
+        assert existing['price']['previous_price'] == 2000
+        assert len(existing['price']['price_changes']) == 1
+
+    def test_same_source_huge_diff_still_ignored(self, agent):
+        existing = self._existing(price=2000, source='JSON-LD (OLX)')
+        agent._update_existing_offer(existing, self._new(price=9000))
+        assert existing['price']['current'] == 2000  # podejrzana zmiana — ignorowana
+
+
 class TestVerifyCooldown:
     """FIX 2026-06-12: oferty potwierdzone jako nieaktywne nie są
     re-weryfikowane przez 7 dni (wcześniej te same 50 co skan, 3×dziennie)."""
