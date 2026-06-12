@@ -337,7 +337,7 @@ class Geocoder:
         # Sprawdzamy cache - oryginalny klucz
         if address in self.cache:
             cached_value = self.cache[address]
-            
+
             # === FIX #6 (2026-05-13): cache-poisoning bypass ===
             # Jeśli w cache mamy None ale transformacja mianownika daje inny string,
             # NIE zwracaj None z cache - spróbuj mianownik (może być w cache jako koordynaty,
@@ -346,7 +346,7 @@ class Geocoder:
             if cached_value is None:
                 nominative_check = to_nominative(address)
                 if nominative_check != address:
-                    # Mianownik się różni - spróbuj go (może już w cache, może Nominatim)
+                    # Mianownik się różni - sprawdź czy jest w cache z koordynatami
                     if nominative_check in self.cache and self.cache[nominative_check] is not None:
                         coords = self.cache[nominative_check]
                         print(f"      ♻️  Bypass zatrutego cache '{address}' → mianownik '{nominative_check}' jest w cache")
@@ -356,41 +356,38 @@ class Geocoder:
                         self._stats_nominative_hits += 1
                         meta['cache_hit'] = True
                         return coords, meta
-                    # Nie ma w cache - kontynuuj normalny flow (KROK 2 niżej spróbuje Nominatim)
-                    # Usuwamy zatruty wpis żeby logika niżej mogła zapisać świeży wynik
-                else:
-                    # Brak transformacji mianownika.
-                    # Jeśli null jest wygasły (>TTL) — usuń entry żeby KROK 1 odpytał Nominatim.
-                    if self._null_is_expired(address):
-                        print(f"      ♻️  Wygasły null-cache dla '{address}' (>{self.NULL_CACHE_TTL_DAYS}d) — retry Nominatim")
-                        del self.cache[address]
-                        # Nie usuwamy z _null_ts — _set_null_cache zaktualizuje timestamp jeśli nadal None
-                    # Jeśli nie wygasły i adres ma numer, próbujemy fallbacku "sama ulica" (KROK 4).
-                    # Nie zwracamy tutaj — kontynuujemy do fallbacku.
+                # FIX 2026-06-12: TTL nulla obowiązuje NIEZALEŻNIE od tego czy mianownik
+                # się różni. Wcześniej adres z odmienialną nazwą (nominative != address)
+                # nigdy nie korzystał z TTL — przy każdym skanie odpytywał Nominatim live
+                # (oryginał + mianownik), a finalne _set_null_cache odświeżało timestamp,
+                # więc null nigdy nie wygasał "naturalnie".
+                if self._null_is_expired(address):
+                    print(f"      ♻️  Wygasły null-cache dla '{address}' (>{self.NULL_CACHE_TTL_DAYS}d) — retry Nominatim")
+                    del self.cache[address]
+                    # Nie usuwamy z _null_ts — _set_null_cache zaktualizuje timestamp jeśli nadal None
+                # Jeśli null świeży: dalszy flow działa w trybie cache-only
+                # (live_allowed=False poniżej) — fallbacki przez cache nadal działają.
             else:
                 # Cache ma koordynaty - zwróć je
                 meta['cache_hit'] = True
                 return cached_value, meta
-        
+
+        # FIX 2026-06-12: świeży (niewygasły) null = tryb cache-only dla tego adresu.
+        # Poprzedni skan przeszedł już CAŁĄ ścieżkę (oryginał + mianownik + warianty)
+        # i nic nie znalazł — w oknie TTL nie powtarzamy zapytań live, ale nadal
+        # sprawdzamy cache wariantów (mogły dojść z innych ofert).
+        live_allowed = not (address in self.cache and self.cache[address] is None)
+
         # === KROK 1: Próba z oryginalnym adresem ===
-        # Pomijamy Nominatim jeśli cache już dał None (jest tam właśnie z tego powodu).
-        # WYJĄTEK: null jest "wygasły" (starszy niż NULL_CACHE_TTL_DAYS) →
-        # próbujemy ponownie (ulica mogła pojawić się w OSM, albo poprzednia próba
-        # była timeoutem który stary kod zapisał jako None).
         coords = None
-        null_in_cache = (address in self.cache and self.cache[address] is None)
-        skip_full_lookup = (null_in_cache
-                            and to_nominative(address) == address
-                            and not self._null_is_expired(address))
-        
-        if not skip_full_lookup:
+        if live_allowed:
             try:
                 coords = self._try_nominatim(address, max_retries=max_retries)
             except (GeocoderTimedOut, GeocoderServiceError) as e:
                 # Tymczasowy błąd (rate-limit, timeout, 5xx) - NIE zapisuj None do cache
                 print(f"      ⏸️  Tymczasowy błąd Nominatim dla '{address}': {type(e).__name__}")
                 return None, meta
-            
+
             if coords is not None:
                 self.cache[address] = coords
                 self._save_cache()
@@ -410,22 +407,23 @@ class Geocoder:
                 self._save_cache()
                 self._stats_nominative_hits += 1
                 return coords, meta
-            
-            try:
-                coords = self._try_nominatim(nominative, max_retries=max_retries)
-            except (GeocoderTimedOut, GeocoderServiceError) as e:
-                # Tymczasowy błąd przy mianowniku - NIE zapisuj None do cache
-                print(f"      ⏸️  Tymczasowy błąd Nominatim dla mianownika '{nominative}': {type(e).__name__}")
-                return None, meta
-            
-            if coords is not None:
-                print(f"      ✅ Mianownik znaleziony: {nominative}")
-                # Cache pod OBA klucze
-                self.cache[address] = coords
-                self.cache[nominative] = coords
-                self._save_cache()
-                self._stats_nominative_hits += 1
-                return coords, meta
+
+            if live_allowed:
+                try:
+                    coords = self._try_nominatim(nominative, max_retries=max_retries)
+                except (GeocoderTimedOut, GeocoderServiceError) as e:
+                    # Tymczasowy błąd przy mianowniku - NIE zapisuj None do cache
+                    print(f"      ⏸️  Tymczasowy błąd Nominatim dla mianownika '{nominative}': {type(e).__name__}")
+                    return None, meta
+
+                if coords is not None:
+                    print(f"      ✅ Mianownik znaleziony: {nominative}")
+                    # Cache pod OBA klucze
+                    self.cache[address] = coords
+                    self.cache[nominative] = coords
+                    self._save_cache()
+                    self._stats_nominative_hits += 1
+                    return coords, meta
         
         # === KROK 3 (Fix 2026-05-14): retry z liczbą mnogą Aleja ↔ Aleje ===
         # W Lublinie są ulice w liczbie mnogiej: "Aleje Racławickie", "Aleje 1000-lecia",
@@ -450,13 +448,16 @@ class Geocoder:
                 self.cache[address] = coords
                 self._save_cache()
                 return coords, meta
-            
+
+            if not live_allowed:
+                continue
+
             try:
                 coords = self._try_nominatim(variant, max_retries=max_retries)
             except (GeocoderTimedOut, GeocoderServiceError) as e:
                 print(f"      ⏸️  Tymczasowy błąd Nominatim dla '{variant}': {type(e).__name__}")
                 return None, meta
-            
+
             if coords is not None:
                 print(f"      ✅ Wariant znaleziony: {variant}")
                 self.cache[address] = coords
@@ -491,13 +492,16 @@ class Geocoder:
             
             if variant in self.cache and self.cache[variant] is None:
                 continue  # Już wiemy że Nominatim go nie zna
-            
+
+            if not live_allowed:
+                continue
+
             try:
                 coords = self._try_nominatim(variant, max_retries=max_retries)
             except (GeocoderTimedOut, GeocoderServiceError) as e:
                 print(f"      ⏸️  Tymczasowy błąd Nominatim dla '{variant}': {type(e).__name__}")
                 return None, meta
-            
+
             if coords is not None:
                 print(f"      ✅ Wariant l. poj. ż. znaleziony: {variant}")
                 self.cache[address] = coords
@@ -538,7 +542,10 @@ class Geocoder:
             # Cache None? Pomiń próbę Nominatim (już wiemy że nie znajdzie)
             if street_only in self.cache and self.cache[street_only] is None:
                 continue
-            
+
+            if not live_allowed:
+                continue
+
             # Spróbuj Nominatim z samą ulicą
             print(f"      🎯 Fallback 'sama ulica': '{address}' → próbuję '{street_only}'")
             try:
@@ -561,8 +568,11 @@ class Geocoder:
                 # Cache None dla wariantu samej ulicy (np. literówka w nazwie)
                 self._set_null_cache(street_only)
         
-        # Wszystkie podejścia zawiodły (faktyczne None od Nominatim) - cache jako None
-        self._set_null_cache(address)
+        # Wszystkie podejścia zawiodły (faktyczne None od Nominatim) - cache jako None.
+        # FIX 2026-06-12: tylko gdy faktycznie pytaliśmy live — w trybie cache-only
+        # NIE odświeżamy timestampu nulla (inaczej TTL nigdy by nie wygasł).
+        if live_allowed:
+            self._set_null_cache(address)
         return None, meta
     
     @staticmethod

@@ -52,6 +52,73 @@ class TestGeocodingLimit:
             geocoder.geocode_address("Nieznana 1")
 
 
+def _make_geo(tmp_path, cache_data):
+    """Geocoder z podanym cache i zablokowaną siecią."""
+    cache_file = tmp_path / "cache.json"
+    cache_file.write_text(json.dumps(cache_data), encoding="utf-8")
+    geo = Geocoder(cache_file=str(cache_file))
+    geo.geolocator.geocode = lambda *a, **kw: (_ for _ in ()).throw(
+        AssertionError("Test nie powinien odpytywać live Nominatim")
+    )
+    return geo
+
+
+class TestNullCacheTTL:
+    """FIX 2026-06-12: świeży null-cache = tryb cache-only. Wcześniej adres
+    z odmienialną nazwą (mianownik != oryginał) omijał TTL i odpytywał
+    Nominatim live przy każdym skanie, a finalny zapis nulla odświeżał
+    timestamp — null nigdy nie wygasał."""
+
+    def test_fresh_null_with_declinable_name_does_not_query_live(self, tmp_path):
+        import time
+        geo = _make_geo(tmp_path, {
+            "Puławskiej 10": None,
+            "__null_timestamps__": {"Puławskiej 10": time.time()},
+        })
+        # Brak AssertionError = nie było zapytania live; wynik None z cache
+        assert geo.geocode_address("Puławskiej 10") is None
+
+    def test_fresh_null_does_not_refresh_ttl_timestamp(self, tmp_path):
+        import time
+        old_ts = time.time() - 3 * 86400  # 3 dni temu (świeży, TTL=7)
+        geo = _make_geo(tmp_path, {
+            "Puławskiej 10": None,
+            "__null_timestamps__": {"Puławskiej 10": old_ts},
+        })
+        geo.geocode_address("Puławskiej 10")
+        assert geo._null_ts["Puławskiej 10"] == old_ts  # nie odświeżony
+
+    def test_fresh_null_bypass_via_nominative_cache_still_works(self, tmp_path):
+        import time
+        geo = _make_geo(tmp_path, {
+            "Puławskiej 10": None,
+            "Puławska 10": {"lat": 51.24, "lon": 22.55},
+            "__null_timestamps__": {"Puławskiej 10": time.time()},
+        })
+        assert geo.geocode_address("Puławskiej 10") == {"lat": 51.24, "lon": 22.55}
+
+    def test_fresh_null_street_fallback_via_cache_still_works(self, tmp_path):
+        import time
+        geo = _make_geo(tmp_path, {
+            "Narutowicza 38": None,
+            "Narutowicza": {"lat": 51.2458, "lon": 22.5604},
+            "__null_timestamps__": {"Narutowicza 38": time.time()},
+        })
+        coords, meta = geo.geocode_address("Narutowicza 38", return_meta=True)
+        assert coords == {"lat": 51.2458, "lon": 22.5604}
+        assert meta["number_fallback"] is True
+
+    def test_expired_null_retries_live(self, tmp_path):
+        import time
+        geo = _make_geo(tmp_path, {
+            "Puławskiej 10": None,
+            "__null_timestamps__": {"Puławskiej 10": time.time() - 8 * 86400},
+        })
+        # Wygasły null → próba live → fixture rzuca AssertionError (dowód próby)
+        with pytest.raises(AssertionError):
+            geo.geocode_address("Puławskiej 10")
+
+
 class TestNominative:
     """Regresja transformacji dopełniacz → mianownik (fleksja polska)."""
 
