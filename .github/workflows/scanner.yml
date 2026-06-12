@@ -2,9 +2,8 @@ name: SONAR MIESZKANIOWY Scanner
 
 on:
   schedule:
-    # 3 scany dziennie: 9:00, 15:00, 21:00 CET/CEST
-    # W zimie (CET = UTC+1): 8:00, 14:00, 20:00 UTC
-    # W lecie (CEST = UTC+2): 7:00, 13:00, 19:00 UTC
+    # 3 scany dziennie: 9:17, 15:17, 21:17 CEST (w zimie CET: 8:17, 14:17, 20:17)
+    # Minuta 17 = off-peak (pełne godziny to największa kolejka GitHub Actions)
     - cron: '17 7,13,19 * * *'  # 9:17, 15:17, 21:17 CEST (off-peak, mniej pomijania)
     
   # Możliwość manualnego uruchomienia

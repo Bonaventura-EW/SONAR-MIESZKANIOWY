@@ -24,7 +24,7 @@
 ## ✨ Funkcje
 
 ### 🔄 Automatyczne skanowanie
-- **3 skany dziennie** (09:00, 15:00, 21:00 CET)
+- **3 skany dziennie** (09:17, 15:17, 21:17 CEST — minuta 17 = off-peak GitHub Actions)
 - Scraping wszystkich stron OLX z ofertami **mieszkań na wynajem w Lublinie**
 - Inteligentne pomijanie ofert bez zmian (oszczędność requestów)
 - Wykrywanie duplikatów (95% podobieństwa)
@@ -153,7 +153,7 @@ Pierwszy skan ~10 min (cache geokodowania pusty). Następne ~5 min.
 | **User-Agent Nominatim** | `src/geocoder.py` | `sonar-mieszkaniowy-lublin/1.0` |
 | **Zakresy cen** | `src/map_generator.py` → `PRICE_RANGES` | 12 zakresów 0–5000+ |
 | **Próg duplikatów** | `src/main.py` | `0.95` |
-| **Cron** | `.github/workflows/scanner.yml` | `0 7,13,19 * * *` UTC = 9/15/21 CEST¹ |
+| **Cron** | `.github/workflows/scanner.yml` | `17 7,13,19 * * *` UTC = 9:17/15:17/21:17 CEST¹ |
 | **Bbox Lublina** | `src/geocoder.py` → `LUBLIN_BBOX` | lat 51.18–51.30, lon 22.42–22.68 |
 
 ¹ Faktyczne czasy uruchomienia mogą być opóźnione o 1–3h — patrz [Znane ograniczenia](#%EF%B8%8F-znane-ograniczenia).
@@ -163,7 +163,7 @@ Pierwszy skan ~10 min (cache geokodowania pusty). Następne ~5 min.
 ## ⚠️ Znane ograniczenia
 
 ### Opóźnienia skanów schedulowanych
-Cron jest ustawiony na **9:00 / 15:00 / 21:00 CEST** (UTC: 7/13/19), ale **GitHub Actions nie gwarantuje punktualnego uruchomienia** scheduled workflows na public repo. Oficjalna polityka GitHuba dopuszcza opóźnienia w okresach wzmożonego ruchu, a **pełne godziny (`0 * * * *`) to czas największej kolejki**, bo większość projektów ustawia takie same godziny.
+Cron jest ustawiony na **9:17 / 15:17 / 21:17 CEST** (UTC: 7:17/13:17/19:17 — minuta 17 wybrana celowo jako off-peak), ale **GitHub Actions nie gwarantuje punktualnego uruchomienia** scheduled workflows na public repo. Oficjalna polityka GitHuba dopuszcza opóźnienia w okresach wzmożonego ruchu, a **pełne godziny (`0 * * * *`) to czas największej kolejki**, bo większość projektów ustawia takie same godziny.
 
 **Obserwowane opóźnienia (maj 2026):** typowo 60–180 minut, ekstremalnie do ~220 min. Przykłady:
 

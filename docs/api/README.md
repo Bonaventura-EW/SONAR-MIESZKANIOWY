@@ -68,9 +68,9 @@ curl https://bonaventura-ew.github.io/SONAR-POKOJOWY/api/status.json
   },
   
   "schedule": {
-    "times": ["09:00", "15:00", "21:00"],
+    "times": ["09:17", "15:17", "21:17"],
     "timezone": "Europe/Warsaw",
-    "nextScanAt": "2026-03-07T21:00:00+01:00"
+    "nextScanAt": "2026-03-07T21:17:00+01:00"
   },
   
   "statistics": {
@@ -172,9 +172,9 @@ API jest aktualizowane automatycznie po każdym skanie:
 
 | Czas (CET) | UTC (zima) | UTC (lato) |
 |------------|------------|------------|
-| 09:00 | 08:00 | 07:00 |
-| 15:00 | 14:00 | 13:00 |
-| 21:00 | 20:00 | 19:00 |
+| 09:17 | 08:17 | 07:17 |
+| 15:17 | 14:17 | 13:17 |
+| 21:17 | 20:17 | 19:17 |
 
 ---
 

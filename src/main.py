@@ -161,18 +161,24 @@ class SonarMieszkaniowy:
         print(f"💾 Baza zapisana: {self.data_file}")
     
     def _calculate_next_scan_time(self) -> str:
-        """Oblicza czas następnego scanu (9:00, 15:00 lub 21:00)."""
+        """Oblicza czas następnego scanu (9:17, 15:17 lub 21:17).
+
+        FIX 2026-06-12: cron działa o :17 (off-peak, zmiana 2026-05-25), a ta
+        funkcja wciąż liczyła pełne godziny — frontend pokazywał "następny skan"
+        zaniżony o 17 minut.
+        """
         now = datetime.now(self.tz)
         scan_hours = [9, 15, 21]
-        
+        scan_minute = 17  # musi odpowiadać cronowi w .github/workflows/scanner.yml
+
         for hour in scan_hours:
-            next_time = now.replace(hour=hour, minute=0, second=0, microsecond=0)
+            next_time = now.replace(hour=hour, minute=scan_minute, second=0, microsecond=0)
             if next_time > now:
                 return next_time.isoformat()
-        
-        # Jeśli po 21:00, to następny scan o 9:00 następnego dnia
+
+        # Jeśli po ostatnim skanie dnia, to następny scan rano następnego dnia
         tomorrow = now + timedelta(days=1)
-        next_time = tomorrow.replace(hour=9, minute=0, second=0, microsecond=0)
+        next_time = tomorrow.replace(hour=scan_hours[0], minute=scan_minute, second=0, microsecond=0)
         return next_time.isoformat()
     
     def _process_offer(self, raw_offer: Dict) -> Dict:
