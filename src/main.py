@@ -23,6 +23,7 @@ from scan_logger import ScanLogger
 # Stabilny identyfikator oferty (CID3-IDxxxx). Współdzielony z scraper.py.
 from cid import extract_cid
 from offer_tagger import build_tags
+from atomic_json import atomic_write_json
 import paths
 
 
@@ -102,14 +103,23 @@ class SonarMieszkaniowy:
         return index
     
     def _load_database(self) -> Dict:
-        """Wczytuje bazę danych z JSON."""
+        """Wczytuje bazę danych z JSON.
+
+        FIX 2026-06-12: uszkodzony plik = PRZERWIJ zamiast cicho startować od
+        pustej bazy. Stare zachowanie groziło utratą całej historii (pusta baza
+        zostałaby zapisana i scommitowana na main przez workflow). Brak pliku
+        (pierwsze uruchomienie) nadal tworzy pustą bazę.
+        """
         if self.data_file.exists():
             try:
                 with open(self.data_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
-            except json.JSONDecodeError:
-                print("⚠️ Uszkodzony plik bazy danych, tworzę nowy")
-                return self._create_empty_database()
+            except json.JSONDecodeError as e:
+                raise RuntimeError(
+                    f"Uszkodzony plik bazy danych {self.data_file}: {e}. "
+                    f"Przerywam skan żeby nie nadpisać historii pustą bazą — "
+                    f"przywróć plik z gita (git checkout -- data/offers.json)."
+                ) from e
         else:
             return self._create_empty_database()
     
@@ -127,13 +137,11 @@ class SonarMieszkaniowy:
             return set()
     
     def _save_removed_listings(self):
-        """Zapisuje listę usuniętych ogłoszeń."""
-        self.removed_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.removed_file, 'w', encoding='utf-8') as f:
-            json.dump({
-                'removed_ids': list(self.removed_listings),
-                'last_updated': datetime.now(self.tz).isoformat()
-            }, f, ensure_ascii=False, indent=2)
+        """Zapisuje listę usuniętych ogłoszeń (atomowo)."""
+        atomic_write_json(self.removed_file, {
+            'removed_ids': list(self.removed_listings),
+            'last_updated': datetime.now(self.tz).isoformat()
+        })
     
     def _create_empty_database(self) -> Dict:
         """Tworzy pustą strukturę bazy danych."""
@@ -144,10 +152,8 @@ class SonarMieszkaniowy:
         }
     
     def _save_database(self):
-        """Zapisuje bazę danych do JSON."""
-        self.data_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.data_file, 'w', encoding='utf-8') as f:
-            json.dump(self.database, f, ensure_ascii=False, indent=2)
+        """Zapisuje bazę danych do JSON (atomowo — tmp + os.replace)."""
+        atomic_write_json(self.data_file, self.database)
         print(f"💾 Baza zapisana: {self.data_file}")
     
     def _calculate_next_scan_time(self) -> str:

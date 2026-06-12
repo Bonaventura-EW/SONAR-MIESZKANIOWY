@@ -12,6 +12,8 @@ from pathlib import Path
 from typing import Optional, Dict, Tuple, List
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
+
+from atomic_json import atomic_write_json
 # GeocoderRateLimited istnieje w nowszych geopy; fallback gdyby ktoś używał starszej wersji
 try:
     from geopy.exc import GeocoderRateLimited
@@ -208,14 +210,14 @@ class Geocoder:
         return {}
 
     def _save_cache(self):
-        """Zapisuje cache do pliku JSON (wraz z __null_timestamps__)."""
-        self.cache_file.parent.mkdir(parents=True, exist_ok=True)
+        """Zapisuje cache do pliku JSON (wraz z __null_timestamps__), atomowo."""
         # Wstrzyknij null_timestamps do kopii cache przed zapisem
         data_to_save = dict(self.cache)
         if self._null_ts:
             data_to_save['__null_timestamps__'] = self._null_ts
-        with open(self.cache_file, 'w', encoding='utf-8') as f:
-            json.dump(data_to_save, f, ensure_ascii=False, indent=2)
+        # FIX 2026-06-12: atomowy zapis (tmp + os.replace) — przerwany zapis
+        # nie zostawia uciętego pliku cache
+        atomic_write_json(self.cache_file, data_to_save)
     
     def is_in_lublin(self, coords: Dict[str, float]) -> bool:
         """
