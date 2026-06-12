@@ -54,9 +54,9 @@ Aktualny status systemu z szczegółami ostatniego skanu.
   },
   
   "schedule": {
-    "times": ["09:00", "15:00", "21:00"],
+    "times": ["09:17", "15:17", "21:17"],
     "timezone": "Europe/Warsaw",
-    "nextScanAt": "2026-03-07T21:00:00+01:00"
+    "nextScanAt": "2026-03-07T21:17:00+01:00"
   },
   
   "statistics": {
@@ -209,12 +209,12 @@ void notifyScanCompleted(SonarStatus status) {
 ## Harmonogram odświeżania
 
 API jest aktualizowane po każdym skanie:
-- **09:00** CET
-- **15:00** CET  
-- **21:00** CET
+- **09:17** CET/CEST
+- **15:17** CET/CEST
+- **21:17** CET/CEST
 
 Zalecana strategia polling w aplikacji:
-- Co 5 minut w godzinach 08:50-09:10, 14:50-15:10, 20:50-21:10
+- Co 5 minut w godzinach 09:10-09:40, 15:10-15:40, 21:10-21:40
 - Co 30 minut w pozostałych godzinach
 - Lub użyć `nextScanAt` do inteligentnego schedulowania
 

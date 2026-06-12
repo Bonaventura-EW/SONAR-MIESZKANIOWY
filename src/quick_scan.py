@@ -1,7 +1,14 @@
 """
 Quick scan - 5 stron dla szybkiej naprawy
+
+⚠️ UWAGA: ten skrypt CZYŚCI CAŁĄ BAZĘ (data/offers.json) i buduje ją od zera
+z 5 stron listingu. Bezpowrotnie kasuje historię cen, daty first_seen i oferty
+nieaktywne. Wymaga jawnego potwierdzenia flagą --force.
 """
+import sys
+
 from main import SonarMieszkaniowy, extract_cid
+import paths
 
 # Nadpisz scraper na mniej stron
 class QuickSonar(SonarMieszkaniowy):
@@ -131,6 +138,18 @@ class QuickSonar(SonarMieszkaniowy):
             raise
 
 if __name__ == "__main__":
-    agent = QuickSonar(data_file="../data/offers.json")
+    # FIX 2026-06-12: zabezpieczenie przed przypadkowym skasowaniem bazy.
+    # Skrypt czyści offers.json (historia cen, first_seen, oferty nieaktywne
+    # znikają bezpowrotnie) — wymagamy jawnego --force.
+    if '--force' not in sys.argv:
+        print("⚠️  quick_scan.py CZYŚCI CAŁĄ BAZĘ offers.json i buduje ją od zera")
+        print("    z 5 stron listingu. Historia cen i oferty nieaktywne znikną")
+        print("    bezpowrotnie. Jeśli na pewno tego chcesz, uruchom:")
+        print("       python quick_scan.py --force")
+        sys.exit(1)
+
+    # FIX 2026-06-12: ścieżka z paths.py (działa z dowolnego katalogu),
+    # nie względna "../data/offers.json" zależna od CWD
+    agent = QuickSonar(data_file=paths.OFFERS_JSON)
     agent.run_quick_scan()
 

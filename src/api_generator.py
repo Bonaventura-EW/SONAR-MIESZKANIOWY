@@ -22,8 +22,9 @@ import paths
 class APIGenerator:
     """Generator statycznych plików JSON API dla aplikacji mobilnej."""
     
-    # Harmonogram skanów (CET)
-    SCAN_SCHEDULE = ["09:00", "15:00", "21:00"]
+    # Harmonogram skanów (CET/CEST) — musi odpowiadać cronowi w scanner.yml
+    # FIX 2026-06-12: cron działa o :17 (off-peak), nie o pełnych godzinach
+    SCAN_SCHEDULE = ["09:17", "15:17", "21:17"]
     
     def __init__(self, output_dir: str = paths.DOCS_API_DIR):
         self.output_dir = Path(output_dir)
@@ -421,7 +422,7 @@ class APIGenerator:
     def _calculate_next_scan_time(self) -> Optional[datetime]:
         """
         Oblicza przewidywany czas następnego skanu
-        na podstawie harmonogramu (09:00, 15:00, 21:00 CET).
+        na podstawie harmonogramu (09:17, 15:17, 21:17 CET/CEST).
         """
         now = datetime.now(self.tz)
         today = now.date()

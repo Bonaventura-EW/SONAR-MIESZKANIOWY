@@ -170,10 +170,10 @@ class ScanLogger:
         return []
     
     def _save_history(self, history: List[Dict]):
-        """Zapisuje historię skanów do pliku."""
-        self.log_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.log_file, 'w', encoding='utf-8') as f:
-            json.dump(history, f, ensure_ascii=False, indent=2)
+        """Zapisuje historię skanów do pliku (atomowo)."""
+        # FIX 2026-06-12: atomowy zapis — przerwany zapis nie ucina historii
+        from atomic_json import atomic_write_json
+        atomic_write_json(self.log_file, history)
     
     def get_recent_scans(self, count: int = 10) -> List[Dict]:
         """

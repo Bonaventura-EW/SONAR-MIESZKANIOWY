@@ -452,7 +452,12 @@
         const diffClass = e.trend === 'down' ? 'diff-down' : 'diff-up';
         const statusClass = e.active ? 'badge-active' : 'badge-inactive';
         const statusText = e.active ? 'Aktywne' : 'Nieaktywne';
-        const safeAddr = (e.address || '?').replace(/</g, '&lt;');
+        // FIX 2026-06-12 (XSS): pełne escapowanie adresu (nie tylko '<') i URL-a
+        // (dane scrapowane z OLX; URL bez http(s) → '#')
+        const safeAddr = String(e.address || '?')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const safeOfferUrl = /^https?:\/\//i.test(String(e.url || '')) ? String(e.url).replace(/"/g, '&quot;') : '#';
         const idx = rank - 1;
 
         // Pinezka -> mapa z popupem konkretnej oferty
@@ -465,7 +470,7 @@
                 <div class="offer-header">
                     <div class="offer-title">
                         <span class="rank-badge">${rank}</span>
-                        <a href="${e.url}" target="_blank" rel="noopener noreferrer">${safeAddr}</a>
+                        <a href="${safeOfferUrl}" target="_blank" rel="noopener noreferrer">${safeAddr}</a>
                     </div>
                     <div class="header-right">
                         ${pinBtn}

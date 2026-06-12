@@ -240,12 +240,31 @@ function createMarkerGroup(baseCoords, address, offers, isActive, batches) {
 
 // ─────────────────────── POPUP HTML ──────────────────────────────────────────
 
+// FIX 2026-06-12 (XSS): opisy, adresy i URL-e pochodzą ze scrapowanych ogłoszeń
+// OLX — bez escapowania wstrzyknięty w opis `<img onerror=...>` wykonałby się
+// u każdego użytkownika mapy. Wszystko co trafia do innerHTML przechodzi przez
+// escapeHtml(); URL-e dodatkowo przez safeUrl() (tylko http/https).
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function safeUrl(url) {
+    return /^https?:\/\//i.test(String(url ?? '')) ? String(url) : '#';
+}
+
+function domSafeId(value) {
+    // Do id= i inline onclick — tylko znaki bezpieczne w obu kontekstach
+    return String(value ?? '').replace(/[^A-Za-z0-9_-]/g, '');
+}
+
 function createPopupContent(address, offers) {
-    let html = `<div class="offer-popup"><h3>📍 ${address}</h3>`;
+    let html = `<div class="offer-popup"><h3>📍 ${escapeHtml(address)}</h3>`;
     offers.forEach(offer => {
         const isActive = offer.active;
         const isApprox = offer.has_number === false;
-        html += `<div class="offer-item${isActive ? '' : ' inactive'}" data-offer-id="${offer.id}">`;
+        html += `<div class="offer-item${isActive ? '' : ' inactive'}" data-offer-id="${escapeHtml(offer.id)}">`;
         if (!isActive) html += `<div class="inactive-badge">❌ Nieaktywne</div>`;
         if (isApprox)  html += `<div class="approx-notice">⬜ <strong>Lokalizacja przybliżona</strong> — brak numeru domu w ogłoszeniu.<br>Marker umieszczony na środku ulicy.</div>`;
 
@@ -264,26 +283,28 @@ function createPopupContent(address, offers) {
             html += `<div class="price-history">📊 Historia: ${offer.price_history.map(p => p + ' zł').join(' → ')}</div>`;
         }
 
-        html += `<div class="media-info">Skład: ${offer.media_info}</div>`;
+        html += `<div class="media-info">Skład: ${escapeHtml(offer.media_info)}</div>`;
 
         if (offer.tags?.primary) {
             const tI = { pokoj:'🛏️', kawalerka:'🏠', mieszkanie:'🏢' };
             const tL = { pokoj:'Pokój', kawalerka:'Kawalerka', mieszkanie:'Mieszkanie' };
             const tC = { pokoj:'#3b82f6', kawalerka:'#10b981', mieszkanie:'#8b5cf6' };
             const p  = offer.tags.primary;
-            html += `<div class="offer-tag" style="background:${tC[p]}22;border:1px solid ${tC[p]};color:${tC[p]}">${tI[p]||''} ${tL[p]||p}${offer.tags.secondary?.length ? ` <span style="opacity:.7">+ ${offer.tags.secondary.map(t=>tL[t]||t).join(', ')}</span>` : ''}</div>`;
+            html += `<div class="offer-tag" style="background:${tC[p]}22;border:1px solid ${tC[p]};color:${tC[p]}">${tI[p]||''} ${escapeHtml(tL[p]||p)}${offer.tags.secondary?.length ? ` <span style="opacity:.7">+ ${escapeHtml(offer.tags.secondary.map(t=>tL[t]||t).join(', '))}</span>` : ''}</div>`;
         }
 
-        html += `<a href="${offer.url}" target="_blank" class="offer-link">🔗 Otwórz ogłoszenie</a>`;
+        html += `<a href="${escapeHtml(safeUrl(offer.url))}" target="_blank" rel="noopener" class="offer-link">🔗 Otwórz ogłoszenie</a>`;
 
         // Opis: data.json zawiera tylko podgląd. Pełna treść (gdy desc_truncated)
         // jest doczytywana z descriptions.json dopiero po kliknięciu "Pokaż całość".
+        // Prawdziwe id oferty wędruje przez data-offer-id (czytane w toggleDescription),
+        // a uid w id=/onclick jest przefiltrowane przez domSafeId.
         if (offer.desc_truncated) {
-            const uid = `desc-${offer.id}`;
-            html += `<div class="offer-description" id="${uid}-box">📝 <span id="${uid}-text">${offer.description}</span>
-                <a href="javascript:void(0)" id="${uid}-link" onclick="toggleDescription('${uid}','${offer.id}')" class="show-more-link">▼ Pokaż całość</a></div>`;
+            const uid = `desc-${domSafeId(offer.id)}`;
+            html += `<div class="offer-description" id="${uid}-box" data-offer-id="${escapeHtml(offer.id)}">📝 <span id="${uid}-text">${escapeHtml(offer.description)}</span>
+                <a href="javascript:void(0)" id="${uid}-link" onclick="toggleDescription('${uid}')" class="show-more-link">▼ Pokaż całość</a></div>`;
         } else {
-            html += `<div class="offer-description">📝 ${offer.description}</div>`;
+            html += `<div class="offer-description">📝 ${escapeHtml(offer.description)}</div>`;
         }
 
         html += `<div class="offer-dates">`;
@@ -728,12 +749,15 @@ function loadFullDescriptions() {
     return fullDescriptionsPromise;
 }
 
-async function toggleDescription(uid, offerId) {
+async function toggleDescription(uid, legacyOfferId) {
     const textEl = document.getElementById(`${uid}-text`);
     const linkEl = document.getElementById(`${uid}-link`);
     if (!textEl || !linkEl) return;
 
     const box = document.getElementById(`${uid}-box`);
+    // FIX 2026-06-12 (XSS): id oferty czytane z data-offer-id zamiast inline
+    // parametru onclick (drugi parametr zostaje dla wstecznej kompatybilności)
+    const offerId = box?.dataset.offerId || legacyOfferId;
     const expanded = box?.dataset.expanded === '1';
 
     if (expanded) {
@@ -809,13 +833,13 @@ function renderUnlocalised() {
         const tl    = o.tags?.primary || 'oferta';
         const isNew = o.is_new ? '<span class="badge-new">NOWA</span>' : '';
         const inact = !o.active ? '<span class="badge-inactive">nieaktywna</span>' : '';
-        const desc  = o.description ? o.description.substring(0, 120).trim() + '…' : '';
-        const media = o.media_info && o.media_info !== 'brak informacji' ? `<span class="media-small">💡 ${o.media_info}</span>` : '';
+        const desc  = o.description ? escapeHtml(o.description.substring(0, 120).trim()) + '…' : '';
+        const media = o.media_info && o.media_info !== 'brak informacji' ? `<span class="media-small">💡 ${escapeHtml(o.media_info)}</span>` : '';
         const bg    = o.active ? 'white' : '#f8fafc';
         const bd    = o.active ? '#f59e0b' : '#e2e8f0';
         return `<div style="background:${bg};border:1px solid ${bd};border-radius:8px;padding:12px;font-size:13px;opacity:${o.active?1:0.75}">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
-                <div style="font-weight:600;color:#1e293b;flex:1;margin-right:8px">${ti} ${o.address||'Nieznany adres'} ${isNew}${inact}</div>
+                <div style="font-weight:600;color:#1e293b;flex:1;margin-right:8px">${ti} ${escapeHtml(o.address||'Nieznany adres')} ${isNew}${inact}</div>
                 <div style="font-weight:700;color:#7c3aed;white-space:nowrap;font-size:15px">${o.price?o.price.toLocaleString('pl-PL')+' zł':'—'}</div>
             </div>
             ${media?`<div style="margin-bottom:4px">${media}</div>`:''}
@@ -825,7 +849,7 @@ function renderUnlocalised() {
                     <span style="background:#f1f5f9;color:#64748b;border-radius:4px;padding:2px 6px;font-size:11px">${ti} ${tl}</span>
                     <span style="color:#94a3b8;font-size:11px">📅 ${o.first_seen||'—'}</span>
                 </div>
-                <a href="${o.url}" target="_blank" rel="noopener" style="background:#7c3aed;color:white;border-radius:6px;padding:4px 10px;text-decoration:none;font-size:12px;font-weight:600">Otwórz →</a>
+                <a href="${escapeHtml(safeUrl(o.url))}" target="_blank" rel="noopener" style="background:#7c3aed;color:white;border-radius:6px;padding:4px 10px;text-decoration:none;font-size:12px;font-weight:600">Otwórz →</a>
             </div>
         </div>`;
     }).join('');
@@ -880,7 +904,9 @@ function showOfferNotFoundToast(offerId) {
         padding: 12px 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
         font-size: 14px; z-index: 10000; max-width: 400px; text-align: center;
     `;
-    toast.innerHTML = `⚠️ Oferta <code style="background:#fff;padding:2px 6px;border-radius:3px">${offerId}</code> nie ma współrzędnych na mapie (brak adresu lub została usunięta z bazy).`;
+    // FIX 2026-06-12 (XSS): offerId pochodzi z parametru URL (?offer=...) —
+    // bez escapowania to reflected XSS przez spreparowany link
+    toast.innerHTML = `⚠️ Oferta <code style="background:#fff;padding:2px 6px;border-radius:3px">${escapeHtml(offerId)}</code> nie ma współrzędnych na mapie (brak adresu lub została usunięta z bazy).`;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 6000);
 }

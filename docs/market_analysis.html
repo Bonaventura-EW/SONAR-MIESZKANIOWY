@@ -8,7 +8,7 @@
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
     
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -1017,7 +1017,18 @@
 
     <script>
         console.log('=== START MARKET ANALYSIS ===');
-        
+
+        // FIX 2026-06-12 (XSS): adresy/URL-e pochodzą ze scrapowanych ogłoszeń OLX —
+        // wszystko co trafia do innerHTML przechodzi przez escapeHtml/safeUrl
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+        function safeUrl(url) {
+            return /^https?:\/\//i.test(String(url ?? '')) ? String(url) : '#';
+        }
+
         // Załaduj dane z data.json
         let allData = null;
         let currentFilter = 'all';
@@ -1461,13 +1472,13 @@
                 decreases.forEach(offer => {
                     html += `
                         <div class="offer-card">
-                            <h3>${offer.address}</h3>
+                            <h3>${escapeHtml(offer.address)}</h3>
                             <div class="price-change decrease">
                                 ${offer.first} zł → ${offer.last} zł (${offer.changePct.toFixed(1)}%)
                             </div>
                             <div class="details">Oszczędzasz: ${Math.abs(offer.change)} zł/mies.</div>
                             <div class="timestamp">${offer.daysAgo} dni temu</div>
-                            <a href="${offer.url}" target="_blank">Zobacz ogłoszenie →</a>
+                            <a href="${escapeHtml(safeUrl(offer.url))}" target="_blank" rel="noopener">Zobacz ogłoszenie →</a>
                         </div>
                     `;
                 });
@@ -1480,13 +1491,13 @@
                 increases.reverse().forEach(offer => {
                     html += `
                         <div class="offer-card increase">
-                            <h3>${offer.address}</h3>
+                            <h3>${escapeHtml(offer.address)}</h3>
                             <div class="price-change increase">
                                 ${offer.first} zł → ${offer.last} zł (+${offer.changePct.toFixed(1)}%)
                             </div>
                             <div class="details">Wzrost: +${offer.change} zł/mies.</div>
                             <div class="timestamp">${offer.daysAgo} dni temu</div>
-                            <a href="${offer.url}" target="_blank">Zobacz ogłoszenie →</a>
+                            <a href="${escapeHtml(safeUrl(offer.url))}" target="_blank" rel="noopener">Zobacz ogłoszenie →</a>
                         </div>
                     `;
                 });

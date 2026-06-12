@@ -10,6 +10,78 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Naprawione (audyt 2026-06-12)
+- **`geocoder.py`: limit `MAX_NEW_GEOCODES` faktycznie działa.** Flaga
+  `_geocoding_limited` była ustawiana w `main.py`, ale geocoder nigdy jej nie
+  czytał — limit 150 geokodowań/skan był martwy. Tryb limited = tylko cache,
+  bez zapytań Nominatim i bez zapisu `None` do cache.
+- **Blokada OLX raportowana jako ⚠️ warning, nie „✅ brak zmian".** Skan z 0 ofert
+  (ochrona przed masową dezaktywacją) kończył się statusem `completed` bez
+  błędów — API/aplikacja pokazywały sukces, mimo że system był ślepy (skany
+  11–12.06). Teraz powód blokady trafia do `scan_history` jako błąd
+  (`uiStatus=warning`, powiadomienie ⚠️, system `degraded`), a weryfikacja 50
+  nieaktywnych ofert jest przy blokadzie pomijana (i tak padała 50/50).
+- **Atomowe zapisy JSON + abort przy uszkodzonej bazie.** Nowy
+  `src/atomic_json.py` (tmp + `os.replace`) dla `offers.json`,
+  `removed_listings.json`, `geocoding_cache.json`, `scan_history.json`.
+  `_load_database` przy `JSONDecodeError` przerywa skan z `RuntimeError`
+  zamiast cicho startować od pustej bazy (ryzyko scommitowania utraty całej
+  historii ofert).
+- **Frontend (XSS): dane z OLX escapowane przed `innerHTML`.** Opisy, adresy
+  i URL-e scrapowanych ogłoszeń trafiały do HTML bez escapowania (popup mapy,
+  lista „bez lokacji", karty zmian cen w `market_analysis.html`, toast
+  `?offer=`). Dodano `escapeHtml`/`safeUrl` w `assets/script.js` i
+  `market_analysis.html`, pełne escapowanie w `top5.html`; id oferty w
+  `toggleDescription` przez `data-offer-id` zamiast parametru inline `onclick`.
+- **`geocoder.py`: świeży null-cache nie odpytuje Nominatim co skan.** Adres
+  z odmienialną nazwą (mianownik ≠ oryginał) omijał TTL: każdy skan robił
+  zapytania live (oryginał + mianownik), a finalny zapis nulla odświeżał
+  timestamp — TTL nigdy nie wygasał. Świeży null = tryb cache-only (fallbacki
+  przez cache wariantów nadal działają), timestamp odświeżany tylko po realnej
+  próbie live.
+- **Cooldown weryfikacji nieaktywnych ofert (7 dni).** Te same 50 najnowszych
+  nieaktywnych było odpytywane przy każdym skanie (3×dziennie). Potwierdzenie
+  nieaktywności zapisuje `verified_inactive_at`; oferta wraca do puli po 7
+  dniach (lub natychmiast po reaktywacji).
+- **Upgrade źródła ceny z różnicą ≥50% = korekta, nie zmiana ceny.** Wcześniej
+  upgrade (np. Parser tekstowy → JSON-LD) omijał sanity-check 50%: błędna cena
+  parsera „zmieniała się" na poprawną, generując fałszywy trend i gigantyczną
+  „okazję" w top5. Korekta aktualizuje cenę po cichu (nadpisuje błędny wpis
+  w `history`), bez `price_trend`/`previous_price`/`price_changes`.
+- **Godziny skanu ujednolicone na 9:17/15:17/21:17.** Cron działa o :17 od
+  2026-05-25, ale `_calculate_next_scan_time` (`main.py`, `api_generator.py`)
+  liczyło pełne godziny — „następny skan" na froncie/API był zaniżony o 17 min.
+  Zaktualizowano też README (stary cron `0 7,13,19`) i `docs/API.md`.
+- **`quick_scan.py` wymaga `--force`.** Skrypt czyści całą bazę (bezpowrotna
+  utrata historii cen, `first_seen`, ofert nieaktywnych) — dotąd bez
+  ostrzeżenia. Ścieżka do bazy z `paths.py` zamiast względnej zależnej od CWD.
+
+### Dodane (audyt 2026-06-12)
+- `concurrency: sonar-scanner` w `scanner.yml` — cron + watchdog + manualny
+  dispatch nie odpalą już dwóch skanów równolegle (dwa joby commitujące
+  `data/offers.json` to ryzyko utraty danych mimo pętli `pull --rebase`).
+- 49 nowych testów (suite 46 → 95): `test_geocoder.py` (limit geokodowań,
+  TTL null-cache, regresja fleksji), `test_api_generator.py` (mapowanie
+  blokady na warning), `test_atomic_json.py` (atomowy zapis, abort przy
+  korupcji), `test_main_scan.py` (ochrona przed masową dezaktywacją —
+  wyciągnięta do testowalnej `_deactivation_block_reason`, logika cen,
+  cooldown weryfikacji).
+
+### Wydajność (audyt 2026-06-12)
+- `main.py`: set `removed_cids` liczony raz przed pętlą (było: od nowa dla
+  każdej z ~530 ofert); indeks `cid_index {CID3 → oferta}` zamiast liniowego
+  skanu bazy per oferta (~500 × 1375 porównań z regexem).
+
+### Usunięte (audyt 2026-06-12)
+- Martwy kod: `PriceParser._filter_invalid_prices` (nieużywane od usunięcia
+  fallbacku „pierwsza sensowna kwota"), pętla podmieniająca ofertę w
+  `all_offers` w scraperze (no-op — worker mutuje ten sam obiekt),
+  `main._find_existing_offer` (zastąpione indeksem CID).
+
+### Zmienione (audyt 2026-06-12)
+- Jedna wersja Chart.js (4.4.1) na wszystkich podstronach (było: top5 4.4.1,
+  reszta 4.4.0).
+
 ### Naprawione
 - `address_parser.py`: dodano `'nice'` do `EXCLUDED_WORDS` — nazwa osiedla/kompleksu
   „Nice 2" była błędnie traktowana jako adres ulicy (oferta przy ul. Beliniaków

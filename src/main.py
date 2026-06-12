@@ -23,10 +23,15 @@ from scan_logger import ScanLogger
 # Stabilny identyfikator oferty (CID3-IDxxxx). Współdzielony z scraper.py.
 from cid import extract_cid
 from offer_tagger import build_tags
+from atomic_json import atomic_write_json
 import paths
 
 
 class SonarMieszkaniowy:
+    # Ochrona przed masową dezaktywacją: scrape musi zwrócić co najmniej
+    # 30% wcześniejszej liczby aktywnych ofert, inaczej nie dezaktywujemy.
+    MIN_DEACTIVATION_RATIO = 0.3
+
     def __init__(self, data_file: str = paths.OFFERS_JSON, removed_file: str = paths.REMOVED_JSON):
         self.data_file = Path(data_file)
         self.removed_file = Path(removed_file)
@@ -102,14 +107,23 @@ class SonarMieszkaniowy:
         return index
     
     def _load_database(self) -> Dict:
-        """Wczytuje bazę danych z JSON."""
+        """Wczytuje bazę danych z JSON.
+
+        FIX 2026-06-12: uszkodzony plik = PRZERWIJ zamiast cicho startować od
+        pustej bazy. Stare zachowanie groziło utratą całej historii (pusta baza
+        zostałaby zapisana i scommitowana na main przez workflow). Brak pliku
+        (pierwsze uruchomienie) nadal tworzy pustą bazę.
+        """
         if self.data_file.exists():
             try:
                 with open(self.data_file, 'r', encoding='utf-8') as f:
                     return json.load(f)
-            except json.JSONDecodeError:
-                print("⚠️ Uszkodzony plik bazy danych, tworzę nowy")
-                return self._create_empty_database()
+            except json.JSONDecodeError as e:
+                raise RuntimeError(
+                    f"Uszkodzony plik bazy danych {self.data_file}: {e}. "
+                    f"Przerywam skan żeby nie nadpisać historii pustą bazą — "
+                    f"przywróć plik z gita (git checkout -- data/offers.json)."
+                ) from e
         else:
             return self._create_empty_database()
     
@@ -127,13 +141,11 @@ class SonarMieszkaniowy:
             return set()
     
     def _save_removed_listings(self):
-        """Zapisuje listę usuniętych ogłoszeń."""
-        self.removed_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.removed_file, 'w', encoding='utf-8') as f:
-            json.dump({
-                'removed_ids': list(self.removed_listings),
-                'last_updated': datetime.now(self.tz).isoformat()
-            }, f, ensure_ascii=False, indent=2)
+        """Zapisuje listę usuniętych ogłoszeń (atomowo)."""
+        atomic_write_json(self.removed_file, {
+            'removed_ids': list(self.removed_listings),
+            'last_updated': datetime.now(self.tz).isoformat()
+        })
     
     def _create_empty_database(self) -> Dict:
         """Tworzy pustą strukturę bazy danych."""
@@ -144,25 +156,29 @@ class SonarMieszkaniowy:
         }
     
     def _save_database(self):
-        """Zapisuje bazę danych do JSON."""
-        self.data_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(self.data_file, 'w', encoding='utf-8') as f:
-            json.dump(self.database, f, ensure_ascii=False, indent=2)
+        """Zapisuje bazę danych do JSON (atomowo — tmp + os.replace)."""
+        atomic_write_json(self.data_file, self.database)
         print(f"💾 Baza zapisana: {self.data_file}")
     
     def _calculate_next_scan_time(self) -> str:
-        """Oblicza czas następnego scanu (9:00, 15:00 lub 21:00)."""
+        """Oblicza czas następnego scanu (9:17, 15:17 lub 21:17).
+
+        FIX 2026-06-12: cron działa o :17 (off-peak, zmiana 2026-05-25), a ta
+        funkcja wciąż liczyła pełne godziny — frontend pokazywał "następny skan"
+        zaniżony o 17 minut.
+        """
         now = datetime.now(self.tz)
         scan_hours = [9, 15, 21]
-        
+        scan_minute = 17  # musi odpowiadać cronowi w .github/workflows/scanner.yml
+
         for hour in scan_hours:
-            next_time = now.replace(hour=hour, minute=0, second=0, microsecond=0)
+            next_time = now.replace(hour=hour, minute=scan_minute, second=0, microsecond=0)
             if next_time > now:
                 return next_time.isoformat()
-        
-        # Jeśli po 21:00, to następny scan o 9:00 następnego dnia
+
+        # Jeśli po ostatnim skanie dnia, to następny scan rano następnego dnia
         tomorrow = now + timedelta(days=1)
-        next_time = tomorrow.replace(hour=9, minute=0, second=0, microsecond=0)
+        next_time = tomorrow.replace(hour=scan_hours[0], minute=scan_minute, second=0, microsecond=0)
         return next_time.isoformat()
     
     def _process_offer(self, raw_offer: Dict) -> Dict:
@@ -355,18 +371,9 @@ class SonarMieszkaniowy:
             'days_active': 0
         }
     
-    def _find_existing_offer(self, offer_id: str) -> Dict:
-        """
-        Znajduje istniejące ogłoszenie po stabilnym CID3-IDxxxx.
-        FIX 2026-05-24: porównanie po CID3 zamiast pełnego slugu, bo sprzedawca
-        może edytować tytuł ogłoszenia, co zmienia slug w URL.
-        """
-        target_cid = extract_cid(offer_id)
-        for offer in self.database['offers']:
-            if extract_cid(offer['id']) == target_cid:
-                return offer
-        return None
-    
+    # FIX 2026-06-12: usunięto _find_existing_offer (liniowy skan bazy per oferta) —
+    # run_scan używa teraz indeksu cid_index {CID3 → oferta} budowanego raz.
+
     def _update_existing_offer(self, existing: Dict, new_data: Dict):
         """Aktualizuje istniejące ogłoszenie z inteligentnym zarządzaniem ceną."""
         now = datetime.now(self.tz).isoformat()
@@ -414,12 +421,24 @@ class SonarMieszkaniowy:
         
         should_update = False
         update_reason = None
-        
+        is_source_upgrade_correction = False
+
         if new_priority > old_priority:
             # Lepsze źródło - aktualizuj
             should_update = True
             update_reason = f"Upgrade źródła: {old_source} → {new_source}"
             print(f"      💰 {update_reason}")
+            # FIX 2026-06-12: upgrade źródła omijał sanity-check 50%. Cena z lepszego
+            # źródła nadal wygrywa, ale różnica >=50% to niemal na pewno KOREKTA
+            # błędnej ceny ze słabszego źródła (np. parser tekstowy złapał kwotę
+            # mediów), a nie realna zmiana ceny — nie zapisujemy jej jako
+            # price_change (trend/previous_price/top5), tylko cicho poprawiamy.
+            if old_price and new_price != old_price:
+                upgrade_diff_percent = abs(new_price - old_price) / old_price * 100
+                if upgrade_diff_percent >= 50:
+                    is_source_upgrade_correction = True
+                    print(f"      🔧 Różnica {upgrade_diff_percent:.0f}% przy upgrade źródła — "
+                          f"traktuję jako korektę, nie zmianę ceny")
         elif new_priority == old_priority and old_price != new_price:
             # To samo źródło ale inna cena - sprawdź czy zmiana sensowna
             price_diff_percent = abs(new_price - old_price) / old_price * 100
@@ -438,7 +457,20 @@ class SonarMieszkaniowy:
             # Ta sama cena, to samo źródło - brak zmian
             print(f"      ✓ Cena bez zmian: {old_price} zł")
         
-        if should_update and old_price != new_price:
+        if should_update and old_price != new_price and is_source_upgrade_correction:
+            # Korekta (upgrade źródła, różnica >=50%): aktualizuj cenę, ale bez
+            # previous_price/price_trend/price_changes — to nie jest rynkowa zmiana
+            # ceny tylko poprawa błędu parsera. W history NADPISUJEMY błędny wpis
+            # zamiast dopisywać (top5 liczy diff z history[0] → current; dopisanie
+            # sfabrykowałoby gigantyczną "zmianę ceny" na liście okazji).
+            existing['price']['current'] = new_price
+            existing['price']['source'] = new_source
+            history = existing['price'].setdefault('history', [])
+            if history and history[-1] == old_price:
+                history[-1] = new_price
+            else:
+                history.append(new_price)
+        elif should_update and old_price != new_price:
             # NOWE: Zapisz poprzednią cenę przed aktualizacją
             existing['price']['previous_price'] = old_price
             existing['price']['price_changed_at'] = now
@@ -580,6 +612,24 @@ class SonarMieszkaniowy:
         
         return deactivated_count
     
+    def _deactivation_block_reason(self, scraped_count: int, active_in_db: int):
+        """
+        Zwraca powód blokady dezaktywacji (ochrona przed blokadą OLX/Cloudflare)
+        lub None gdy dezaktywacja jest bezpieczna.
+
+        FIX 2026-06-12: logika wyciągnięta z run_scan do osobnej metody, żeby
+        najważniejszy bezpiecznik systemu miał testy (tests/test_main_scan.py).
+        Zachowanie identyczne jak wcześniej. NIE USUWAJ tej ochrony.
+        """
+        if scraped_count == 0 and active_in_db > 0:
+            return (f"Scraper zwrócił 0 ofert (baza: {active_in_db} aktywnych) — "
+                    f"prawdopodobna blokada OLX/Cloudflare. Dezaktywacja pominięta.")
+        if active_in_db >= 10 and scraped_count < active_in_db * self.MIN_DEACTIVATION_RATIO:
+            return (f"Scraper zwrócił tylko {scraped_count} ofert przy {active_in_db} aktywnych "
+                    f"w bazie (próg: {int(active_in_db * self.MIN_DEACTIVATION_RATIO)}) — "
+                    f"prawdopodobna blokada OLX. Dezaktywacja pominięta.")
+        return None
+
     def _verify_inactive_offers(self, max_to_verify: int = 50) -> Dict:
         """
         Weryfikuje nieaktywne oferty sprawdzając bezpośrednio ich URL na OLX.
@@ -598,14 +648,34 @@ class SonarMieszkaniowy:
             'verified': 0,
             'reactivated': 0,
             'confirmed_inactive': 0,
-            'errors': 0
+            'errors': 0,
+            'skipped_recently_verified': 0
         }
-        
-        # Pobierz nieaktywne oferty, posortowane od najnowszych (ostatnio dezaktywowane)
-        inactive_offers = [
+
+        # FIX 2026-06-12: oferty potwierdzone jako nieaktywne dostają znacznik
+        # verified_inactive_at i przez VERIFY_COOLDOWN_DAYS nie są sprawdzane
+        # ponownie. Wcześniej te same 50 najnowszych nieaktywnych było odpytywane
+        # przy KAŻDYM skanie (3×dziennie), w kółko potwierdzając to samo.
+        VERIFY_COOLDOWN_DAYS = 7
+        cooldown_cutoff = datetime.now(self.tz) - timedelta(days=VERIFY_COOLDOWN_DAYS)
+
+        def _recently_verified(offer):
+            ts = offer.get('verified_inactive_at')
+            if not ts:
+                return False
+            try:
+                return datetime.fromisoformat(ts) > cooldown_cutoff
+            except (ValueError, TypeError):
+                return False
+
+        all_inactive = [
             offer for offer in self.database.get('offers', [])
             if not offer.get('active', True)
         ]
+        inactive_offers = [o for o in all_inactive if not _recently_verified(o)]
+        stats['skipped_recently_verified'] = len(all_inactive) - len(inactive_offers)
+        if stats['skipped_recently_verified']:
+            print(f"   ⏭️  Pominięto {stats['skipped_recently_verified']} ofert zweryfikowanych w ostatnich {VERIFY_COOLDOWN_DAYS} dniach")
         
         if not inactive_offers:
             print("   ℹ️  Brak nieaktywnych ofert do weryfikacji")
@@ -651,6 +721,7 @@ class SonarMieszkaniowy:
                 if response.status_code in (404, 410):
                     # 404 = Not Found, 410 = Gone - oferta usunięta
                     stats['confirmed_inactive'] += 1
+                    offer['verified_inactive_at'] = now
                     continue
                 
                 if response.status_code != 200:
@@ -672,8 +743,8 @@ class SonarMieszkaniowy:
                             if 'InStock' in availability:
                                 is_active = True
                             break
-                    except:
-                        pass
+                    except (json.JSONDecodeError, TypeError, AttributeError):
+                        continue
                 
                 # Jeśli nie ma JSON-LD, sprawdź elementy HTML
                 if not is_active:
@@ -691,11 +762,13 @@ class SonarMieszkaniowy:
                     offer['last_seen'] = now
                     offer['reactivated_at'] = now
                     offer['reactivation_source'] = 'verification'
+                    offer.pop('verified_inactive_at', None)  # znacznik nieaktualny
                     stats['reactivated'] += 1
                     print(f"      ✅ Reaktywowano: {offer_id[:50]}...")
                 else:
                     # Oferta nieaktywna - potwierdzone
                     stats['confirmed_inactive'] += 1
+                    offer['verified_inactive_at'] = now
                     
             except requests.RequestException as e:
                 stats['errors'] += 1
@@ -784,15 +857,18 @@ class SonarMieszkaniowy:
             }
             SAMPLE_LIMIT = 50
 
+            # FIX 2026-06-12 (perf): set CID-ów usuniętych liczony RAZ, nie w pętli
+            # (wcześniej przeliczany od nowa dla każdej z ~530 ofert)
+            removed_cids = {extract_cid(rid) for rid in self.removed_listings}
+
             for i, raw_offer in enumerate(raw_offers, 1):
                 print(f"   [{i}/{len(raw_offers)}] Przetwarzam: {raw_offer['title'][:50]}...")
-                
+
                 # Stwórz ID z URL
                 offer_id = raw_offer['url'].split('/')[-1].split('.')[0]
-                
+
                 # FILTR: Pomiń usunięte ogłoszenia (porównanie po CID3-IDxxxx)
                 offer_cid_for_filter = extract_cid(raw_offer['url'])
-                removed_cids = {extract_cid(rid) for rid in self.removed_listings}
                 if offer_cid_for_filter in removed_cids or offer_id in self.removed_listings:
                     print(f"      🚫 Pominięto - ogłoszenie usunięte przez użytkownika")
                     skipped_removed += 1
@@ -920,12 +996,20 @@ class SonarMieszkaniowy:
             new_offers_count = 0
             updated_offers_count = 0
             reactivated_count = 0
-            
+
+            # FIX 2026-06-12 (perf): indeks CID → oferta zamiast liniowego skanu
+            # całej bazy dla każdej przetworzonej oferty (~500 × 1375 porównań
+            # z extract_cid per porównanie). setdefault zachowuje semantykę
+            # "pierwsza pasująca" z _find_existing_offer.
+            cid_index = {}
+            for offer in self.database['offers']:
+                cid_index.setdefault(extract_cid(offer.get('id', '')), offer)
+
             for processed in processed_offers:
                 current_offer_ids.append(processed['id'])
-                
-                existing = self._find_existing_offer(processed['id'])
-                
+
+                existing = cid_index.get(extract_cid(processed['id']))
+
                 if existing:
                     was_inactive = not existing.get('active', True)
                     self._update_existing_offer(existing, processed)
@@ -934,6 +1018,7 @@ class SonarMieszkaniowy:
                         reactivated_count += 1
                 else:
                     self.database['offers'].append(processed)
+                    cid_index.setdefault(extract_cid(processed['id']), processed)
                     new_offers_count += 1
             
             # Oznacz nieaktywne (ale pominij oferty które były skipped - one są nadal aktywne)
@@ -949,17 +1034,17 @@ class SonarMieszkaniowy:
             # Jeśli scraper zwrócił 0 ofert lub podejrzanie mało w stosunku do bazy,
             # NIE dezaktywuj niczego - to prawie na pewno problem ze scrapem, nie z ofertami.
             active_in_db = sum(1 for o in self.database['offers'] if o.get('active'))
-            MIN_RATIO = 0.3  # Scrape musi zwrócić co najmniej 30% wcześniejszej liczby aktywnych
             scraped_count = len(raw_offers)
 
             deactivated_count = 0
-            if scraped_count == 0 and active_in_db > 0:
-                print(f"   ⚠️  OCHRONA: Scraper zwrócił 0 ofert a baza ma {active_in_db} aktywnych.")
-                print(f"       Pomijam dezaktywację (prawdopodobna blokada OLX).")
-            elif active_in_db >= 10 and scraped_count < active_in_db * MIN_RATIO:
-                print(f"   ⚠️  OCHRONA: Scraper zwrócił tylko {scraped_count} ofert, w bazie jest {active_in_db} aktywnych.")
-                print(f"       Próg bezpieczeństwa: {int(active_in_db * MIN_RATIO)}. Pomijam dezaktywację.")
-                print(f"       Prawdopodobna blokada OLX lub częściowa awaria scrapera.")
+            # FIX 2026-06-12: blokada OLX była raportowana jako "✅ sukces, brak zmian"
+            # (status completed, zero errors). Teraz logujemy błąd do scan_history —
+            # api_generator zamieni go na uiStatus=warning i powiadomienie ⚠️.
+            block_reason = self._deactivation_block_reason(scraped_count, active_in_db)
+            scrape_blocked = block_reason is not None
+            if scrape_blocked:
+                print(f"   ⚠️  OCHRONA: {block_reason}")
+                self.scan_logger.log_error(block_reason)
             else:
                 deactivated_count = self._mark_inactive_offers(current_offer_ids, skipped_ids)
             
@@ -972,8 +1057,14 @@ class SonarMieszkaniowy:
                 print(f"   🔄 Reaktywowane: {reactivated_count}")
             
             # 4. Weryfikacja nieaktywnych ofert
+            # FIX 2026-06-12: przy blokadzie OLX pomijamy weryfikację — 50 requestów
+            # i tak skończyłoby się błędami (w skanach z 11-12.06 errors=50/50).
             print("\n🔍 Krok 4: Weryfikacja nieaktywnych ofert...")
-            verification_stats = self._verify_inactive_offers(max_to_verify=50)
+            if scrape_blocked:
+                print("   ⏭️  Pominięto (blokada OLX wykryta w tym skanie)")
+                verification_stats = {'verified': 0, 'reactivated': 0, 'confirmed_inactive': 0, 'errors': 0, 'skipped_blocked': True}
+            else:
+                verification_stats = self._verify_inactive_offers(max_to_verify=50)
             reactivated_count += verification_stats.get('reactivated', 0)
             
             # 5. Czyszczenie starych ofert

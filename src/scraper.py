@@ -371,13 +371,12 @@ class OLXScraper:
                             # Dodaj info o poprzedniej cenie jeśli się zmieniła
                             if item.get('reason') == 'price_changed':
                                 updated_offer['previous_price'] = item.get('old_price')
-                            
-                            # Zaktualizuj w all_offers
-                            for i, o in enumerate(all_offers):
-                                if o['url'] == updated_offer['url']:
-                                    all_offers[i] = updated_offer
-                                    break
-                            
+
+                            # FIX 2026-06-12: usunięto pętlę podmieniającą ofertę
+                            # w all_offers po URL — _fetch_single_offer_details
+                            # mutuje TEN SAM obiekt dict, który już jest w liście
+                            # (podmiana była no-opem O(n) per oferta).
+
                             progress = (completed / total) * 100
                             print(f"\r   Postęp: [{completed}/{total}] {progress:.1f}%", end='', flush=True)
                         except (requests.RequestException, AttributeError, TypeError) as e:
