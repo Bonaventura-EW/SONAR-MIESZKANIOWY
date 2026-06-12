@@ -39,6 +39,50 @@ def agent(tmp_path):
     )
 
 
+class TestDeactivationProtection:
+    """Najważniejszy bezpiecznik systemu: przy blokadzie OLX (0 ofert lub <30%
+    aktywnych) NIE dezaktywujemy ofert. CLAUDE.md: 'Nie usuwaj tej ochrony'."""
+
+    def test_zero_offers_blocks_deactivation(self, agent):
+        assert agent._deactivation_block_reason(0, 500) is not None
+
+    def test_below_30pct_ratio_blocks_deactivation(self, agent):
+        assert agent._deactivation_block_reason(100, 500) is not None  # próg: 150
+
+    def test_healthy_scan_allows_deactivation(self, agent):
+        assert agent._deactivation_block_reason(200, 500) is None
+
+    def test_empty_database_first_run_allows(self, agent):
+        assert agent._deactivation_block_reason(0, 0) is None
+
+    def test_small_database_exempt_from_ratio(self, agent):
+        # Baza <10 aktywnych: próg procentowy nie obowiązuje (ale 0 ofert blokuje)
+        assert agent._deactivation_block_reason(2, 9) is None
+        assert agent._deactivation_block_reason(0, 9) is not None
+
+    def test_mark_inactive_offers_deactivates_missing(self, agent):
+        agent.database['offers'] = [
+            _offer('aaa1', active=True),
+            _offer('bbb2', active=True),
+        ]
+        deactivated = agent._mark_inactive_offers(
+            current_offer_ids=['oferta-aaa1-CID3-IDaaa1'], skipped_offer_ids=[]
+        )
+        assert deactivated == 1
+        by_cid = {o['id']: o for o in agent.database['offers']}
+        assert by_cid['oferta-aaa1-CID3-IDaaa1']['active'] is True
+        assert by_cid['oferta-bbb2-CID3-IDbbb2']['active'] is False
+
+    def test_mark_inactive_reactivates_skipped(self, agent):
+        agent.database['offers'] = [_offer('ccc3', active=False)]
+        agent._mark_inactive_offers(
+            current_offer_ids=[], skipped_offer_ids=['oferta-ccc3-CID3-IDccc3']
+        )
+        offer = agent.database['offers'][0]
+        assert offer['active'] is True
+        assert offer['reactivation_source'] == 'skipped'
+
+
 class TestPriceUpdateLogic:
     """FIX 2026-06-12: upgrade źródła z różnicą >=50% = korekta błędu parsera,
     nie rynkowa zmiana ceny (bez trend/previous_price/price_changes/top5)."""

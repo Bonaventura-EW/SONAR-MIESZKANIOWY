@@ -28,6 +28,10 @@ import paths
 
 
 class SonarMieszkaniowy:
+    # Ochrona przed masową dezaktywacją: scrape musi zwrócić co najmniej
+    # 30% wcześniejszej liczby aktywnych ofert, inaczej nie dezaktywujemy.
+    MIN_DEACTIVATION_RATIO = 0.3
+
     def __init__(self, data_file: str = paths.OFFERS_JSON, removed_file: str = paths.REMOVED_JSON):
         self.data_file = Path(data_file)
         self.removed_file = Path(removed_file)
@@ -602,6 +606,24 @@ class SonarMieszkaniowy:
         
         return deactivated_count
     
+    def _deactivation_block_reason(self, scraped_count: int, active_in_db: int):
+        """
+        Zwraca powód blokady dezaktywacji (ochrona przed blokadą OLX/Cloudflare)
+        lub None gdy dezaktywacja jest bezpieczna.
+
+        FIX 2026-06-12: logika wyciągnięta z run_scan do osobnej metody, żeby
+        najważniejszy bezpiecznik systemu miał testy (tests/test_main_scan.py).
+        Zachowanie identyczne jak wcześniej. NIE USUWAJ tej ochrony.
+        """
+        if scraped_count == 0 and active_in_db > 0:
+            return (f"Scraper zwrócił 0 ofert (baza: {active_in_db} aktywnych) — "
+                    f"prawdopodobna blokada OLX/Cloudflare. Dezaktywacja pominięta.")
+        if active_in_db >= 10 and scraped_count < active_in_db * self.MIN_DEACTIVATION_RATIO:
+            return (f"Scraper zwrócił tylko {scraped_count} ofert przy {active_in_db} aktywnych "
+                    f"w bazie (próg: {int(active_in_db * self.MIN_DEACTIVATION_RATIO)}) — "
+                    f"prawdopodobna blokada OLX. Dezaktywacja pominięta.")
+        return None
+
     def _verify_inactive_offers(self, max_to_verify: int = 50) -> Dict:
         """
         Weryfikuje nieaktywne oferty sprawdzając bezpośrednio ich URL na OLX.
@@ -1006,32 +1028,17 @@ class SonarMieszkaniowy:
             # Jeśli scraper zwrócił 0 ofert lub podejrzanie mało w stosunku do bazy,
             # NIE dezaktywuj niczego - to prawie na pewno problem ze scrapem, nie z ofertami.
             active_in_db = sum(1 for o in self.database['offers'] if o.get('active'))
-            MIN_RATIO = 0.3  # Scrape musi zwrócić co najmniej 30% wcześniejszej liczby aktywnych
             scraped_count = len(raw_offers)
 
             deactivated_count = 0
             # FIX 2026-06-12: blokada OLX była raportowana jako "✅ sukces, brak zmian"
             # (status completed, zero errors). Teraz logujemy błąd do scan_history —
             # api_generator zamieni go na uiStatus=warning i powiadomienie ⚠️.
-            scrape_blocked = False
-            if scraped_count == 0 and active_in_db > 0:
-                print(f"   ⚠️  OCHRONA: Scraper zwrócił 0 ofert a baza ma {active_in_db} aktywnych.")
-                print(f"       Pomijam dezaktywację (prawdopodobna blokada OLX).")
-                scrape_blocked = True
-                self.scan_logger.log_error(
-                    f"Scraper zwrócił 0 ofert (baza: {active_in_db} aktywnych) — "
-                    f"prawdopodobna blokada OLX/Cloudflare. Dezaktywacja pominięta."
-                )
-            elif active_in_db >= 10 and scraped_count < active_in_db * MIN_RATIO:
-                print(f"   ⚠️  OCHRONA: Scraper zwrócił tylko {scraped_count} ofert, w bazie jest {active_in_db} aktywnych.")
-                print(f"       Próg bezpieczeństwa: {int(active_in_db * MIN_RATIO)}. Pomijam dezaktywację.")
-                print(f"       Prawdopodobna blokada OLX lub częściowa awaria scrapera.")
-                scrape_blocked = True
-                self.scan_logger.log_error(
-                    f"Scraper zwrócił tylko {scraped_count} ofert przy {active_in_db} aktywnych "
-                    f"w bazie (próg: {int(active_in_db * MIN_RATIO)}) — prawdopodobna blokada OLX. "
-                    f"Dezaktywacja pominięta."
-                )
+            block_reason = self._deactivation_block_reason(scraped_count, active_in_db)
+            scrape_blocked = block_reason is not None
+            if scrape_blocked:
+                print(f"   ⚠️  OCHRONA: {block_reason}")
+                self.scan_logger.log_error(block_reason)
             else:
                 deactivated_count = self._mark_inactive_offers(current_offer_ids, skipped_ids)
             
