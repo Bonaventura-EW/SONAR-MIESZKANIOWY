@@ -604,14 +604,34 @@ class SonarMieszkaniowy:
             'verified': 0,
             'reactivated': 0,
             'confirmed_inactive': 0,
-            'errors': 0
+            'errors': 0,
+            'skipped_recently_verified': 0
         }
-        
-        # Pobierz nieaktywne oferty, posortowane od najnowszych (ostatnio dezaktywowane)
-        inactive_offers = [
+
+        # FIX 2026-06-12: oferty potwierdzone jako nieaktywne dostają znacznik
+        # verified_inactive_at i przez VERIFY_COOLDOWN_DAYS nie są sprawdzane
+        # ponownie. Wcześniej te same 50 najnowszych nieaktywnych było odpytywane
+        # przy KAŻDYM skanie (3×dziennie), w kółko potwierdzając to samo.
+        VERIFY_COOLDOWN_DAYS = 7
+        cooldown_cutoff = datetime.now(self.tz) - timedelta(days=VERIFY_COOLDOWN_DAYS)
+
+        def _recently_verified(offer):
+            ts = offer.get('verified_inactive_at')
+            if not ts:
+                return False
+            try:
+                return datetime.fromisoformat(ts) > cooldown_cutoff
+            except (ValueError, TypeError):
+                return False
+
+        all_inactive = [
             offer for offer in self.database.get('offers', [])
             if not offer.get('active', True)
         ]
+        inactive_offers = [o for o in all_inactive if not _recently_verified(o)]
+        stats['skipped_recently_verified'] = len(all_inactive) - len(inactive_offers)
+        if stats['skipped_recently_verified']:
+            print(f"   ⏭️  Pominięto {stats['skipped_recently_verified']} ofert zweryfikowanych w ostatnich {VERIFY_COOLDOWN_DAYS} dniach")
         
         if not inactive_offers:
             print("   ℹ️  Brak nieaktywnych ofert do weryfikacji")
@@ -657,6 +677,7 @@ class SonarMieszkaniowy:
                 if response.status_code in (404, 410):
                     # 404 = Not Found, 410 = Gone - oferta usunięta
                     stats['confirmed_inactive'] += 1
+                    offer['verified_inactive_at'] = now
                     continue
                 
                 if response.status_code != 200:
@@ -678,8 +699,8 @@ class SonarMieszkaniowy:
                             if 'InStock' in availability:
                                 is_active = True
                             break
-                    except:
-                        pass
+                    except (json.JSONDecodeError, TypeError, AttributeError):
+                        continue
                 
                 # Jeśli nie ma JSON-LD, sprawdź elementy HTML
                 if not is_active:
@@ -697,11 +718,13 @@ class SonarMieszkaniowy:
                     offer['last_seen'] = now
                     offer['reactivated_at'] = now
                     offer['reactivation_source'] = 'verification'
+                    offer.pop('verified_inactive_at', None)  # znacznik nieaktualny
                     stats['reactivated'] += 1
                     print(f"      ✅ Reaktywowano: {offer_id[:50]}...")
                 else:
                     # Oferta nieaktywna - potwierdzone
                     stats['confirmed_inactive'] += 1
+                    offer['verified_inactive_at'] = now
                     
             except requests.RequestException as e:
                 stats['errors'] += 1
