@@ -56,6 +56,19 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
   utrata historii cen, `first_seen`, ofert nieaktywnych) — dotąd bez
   ostrzeżenia. Ścieżka do bazy z `paths.py` zamiast względnej zależnej od CWD.
 
+### Dodane
+- **Nowa podstrona „Analiza cen wg metrażu"** (`docs/analiza_metraz.html`).
+  Analizuje treść ogłoszeń: cena za m², przedziały cenowe wg metrażu, podział
+  na dzielnice, mapa cieplna dzielnica×metraż, korelacja powierzchnia-cena,
+  trend zł/m² w czasie, rozkład stawek i zestawienia tabelaryczne. Dostępna z
+  nawigacji (mapa + Top 5). Dane liczone z **całej historii** ofert:
+  - `src/area_parser.py` — ekstrakcja metrażu (m²), liczby pokoi i dzielnicy
+    z opisów/adresów (regex + walidacja zakresów). Pokrycie metrażem ~63% bazy.
+  - `src/area_price_generator.py` — agregacja → `docs/area_price_data.json`
+    (zapis atomowy). Wpięty w `scanner.yml` (po `top5_generator`) i commit.
+  - 23 nowe testy (`tests/test_area_parser.py`, `tests/test_area_price_generator.py`);
+    suite 95 → 118.
+
 ### Dodane (audyt 2026-06-12)
 - `concurrency: sonar-scanner` w `scanner.yml` — cron + watchdog + manualny
   dispatch nie odpalą już dwóch skanów równolegle (dwa joby commitujące

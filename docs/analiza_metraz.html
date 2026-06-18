@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SONAR MIESZKANIOWY - Analiza cen wg metrażu</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px}
+.container{max-width:1400px;margin:0 auto}
+header{background:#fff;padding:24px;border-radius:14px;box-shadow:0 4px 6px rgba(0,0,0,.1);margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+header h1{color:#667eea;font-size:26px}
+.subtitle{color:#888;font-size:14px;margin-top:4px;font-weight:400}
+.back-link{color:#667eea;text-decoration:none;padding:9px 18px;border:2px solid #667eea;border-radius:8px;font-weight:600;transition:all .3s}
+.back-link:hover{background:#667eea;color:#fff}
+.loading{text-align:center;color:#fff;font-size:22px;padding:90px 20px}
+.error-message{background:#fee;color:#c33;padding:20px;border-radius:12px;margin:20px 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-bottom:20px}
+.card{background:#fff;padding:20px;border-radius:14px;box-shadow:0 2px 4px rgba(0,0,0,.1)}
+.card h3{color:#888;font-size:13px;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.03em}
+.card .v{font-size:32px;font-weight:800;color:#333}
+.card .s{font-size:13px;color:#10b981;margin-top:6px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.panel{background:#fff;padding:22px;border-radius:14px;box-shadow:0 2px 4px rgba(0,0,0,.1);margin-bottom:20px}
+.panel h2{font-size:18px;color:#333;margin-bottom:6px}
+.panel .hint{font-size:13px;color:#999;margin-bottom:14px}
+.cw{height:320px;position:relative}
+table.tbl{width:100%;border-collapse:collapse;font-size:14px}
+table.tbl th,table.tbl td{padding:9px 10px;text-align:left;border-bottom:1px solid rgba(0,0,0,.08)}
+table.tbl th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:#888}
+table.tbl tr:hover td{background:rgba(102,126,234,.06)}
+table.hm{border-collapse:collapse;font-size:12px;width:100%}
+table.hm th{padding:6px 8px;font-weight:600;font-size:11px;color:#555}
+table.hm tbody th{text-align:right;white-space:nowrap}
+table.hm td{padding:9px 6px;text-align:center;font-weight:700;border-radius:3px}
+.legend{display:flex;align-items:center;gap:8px;font-size:12px;color:#888;margin-top:12px}
+.legbar{height:12px;width:160px;border-radius:6px;background:linear-gradient(90deg,rgb(40,180,120),rgb(240,30,40))}
+canvas{max-width:100%}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h1>📐 Analiza cen wg metrażu</h1>
+      <div class="subtitle" id="subtitle">Lublin · ładowanie danych…</div>
+    </div>
+    <a class="back-link" href="index.html">← Mapa ofert</a>
+  </header>
+
+  <div id="loading" class="loading">⏳ Wczytywanie statystyk…</div>
+  <div id="content" style="display:none"></div>
+</div>
+
+<script>
+// Bezpieczne formatowanie (dane pochodzą z naszego generatora — liczby — ale
+// trzymamy konwencję projektu: żadnego surowego wstrzykiwania tekstu z ofert).
+const PLN = n => (n==null ? '—' : Math.round(n).toLocaleString('pl-PL')+' zł');
+const PPM = n => (n==null ? '—' : (Math.round(n*10)/10).toLocaleString('pl-PL')+' zł/m²');
+const el = id => document.getElementById(id);
+const RAMP=['#00c853','#64dd17','#aeea00','#ffd600','#ffab00','#ff6f00','#ff3d00','#d50000','#c51162','#aa00ff','#7c4dff','#6200ea','#311b92'];
+function rampFor(vals){const mn=Math.min(...vals),mx=Math.max(...vals);return vals.map(v=>{const t=mx===mn?0.5:(v-mn)/(mx-mn);return RAMP[Math.round(t*(RAMP.length-1))];});}
+
+let S = null;
+
+fetch('area_price_data.json?v=' + Date.now())
+  .then(r => { if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+  .then(data => { S = data; render(); })
+  .catch(err => {
+    el('loading').style.display = 'none';
+    const c = el('content');
+    c.style.display = 'block';
+    c.innerHTML = '<div class="error-message">❌ Nie udało się wczytać <b>area_price_data.json</b>: '
+      + err.message + '. Uruchom <code>python src/area_price_generator.py</code>.</div>';
+  });
+
+function render(){
+  const o = S.overall, m = S.meta;
+  el('loading').style.display = 'none';
+  el('subtitle').textContent =
+    `Lublin · ${m.analyzed} ofert z metrażem (${m.coverage_pct}% bazy) · mediana ${PPM(o.median_ppm)}`;
+
+  if(!o.count){
+    el('content').style.display='block';
+    el('content').innerHTML='<div class="error-message">Brak danych z metrażem do analizy.</div>';
+    return;
+  }
+
+  el('content').style.display = 'block';
+  el('content').innerHTML = `
+    <div class="cards">
+      <div class="card"><h3>Mediana ceny</h3><div class="v">${PLN(o.median_price)}</div><div class="s">${m.analyzed} ofert</div></div>
+      <div class="card"><h3>Mediana zł/m²</h3><div class="v">${PPM(o.median_ppm)}</div><div class="s">widełki ${o.p25_ppm}–${o.p75_ppm}</div></div>
+      <div class="card"><h3>Mediana metrażu</h3><div class="v">${o.median_area} m²</div><div class="s">pokrycie ${m.coverage_pct}%</div></div>
+      <div class="card"><h3>Zakres cen P10–P90</h3><div class="v" style="font-size:24px">${PLN(o.p10_price)} – ${PLN(o.p90_price)}</div><div class="s">80% rynku</div></div>
+    </div>
+
+    <div class="panel"><h2>💰 Cena za m² wg przedziału metrażu</h2>
+      <div class="hint">Im mniejsze mieszkanie, tym wyższa stawka za metr.</div>
+      <div class="cw"><canvas id="cPpm"></canvas></div></div>
+
+    <div class="grid">
+      <div class="panel"><h2>🏷️ Mediana ceny wg przedziału</h2><div class="hint">Bezwzględny czynsz rośnie z metrażem.</div><div class="cw"><canvas id="cPrice"></canvas></div></div>
+      <div class="panel"><h2>📊 Rozkład zł/m²</h2><div class="hint">Liczba ofert w koszykach stawki za metr.</div><div class="cw"><canvas id="cHist"></canvas></div></div>
+    </div>
+
+    <div class="panel"><h2>📈 Powierzchnia vs cena</h2>
+      <div class="hint">Każdy punkt to jedna oferta (próbka ${S.scatter.length}).</div>
+      <div class="cw"><canvas id="cScatter"></canvas></div></div>
+
+    <div class="grid">
+      <div class="panel"><h2>🗺️ Dzielnice — mediana zł/m²</h2><div class="hint">Tylko dzielnice z min. 5 ofertami.</div><div class="cw"><canvas id="cDist"></canvas></div></div>
+      <div class="panel"><h2>🚪 Czynsz wg liczby pokoi</h2><div class="hint">Mediana ceny i stawki za metr.</div><div class="cw"><canvas id="cRooms"></canvas></div></div>
+    </div>
+
+    <div class="panel"><h2>🔥 Mapa cieplna: dzielnica × metraż</h2>
+      <div class="hint">Mediana zł/m². Zielony = taniej, czerwony = drożej.</div>
+      <div id="heatmap"></div>
+      <div class="legend"><span>tanio</span><div class="legbar"></div><span>drogo</span></div></div>
+
+    <div class="grid">
+      <div class="panel"><h2>📅 Trend zł/m² w czasie</h2><div class="hint">Wg miesiąca pojawienia się oferty — rośnie z każdym skanem.</div><div class="cw"><canvas id="cTrend"></canvas></div></div>
+      <div class="panel"><h2>📋 Przedziały metrażu — zestawienie</h2><div class="hint">&nbsp;</div><div id="tBrackets"></div></div>
+    </div>
+
+    <div class="panel"><h2>🏙️ Dzielnice — pełne zestawienie</h2><div class="hint">Posortowane wg mediany zł/m².</div><div id="tDist"></div></div>
+  `;
+
+  chBrackets('cPpm','median_ppm');
+  chBrackets('cPrice','median_price');
+  chHist();
+  chScatter();
+  chDistricts('cDist');
+  chRooms();
+  chTrend();
+  renderHeatmap();
+  renderBracketTable();
+  renderDistrictTable();
+}
+
+function chBrackets(id, key){
+  const L = S.area_brackets.map(b => b.label);
+  const v = S.area_brackets.map(b => b[key]);
+  new Chart(el(id), {type:'bar', data:{labels:L, datasets:[{data:v, backgroundColor:rampFor(v), borderRadius:6}]},
+    options:{plugins:{legend:{display:false}, tooltip:{callbacks:{label:i=>(key==='median_price'?PLN(i.raw):PPM(i.raw))}}},
+      scales:{y:{beginAtZero:true, grid:{color:'rgba(0,0,0,.06)'}}, x:{grid:{display:false}}}}});
+}
+function chHist(){
+  new Chart(el('cHist'), {type:'bar', data:{labels:S.ppm_hist.labels, datasets:[{data:S.ppm_hist.counts, backgroundColor:'#667eea', borderRadius:3}]},
+    options:{plugins:{legend:{display:false}, tooltip:{callbacks:{title:i=>i[0].label+' zł/m²'}}},
+      scales:{y:{beginAtZero:true, grid:{color:'rgba(0,0,0,.06)'}}, x:{grid:{display:false}}}}});
+}
+function chScatter(){
+  new Chart(el('cScatter'), {type:'scatter', data:{datasets:[{data:S.scatter.map(p=>({x:p[0], y:p[1]})), backgroundColor:'rgba(102,126,234,.45)', pointRadius:3}]},
+    options:{plugins:{legend:{display:false}, tooltip:{callbacks:{label:i=>i.raw.x+' m² · '+PLN(i.raw.y)}}},
+      scales:{x:{title:{display:true, text:'Powierzchnia (m²)'}, grid:{color:'rgba(0,0,0,.05)'}},
+              y:{title:{display:true, text:'Cena (zł)'}, grid:{color:'rgba(0,0,0,.05)'}}}}});
+}
+function chDistricts(id){
+  const D = S.districts.slice(0, 12);
+  const v = D.map(d => d.median_ppm);
+  new Chart(el(id), {type:'bar', data:{labels:D.map(d=>d.name), datasets:[{data:v, backgroundColor:rampFor(v), borderRadius:5}]},
+    options:{indexAxis:'y', plugins:{legend:{display:false}, tooltip:{callbacks:{label:i=>PPM(i.raw)}}},
+      scales:{x:{grid:{color:'rgba(0,0,0,.06)'}}, y:{grid:{display:false}}}}});
+}
+function chRooms(){
+  new Chart(el('cRooms'), {type:'bar', data:{labels:S.rooms.map(r=>r.rooms+' pok.'), datasets:[
+    {label:'Mediana ceny', data:S.rooms.map(r=>r.median_price), backgroundColor:'#667eea', borderRadius:5, yAxisID:'y'},
+    {label:'zł/m²', data:S.rooms.map(r=>r.median_ppm), backgroundColor:'#f59e0b', borderRadius:5, yAxisID:'y1'}]},
+    options:{plugins:{legend:{position:'bottom'}}, scales:{y:{position:'left', beginAtZero:true}, y1:{position:'right', grid:{display:false}}}}});
+}
+function chTrend(){
+  new Chart(el('cTrend'), {type:'line', data:{labels:S.trend.map(t=>t.month), datasets:[
+    {label:'Mediana zł/m²', data:S.trend.map(t=>t.median_ppm), borderColor:'#667eea', backgroundColor:'rgba(102,126,234,.15)', fill:true, tension:.3, yAxisID:'y'},
+    {label:'Mediana ceny', data:S.trend.map(t=>t.median_price), borderColor:'#f59e0b', tension:.3, yAxisID:'y1'}]},
+    options:{plugins:{legend:{position:'bottom'}}, scales:{y:{position:'left', grid:{color:'rgba(0,0,0,.06)'}}, y1:{position:'right', grid:{display:false}}}}});
+}
+function renderHeatmap(){
+  const H = S.heatmap;
+  const all = [];
+  H.ppm.forEach(row => row.forEach(v => { if(v!=null) all.push(v); }));
+  if(!all.length){ el('heatmap').innerHTML='<p style="color:#999">Za mało danych.</p>'; return; }
+  const mn = Math.min(...all), mx = Math.max(...all);
+  const col = v => {
+    if(v==null) return 'background:#eee;color:#bbb';
+    const t = (v-mn)/(mx-mn||1);
+    const r = Math.round(40+t*200), g = Math.round(180-t*150), b = Math.round(120-t*80);
+    return `background:rgb(${r},${g},${b});color:${t>.55?'#fff':'#222'}`;
+  };
+  let h = '<table class="hm"><thead><tr><th></th>' + H.brackets.map(b=>'<th>'+b+'</th>').join('') + '</tr></thead><tbody>';
+  H.districts.forEach((d,i) => {
+    h += '<tr><th>'+d+'</th>' + H.ppm[i].map(v=>`<td style="${col(v)}">${v==null?'·':Math.round(v)}</td>`).join('') + '</tr>';
+  });
+  el('heatmap').innerHTML = h + '</tbody></table>';
+}
+function renderBracketTable(){
+  el('tBrackets').innerHTML = '<table class="tbl"><thead><tr><th>Metraż</th><th>Ofert</th><th>Mediana</th><th>zł/m²</th><th>Widełki 25–75%</th></tr></thead><tbody>'
+    + S.area_brackets.map(b=>`<tr><td><b>${b.label}</b></td><td>${b.count}</td><td>${PLN(b.median_price)}</td><td>${PPM(b.median_ppm)}</td><td>${PLN(b.p25_price)} – ${PLN(b.p75_price)}</td></tr>`).join('')
+    + '</tbody></table>';
+}
+function renderDistrictTable(){
+  el('tDist').innerHTML = '<table class="tbl"><thead><tr><th>Dzielnica</th><th>Ofert</th><th>Mediana</th><th>śr. metraż</th><th>zł/m²</th></tr></thead><tbody>'
+    + S.districts.map(d=>`<tr><td><b>${d.name}</b></td><td>${d.count}</td><td>${PLN(d.median_price)}</td><td>${d.median_area} m²</td><td>${PPM(d.median_ppm)}</td></tr>`).join('')
+    + '</tbody></table>';
+}
+</script>
+</body>
+</html>
