@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="pl"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>12 · TV / Kiosk</title>
+<link rel="icon" type="image/svg+xml" href="../favicon.svg">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+table.tbl{width:100%;border-collapse:collapse;font-size:14px}
+table.tbl th,table.tbl td{padding:9px 10px;text-align:left;border-bottom:1px solid rgba(128,128,128,.18)}
+table.tbl th{font-size:12px;text-transform:uppercase;letter-spacing:.04em;opacity:.7}
+table.tbl tr:hover td{background:rgba(128,128,128,.06)}
+table.hm{border-collapse:collapse;font-size:12px;width:100%}
+table.hm th{padding:6px 8px;font-weight:600;font-size:11px}
+table.hm thead th{writing-mode:initial}
+table.hm tbody th{text-align:right;white-space:nowrap}
+table.hm td{padding:8px 6px;text-align:center;font-weight:600;border-radius:3px}
+canvas{max-width:100%}
+
+body{font-family:'Inter',system-ui,sans-serif;background:#06070d;color:#fff;height:100vh;overflow:hidden;--accent:#22d3ee}
+.ribbon{position:fixed;top:0;right:0;background:#22d3ee;color:#06070d;font-weight:700;font-size:11px;padding:5px 12px;z-index:99}
+.screen{height:100vh;padding:30px;display:grid;grid-template-rows:auto 1fr;gap:20px}
+.bar{display:flex;justify-content:space-between;align-items:center}
+.bar h1{font-size:30px;color:#22d3ee}.bar .clock{font-size:16px;color:#64748b}
+.grid{display:grid;grid-template-columns:1.4fr 1fr 1fr;grid-template-rows:1fr 1fr;gap:18px}
+.tile{background:#0f1729;border:1px solid #1e293b;border-radius:16px;padding:20px;display:flex;flex-direction:column}
+.tile h2{font-size:14px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+.tile.big{grid-row:span 2}
+.cw{flex:1;position:relative;min-height:0}
+.mega{font-size:64px;font-weight:900;color:#22d3ee;line-height:1}
+.mega small{font-size:16px;color:#94a3b8;display:block;margin-top:8px}
+.statline{display:flex;justify-content:space-between;font-size:22px;padding:8px 0;border-bottom:1px solid #1e293b}
+.statline b{color:#22d3ee}
+
+</style></head>
+<body>
+
+<div class="ribbon">MOCKUP #12 · TV / Kiosk</div>
+<div class="screen">
+ <div class="bar"><h1>📐 RYNEK NAJMU LUBLIN · zł/m²</h1><div class="clock" id="clk"></div></div>
+ <div class="grid">
+  <div class="tile big"><h2>Cena za m² wg metrażu</h2><div class="cw"><canvas id="c1"></canvas></div></div>
+  <div class="tile"><h2>Mediana stawki</h2><div class="mega">55.0<small>zł/m² · 956 ofert</small></div></div>
+  <div class="tile"><h2>Kluczowe liczby</h2>
+   <div class="statline"><span>Mediana ceny</span><b>2,300 zł</b></div>
+   <div class="statline"><span>Mediana m²</span><b>42.0 m²</b></div>
+   <div class="statline"><span>Widełki zł/m²</span><b>45.6–66.7</b></div></div>
+  <div class="tile"><h2>Dzielnice (zł/m²)</h2><div class="cw"><canvas id="c5"></canvas></div></div>
+  <div class="tile"><h2>Rozkład zł/m²</h2><div class="cw"><canvas id="c3"></canvas></div></div>
+ </div>
+</div>
+
+<script>
+const S = {"meta": {"generated": "2026-06-18T14:02:28", "last_scan": "2026-06-18T13:18:43.580216+02:00", "total_offers": 1526, "analyzed": 956, "coverage_pct": 63}, "overall": {"count": 956, "median_price": 2300, "median_area": 42.0, "median_ppm": 55.0, "mean_ppm": 59.9, "min_ppm": 8.0, "max_ppm": 322.2, "p25_ppm": 45.6, "p75_ppm": 66.7, "p10_price": 1675, "p90_price": 3000}, "area_brackets": [{"label": "do 25 m²", "min": 0, "max": 25, "count": 73, "median_price": 1800, "median_ppm": 93.1, "p25_price": 1500, "p75_price": 2100, "min_price": 250, "max_price": 3100}, {"label": "25–35 m²", "min": 25, "max": 35, "count": 184, "median_price": 2000, "median_ppm": 69.2, "p25_price": 1800, "p75_price": 2300, "min_price": 1200, "max_price": 3100}, {"label": "35–45 m²", "min": 35, "max": 45, "count": 280, "median_price": 2200, "median_ppm": 57.5, "p25_price": 1900, "p75_price": 2500, "min_price": 320, "max_price": 4500}, {"label": "45–55 m²", "min": 45, "max": 55, "count": 259, "median_price": 2400, "median_ppm": 49.0, "p25_price": 2100, "p75_price": 2650, "min_price": 1165, "max_price": 5500}, {"label": "55–70 m²", "min": 55, "max": 70, "count": 126, "median_price": 2600, "median_ppm": 43.7, "p25_price": 2300, "p75_price": 3000, "min_price": 900, "max_price": 4700}, {"label": "70–90 m²", "min": 70, "max": 90, "count": 28, "median_price": 2950, "median_ppm": 39.1, "p25_price": 2538, "p75_price": 3312, "min_price": 1000, "max_price": 9000}, {"label": "90 m²+", "min": 90, "max": 999, "count": 6, "median_price": 3425, "median_ppm": 37.1, "p25_price": 3000, "p75_price": 4712, "min_price": 2200, "max_price": 6000}], "ppm_hist": {"labels": ["0-10", "10-20", "20-30", "30-40", "40-50", "50-60", "60-70", "70-80", "80-90", "90-100", "100-110", "110-120", "120+"], "counts": [1, 5, 9, 99, 219, 245, 180, 99, 44, 19, 13, 4, 19]}, "scatter": [[39.0, 1400], [50.0, 2500], [34.0, 1800], [36.0, 2150], [31.0, 2400], [65.0, 2290], [29.0, 1300], [47.4, 2400], [11.5, 2600], [11.0, 2600], [40.0, 1800], [51.0, 1900], [65.0, 1100], [36.0, 2100], [72.0, 3500], [16.0, 1490], [36.6, 2500], [38.0, 2500], [48.0, 2500], [30.0, 2500], [56.0, 900], [28.0, 1940], [49.0, 1800], [27.0, 1400], [57.0, 3000], [37.0, 1200], [57.0, 3100], [30.0, 2400], [50.0, 2500], [53.0, 2300], [36.0, 2400], [49.0, 2000], [33.0, 2600], [53.0, 2200], [21.0, 950], [44.0, 1750], [59.0, 3300], [36.0, 1850], [48.0, 2600], [14.5, 1300], [36.0, 2100], [40.0, 1600], [38.0, 1900], [49.0, 3000], [42.0, 2500], [32.0, 2300], [70.0, 2500], [70.0, 2600], [32.0, 2000], [52.0, 1900], [35.0, 1500], [43.0, 2000], [25.0, 2400], [52.0, 2200], [37.0, 2300], [43.0, 2000], [50.0, 2400], [42.0, 2500], [17.0, 1300], [22.1, 1600], [47.0, 2600], [50.0, 2200], [48.0, 1700], [32.0, 2800], [47.6, 2000], [47.0, 1700], [28.0, 2600], [40.0, 1900], [49.0, 2200], [37.0, 1200], [47.0, 2400], [45.0, 3000], [33.0, 2500], [54.0, 2200], [28.0, 2000], [51.0, 2100], [48.0, 2500], [47.0, 2000], [36.0, 2200], [52.0, 3800], [52.0, 1800], [46.0, 2650], [30.0, 2100], [24.0, 2500], [35.0, 2300], [38.0, 2000], [50.0, 2800], [52.0, 3000], [29.0, 1990], [40.0, 3500], [28.0, 1600], [35.0, 2200], [34.0, 2500], [34.0, 2200], [38.0, 2200], [32.0, 1900], [40.0, 2300], [45.0, 1900], [42.0, 2500], [44.0, 2800], [50.0, 2000], [49.2, 2600], [37.0, 2800], [48.0, 1500], [37.0, 2750], [20.0, 1600], [50.0, 2300], [32.3, 2500], [28.0, 1500], [28.0, 2650], [60.0, 2500], [55.0, 2700], [37.0, 1700], [34.0, 2300], [44.0, 2200], [46.0, 3280], [34.0, 2400], [36.0, 2800], [53.0, 3700], [43.6, 2400], [29.0, 2200], [58.0, 3000], [42.0, 1500], [38.5, 2500], [48.0, 1800], [44.0, 3200], [38.0, 2100], [30.0, 2200], [64.0, 2500], [35.0, 2200], [91.0, 2200], [34.0, 2500], [16.0, 1800], [40.0, 2400], [72.0, 2200], [48.0, 1800], [52.0, 3800], [18.0, 1600], [28.0, 1950], [46.0, 2000], [52.0, 3200], [34.0, 1750], [49.0, 1800], [48.0, 2700], [65.0, 2290], [49.0, 1550], [28.0, 2000], [46.0, 2800], [35.0, 2700], [36.0, 1650], [37.0, 2200], [46.0, 2500], [46.7, 2100], [32.0, 1700], [38.4, 1750], [38.0, 1900], [35.0, 1600], [57.0, 3000], [56.0, 2550], [57.0, 4200], [33.0, 2200], [50.0, 1630], [36.0, 1640], [31.0, 2000], [47.0, 2200], [38.0, 1700], [42.0, 2700], [50.0, 2500], [45.0, 2600], [42.0, 1800], [43.6, 1900], [10.0, 2300], [31.0, 1720], [45.5, 2000], [49.0, 2400], [27.0, 2000], [58.0, 2100], [27.0, 1200], [42.0, 2000], [55.0, 3150], [46.0, 2600], [41.0, 1800], [25.0, 1500], [43.0, 1900], [43.0, 3000], [47.9, 1500], [46.5, 1900], [48.0, 2300], [36.0, 1750], [48.0, 2500], [60.0, 2200], [48.0, 2000], [57.0, 2500], [35.0, 2500], [50.0, 2000], [31.3, 2300], [36.3, 2300], [45.0, 1900], [55.0, 2850], [34.0, 1700], [24.0, 2500], [43.0, 2600], [62.0, 3600], [57.4, 2900], [35.0, 2550], [48.0, 2400], [51.0, 2400], [32.5, 1800], [38.0, 2100], [44.0, 2650], [40.0, 2400], [57.5, 3700], [27.0, 2000], [44.0, 2300], [54.0, 3950], [60.0, 2000], [45.0, 2600], [48.0, 1950], [33.0, 1300], [53.0, 3200], [48.0, 2400], [36.0, 1700], [47.0, 2500], [32.0, 2100], [47.0, 3000], [38.0, 1600], [42.5, 2400], [37.2, 2500], [33.0, 2000], [37.0, 2400], [40.0, 2400], [47.9, 3000], [55.0, 2100], [99.0, 3000], [55.0, 1900], [47.0, 2270], [22.0, 2100], [56.0, 2300], [48.0, 2500], [27.5, 1970], [21.0, 1000], [21.0, 1600], [47.0, 2700], [48.0, 1470], [58.0, 1800], [43.0, 2600], [64.0, 2000], [39.0, 2100], [46.0, 2000], [50.0, 2200], [48.0, 2400], [52.0, 2500], [25.0, 1800], [40.0, 2300], [54.0, 2100], [36.6, 2150], [35.0, 1500], [52.0, 2600], [45.0, 2400], [40.0, 2500], [50.0, 1800], [61.4, 4100], [43.0, 1500], [27.0, 1650], [26.0, 2000], [54.0, 3500], [27.0, 2000], [40.0, 2000], [46.8, 2800], [37.0, 2000], [44.7, 2200], [16.0, 1650], [58.0, 2300], [29.5, 2500], [38.0, 2500], [36.0, 2600], [30.0, 1750], [48.0, 2100], [43.0, 2500], [70.0, 2650], [70.0, 3300], [59.0, 3400], [30.0, 2200], [72.0, 3000], [40.0, 2000], [42.0, 2200], [45.0, 2300], [39.0, 2000], [37.0, 2300], [46.0, 3000], [33.0, 2300], [22.0, 2000], [48.0, 2400], [68.0, 2800], [74.0, 2000], [20.0, 2200], [27.0, 1800], [43.1, 1650], [34.0, 2000], [60.0, 2300], [32.0, 2000], [47.0, 1900], [55.0, 2200], [41.0, 2200], [34.0, 1600], [65.0, 3200], [24.0, 1500], [29.0, 2500], [44.0, 2900], [30.0, 2400], [47.5, 2500], [30.0, 1700], [37.0, 2700], [61.0, 2800], [43.2, 2400], [39.0, 2300], [22.0, 1800], [44.0, 2950], [54.0, 2500], [28.0, 2000], [43.0, 2200], [60.0, 1600], [56.0, 4700], [26.0, 1800], [40.0, 2300], [37.0, 2200], [45.0, 2800], [36.0, 2900], [40.0, 2350], [25.0, 2000], [18.0, 2700], [38.0, 2000], [56.0, 2300], [34.0, 2450], [50.0, 2200], [50.0, 2500], [37.0, 2500], [62.0, 1900], [52.0, 3200], [44.0, 1800], [50.0, 2250], [47.0, 2300], [34.0, 2000], [48.0, 2400], [49.0, 1900], [25.0, 1900], [29.0, 2150], [36.0, 2700], [51.0, 3000], [53.5, 3100], [49.0, 1800], [52.3, 3200], [38.0, 1800], [31.0, 1800], [8.0, 2000], [58.0, 2250], [64.0, 3000], [60.0, 2600], [35.0, 2200], [33.0, 2600], [12.0, 3100], [30.0, 2099], [32.0, 2200], [66.0, 3000], [48.0, 2200], [54.0, 2200], [39.5, 2300], [53.0, 1999], [40.0, 2700], [57.4, 2900], [48.0, 2650], [38.0, 1500], [50.0, 1580], [49.0, 2400], [50.0, 2750], [42.0, 3500], [8.0, 2000], [48.0, 2200], [40.0, 2950], [40.0, 2050], [39.0, 2400], [34.0, 2400], [43.0, 2900], [52.0, 1950], [37.0, 2400], [46.0, 2600], [26.0, 2300], [33.0, 2200], [22.0, 1600], [49.0, 2000], [50.0, 2400], [50.0, 2600], [35.6, 2300], [72.0, 2900], [20.5, 2100], [16.2, 2150], [28.0, 2200], [30.0, 1700], [60.0, 2500], [48.0, 2000], [38.0, 1700], [35.0, 1500], [27.0, 2000], [29.0, 2200], [28.0, 2000], [38.0, 1890], [48.0, 1900], [46.0, 2200], [43.0, 2200], [50.7, 1165], [42.0, 2800], [60.0, 3300], [37.0, 2000], [40.0, 2400], [46.0, 2500], [32.0, 2100], [40.0, 2950], [37.0, 2300], [53.2, 2000], [49.1, 1800], [39.5, 2499], [52.0, 1500], [61.0, 2200], [37.0, 1790], [24.9, 1600], [20.0, 1400], [48.0, 1750], [36.0, 2000], [31.0, 1800], [36.0, 2000], [50.0, 2500], [39.0, 1900], [45.0, 2000], [19.0, 1650], [40.0, 2200], [53.0, 2400], [33.0, 2550], [52.0, 2600], [55.0, 2000], [34.0, 2400], [50.0, 2300], [70.0, 4200], [55.0, 2400], [32.0, 1720], [33.0, 1900], [40.0, 1700], [38.0, 2000], [27.0, 1350], [41.0, 2500], [60.0, 3100], [33.0, 2200], [48.0, 2480], [29.0, 2500], [29.0, 1900], [45.0, 2850], [33.5, 1650], [45.0, 2300], [17.0, 1600], [43.0, 2450], [54.0, 2500], [27.0, 1700], [60.0, 2200], [50.0, 2700], [40.0, 1800], [33.0, 1800], [25.0, 2200], [43.0, 2000], [56.0, 2500], [50.0, 3600], [35.0, 2990], [36.0, 2200], [42.0, 2050], [40.0, 3500], [48.0, 2200], [46.0, 2400], [29.0, 1900], [25.0, 1300], [37.6, 2000], [53.0, 3000], [50.0, 2299], [60.0, 2700], [36.0, 1800], [31.0, 2000], [37.0, 2500], [49.0, 2500], [30.0, 1800], [42.0, 2400], [52.0, 2300], [58.0, 3200], [38.0, 2000], [49.0, 1900], [50.0, 1500], [40.0, 2300], [68.0, 2700], [56.0, 2200], [14.0, 2200], [30.0, 2100], [44.0, 2900], [43.0, 2450], [25.0, 1800]], "districts": [{"name": "Stare Miasto", "count": 30, "median_price": 2325, "median_area": 40.0, "median_ppm": 64.5}, {"name": "Węglin", "count": 24, "median_price": 2400, "median_area": 38.4, "median_ppm": 59.0}, {"name": "Tatary", "count": 6, "median_price": 2000, "median_area": 34.0, "median_ppm": 58.7}, {"name": "Sławinek", "count": 7, "median_price": 2300, "median_area": 42.0, "median_ppm": 57.5}, {"name": "Wrotków", "count": 20, "median_price": 2400, "median_area": 40.0, "median_ppm": 55.9}, {"name": "Wieniawa", "count": 29, "median_price": 2000, "median_area": 40.0, "median_ppm": 55.0}, {"name": "Felin", "count": 16, "median_price": 2500, "median_area": 48.0, "median_ppm": 54.2}, {"name": "Dziesiąta", "count": 13, "median_price": 2400, "median_area": 48.0, "median_ppm": 53.8}, {"name": "Czechów", "count": 62, "median_price": 2500, "median_area": 48.0, "median_ppm": 53.3}, {"name": "Ponikwoda", "count": 8, "median_price": 2900, "median_area": 57.5, "median_ppm": 51.9}, {"name": "LSM", "count": 81, "median_price": 2000, "median_area": 39.0, "median_ppm": 51.3}, {"name": "Kalinowszczyzna", "count": 23, "median_price": 2100, "median_area": 39.0, "median_ppm": 50.0}, {"name": "Czuby", "count": 51, "median_price": 2200, "median_area": 44.0, "median_ppm": 50.0}, {"name": "Śródmieście", "count": 14, "median_price": 2425, "median_area": 43.5, "median_ppm": 49.5}, {"name": "Bronowice", "count": 19, "median_price": 2300, "median_area": 47.0, "median_ppm": 47.8}, {"name": "Sławin", "count": 20, "median_price": 2250, "median_area": 48.5, "median_ppm": 47.1}, {"name": "Rury", "count": 6, "median_price": 2335, "median_area": 47.5, "median_ppm": 45.7}], "heatmap": {"districts": ["LSM", "Czechów", "Czuby", "Stare Miasto", "Wieniawa", "Węglin", "Kalinowszczyzna", "Wrotków"], "brackets": ["do 25 m²", "25–35 m²", "35–45 m²", "45–55 m²", "55–70 m²", "70–90 m²", "90 m²+"], "ppm": [[110.0, 62.3, 51.8, 45.7, 41.1, 35.7, null], [98.3, 77.4, 64.9, 53.2, 41.5, 31.1, null], [88.2, 61.8, 50.0, 48.0, 38.3, null, null], [143.7, 80.0, 62.5, 44.0, null, null, null], [null, 65.0, 54.1, 41.7, 40.2, null, null], [null, 78.3, 61.8, 50.3, 39.7, null, null], [null, 64.5, 53.8, 42.7, 39.7, null, null], [null, 73.5, 60.8, 47.7, null, null, null]]}, "trend": [{"month": "2026-04", "count": 316, "median_price": 2200, "median_ppm": 54.5}, {"month": "2026-05", "count": 410, "median_price": 2300, "median_ppm": 55.0}, {"month": "2026-06", "count": 230, "median_price": 2300, "median_ppm": 55.0}], "rooms": [{"rooms": 1, "count": 10, "median_price": 2300, "median_area": 32.5, "median_ppm": 64.2}, {"rooms": 2, "count": 304, "median_price": 2300, "median_area": 42.5, "median_ppm": 53.3}, {"rooms": 3, "count": 119, "median_price": 2600, "median_area": 56.0, "median_ppm": 45.0}, {"rooms": 4, "count": 15, "median_price": 3050, "median_area": 68.0, "median_ppm": 47.6}, {"rooms": 5, "count": 1, "median_price": 3000, "median_area": 90.0, "median_ppm": 33.3}]};
+const PLN = n => (n==null?'—':Math.round(n).toLocaleString('pl-PL')+' zł');
+const PPM = n => (n==null?'—':(Math.round(n*10)/10).toLocaleString('pl-PL')+' zł/m²');
+function el(id){return document.getElementById(id);}
+function cssVar(n,f){const v=getComputedStyle(document.body).getPropertyValue(n).trim();return v||f;}
+const RAMP=['#00c853','#64dd17','#aeea00','#ffd600','#ffab00','#ff6f00','#ff3d00','#d50000','#c51162','#aa00ff','#7c4dff','#6200ea','#311b92'];
+function rampFor(vals){const mn=Math.min(...vals),mx=Math.max(...vals);return vals.map(v=>{const t=mx===mn?0.5:(v-mn)/(mx-mn);return RAMP[Math.round(t*(RAMP.length-1))];});}
+
+function chBrackets(id,key){const c=el(id);if(!c)return;const L=S.area_brackets.map(b=>b.label);
+ const v=S.area_brackets.map(b=>b[key||'median_ppm']);
+ new Chart(c,{type:'bar',data:{labels:L,datasets:[{data:v,backgroundColor:rampFor(v),borderRadius:6}]},
+  options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>(key==='median_price'?PLN(i.raw):PPM(i.raw))}}},
+   scales:{y:{beginAtZero:true,grid:{color:'rgba(128,128,128,.12)'}},x:{grid:{display:false}}}}});}
+
+function chBracketsCount(id){const c=el(id);if(!c)return;
+ new Chart(c,{type:'bar',data:{labels:S.area_brackets.map(b=>b.label),datasets:[{data:S.area_brackets.map(b=>b.count),
+  backgroundColor:cssVar('--accent','#667eea'),borderRadius:6}]},
+  options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(128,128,128,.12)'}},y:{grid:{display:false}}}}});}
+
+function chPpmHist(id){const c=el(id);if(!c)return;
+ new Chart(c,{type:'bar',data:{labels:S.ppm_hist.labels,datasets:[{data:S.ppm_hist.counts,
+  backgroundColor:cssVar('--accent','#667eea'),borderRadius:3}]},
+  options:{plugins:{legend:{display:false},tooltip:{callbacks:{title:i=>i[0].label+' zł/m²'}}},
+   scales:{y:{beginAtZero:true,grid:{color:'rgba(128,128,128,.12)'}},x:{grid:{display:false}}}}});}
+
+function chScatter(id){const c=el(id);if(!c)return;
+ new Chart(c,{type:'scatter',data:{datasets:[{data:S.scatter.map(p=>({x:p[0],y:p[1]})),
+  backgroundColor:'rgba(102,126,234,.45)',pointRadius:3}]},
+  options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>i.raw.x+' m² · '+PLN(i.raw.y)}}},
+   scales:{x:{title:{display:true,text:'Powierzchnia (m²)'},grid:{color:'rgba(128,128,128,.1)'}},
+           y:{title:{display:true,text:'Cena (zł)'},grid:{color:'rgba(128,128,128,.1)'}}}}});}
+
+function chDistricts(id,key,n){const c=el(id);if(!c)return;const D=S.districts.slice(0,n||12);
+ const v=D.map(d=>d[key||'median_ppm']);
+ new Chart(c,{type:'bar',data:{labels:D.map(d=>d.name),datasets:[{data:v,backgroundColor:rampFor(v),borderRadius:5}]},
+  options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:i=>(key==='median_price'?PLN(i.raw):PPM(i.raw))}}},
+   scales:{x:{grid:{color:'rgba(128,128,128,.12)'}},y:{grid:{display:false}}}}});}
+
+function chTrend(id){const c=el(id);if(!c)return;
+ new Chart(c,{type:'line',data:{labels:S.trend.map(t=>t.month),datasets:[
+   {label:'Mediana zł/m²',data:S.trend.map(t=>t.median_ppm),borderColor:'#667eea',backgroundColor:'rgba(102,126,234,.15)',fill:true,tension:.3,yAxisID:'y'},
+   {label:'Mediana ceny',data:S.trend.map(t=>t.median_price),borderColor:'#f59e0b',tension:.3,yAxisID:'y1'}]},
+  options:{plugins:{legend:{position:'bottom'}},scales:{y:{position:'left',grid:{color:'rgba(128,128,128,.1)'}},
+   y1:{position:'right',grid:{display:false}}}}});}
+
+function chRooms(id){const c=el(id);if(!c)return;
+ new Chart(c,{type:'bar',data:{labels:S.rooms.map(r=>r.rooms+' pok.'),datasets:[
+   {label:'Mediana ceny',data:S.rooms.map(r=>r.median_price),backgroundColor:'#667eea',borderRadius:5,yAxisID:'y'},
+   {label:'zł/m²',data:S.rooms.map(r=>r.median_ppm),backgroundColor:'#f59e0b',borderRadius:5,yAxisID:'y1'}]},
+  options:{plugins:{legend:{position:'bottom'}},scales:{y:{position:'left',beginAtZero:true},y1:{position:'right',grid:{display:false}}}}});}
+
+function chRadarDistricts(id){const c=el(id);if(!c)return;const D=S.districts.slice(0,7);
+ new Chart(c,{type:'radar',data:{labels:D.map(d=>d.name),datasets:[{label:'zł/m²',data:D.map(d=>d.median_ppm),
+  borderColor:'#667eea',backgroundColor:'rgba(102,126,234,.25)'}]},options:{plugins:{legend:{display:false}}}});}
+
+function chDoughnutBrackets(id){const c=el(id);if(!c)return;
+ new Chart(c,{type:'doughnut',data:{labels:S.area_brackets.map(b=>b.label),datasets:[{data:S.area_brackets.map(b=>b.count),
+  backgroundColor:RAMP.slice(0,S.area_brackets.length)}]},options:{plugins:{legend:{position:'right'}}}});}
+
+// HTML heatmapa dzielnica × przedział (mediana zł/m²)
+function renderHeatmap(id){const box=el(id);if(!box)return;const H=S.heatmap;
+ let all=[];H.ppm.forEach(r=>r.forEach(v=>{if(v!=null)all.push(v);}));
+ const mn=Math.min(...all),mx=Math.max(...all);
+ const col=v=>{if(v==null)return 'background:#eee;color:#bbb';const t=(v-mn)/(mx-mn||1);
+   const r=Math.round(40+t*200),g=Math.round(180-t*150),b=Math.round(120-t*80);
+   return `background:rgb(${r},${g},${b});color:${t>.55?'#fff':'#222'}`;};
+ let h='<table class="hm"><thead><tr><th></th>'+H.brackets.map(b=>'<th>'+b+'</th>').join('')+'</tr></thead><tbody>';
+ H.districts.forEach((d,i)=>{h+='<tr><th>'+d+'</th>'+H.ppm[i].map(v=>`<td style="${col(v)}">${v==null?'·':Math.round(v)}</td>`).join('')+'</tr>';});
+ h+='</tbody></table>';box.innerHTML=h;}
+
+// Tabela przedziałów
+function renderBracketTable(id){const t=el(id);if(!t)return;
+ t.innerHTML='<table class="tbl"><thead><tr><th>Metraż</th><th>Ofert</th><th>Mediana</th><th>zł/m²</th><th>Zakres (25–75%)</th></tr></thead><tbody>'+
+ S.area_brackets.map(b=>`<tr><td><b>${b.label}</b></td><td>${b.count}</td><td>${PLN(b.median_price)}</td><td>${PPM(b.median_ppm)}</td><td>${PLN(b.p25_price)} – ${PLN(b.p75_price)}</td></tr>`).join('')+'</tbody></table>';}
+
+// Tabela dzielnic
+function renderDistrictTable(id,n){const t=el(id);if(!t)return;
+ t.innerHTML='<table class="tbl"><thead><tr><th>Dzielnica</th><th>Ofert</th><th>Mediana</th><th>śr. m²</th><th>zł/m²</th></tr></thead><tbody>'+
+ S.districts.slice(0,n||20).map(d=>`<tr><td><b>${d.name}</b></td><td>${d.count}</td><td>${PLN(d.median_price)}</td><td>${d.median_area} m²</td><td>${PPM(d.median_ppm)}</td></tr>`).join('')+'</tbody></table>';}
+
+// Kalkulator: wpisz metraż -> szacowana cena (z mediany zł/m² najbliższego przedziału)
+function initCalc(areaId,distId,outId,ppmId){const a=el(areaId);if(!a)return;
+ const d=distId?el(distId):null;
+ if(d){d.innerHTML='<option value="">— cały rynek —</option>'+S.districts.map(x=>`<option value="${x.median_ppm}">${x.name} (${PPM(x.median_ppm)})</option>`).join('');}
+ function calc(){const area=parseFloat(a.value)||0;let ppm;
+   if(d&&d.value){ppm=parseFloat(d.value);}else{const b=S.area_brackets.find(b=>area>=b.min&&area<b.max)||S.area_brackets[S.area_brackets.length-1];ppm=b.median_ppm;}
+   if(el(ppmId))el(ppmId).textContent=PPM(ppm);
+   if(el(outId))el(outId).textContent=area?PLN(area*ppm):'—';}
+ a.addEventListener('input',calc);if(d)d.addEventListener('change',calc);calc();}
+</script>
+<script>Chart.defaults.color='#94a3b8';chBrackets('c1');chDistricts('c5','median_ppm',8);chPpmHist('c3');
+function tick(){el('clk').textContent=new Date().toLocaleString('pl-PL');}tick();setInterval(tick,1000);</script>
+</body></html>
