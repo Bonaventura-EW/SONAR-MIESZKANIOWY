@@ -57,15 +57,17 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
   ostrzeżenia. Ścieżka do bazy z `paths.py` zamiast względnej zależnej od CWD.
 
 ### Dodane
-- **20 mockupów nowej podstrony „Analiza cen wg metrażu"** (`docs/mockups/`).
-  Podstrona analizuje treść ogłoszeń (ekstrakcja metrażu m² i liczby pokoi
-  regexem z opisów), liczy cenę za m², przedziały cenowe wg metrażu, podział
-  na dzielnice, mapę cieplną dzielnica×metraż, korelację powierzchnia-cena,
-  trend zł/m² w czasie i kalkulator szacowanego czynszu. Statystyki liczone z
-  pełnej historii (`compute_stats.py` → `stats.json`, 956/1526 ofert = 63%
-  pokrycia metrażem). 20 wariantów wizualnych do wyboru + galeria `index.html`.
-  Generowane przez `docs/mockups/generate.py`. **Status: poglądowe mockupy**,
-  jeszcze niewpięte w nawigację serwisu.
+- **Nowa podstrona „Analiza cen wg metrażu"** (`docs/analiza_metraz.html`).
+  Analizuje treść ogłoszeń: cena za m², przedziały cenowe wg metrażu, podział
+  na dzielnice, mapa cieplna dzielnica×metraż, korelacja powierzchnia-cena,
+  trend zł/m² w czasie, rozkład stawek i zestawienia tabelaryczne. Dostępna z
+  nawigacji (mapa + Top 5). Dane liczone z **całej historii** ofert:
+  - `src/area_parser.py` — ekstrakcja metrażu (m²), liczby pokoi i dzielnicy
+    z opisów/adresów (regex + walidacja zakresów). Pokrycie metrażem ~63% bazy.
+  - `src/area_price_generator.py` — agregacja → `docs/area_price_data.json`
+    (zapis atomowy). Wpięty w `scanner.yml` (po `top5_generator`) i commit.
+  - 23 nowe testy (`tests/test_area_parser.py`, `tests/test_area_price_generator.py`);
+    suite 95 → 118.
 
 ### Dodane (audyt 2026-06-12)
 - `concurrency: sonar-scanner` w `scanner.yml` — cron + watchdog + manualny

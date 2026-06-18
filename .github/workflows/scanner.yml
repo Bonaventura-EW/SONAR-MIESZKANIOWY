@@ -88,13 +88,20 @@ jobs:
         run: |
           cd src
           python top5_generator.py || echo "::warning::TOP5 generator failed but continuing..."
-      
+
+      - name: Generate area/price data
+        if: always()
+        continue-on-error: true
+        run: |
+          cd src
+          python area_price_generator.py || echo "::warning::Area/price generator failed but continuing..."
+
       - name: Commit and push changes
         if: always()
         run: |
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git config --global user.name "github-actions[bot]"
-          git add data/ docs/data.json docs/descriptions.json docs/monitoring_data.json docs/api/ docs/skipped_debug.html docs/top5_data.json || true
+          git add data/ docs/data.json docs/descriptions.json docs/monitoring_data.json docs/api/ docs/skipped_debug.html docs/top5_data.json docs/area_price_data.json || true
           
           if git diff --staged --quiet; then
             echo "No changes to commit"
