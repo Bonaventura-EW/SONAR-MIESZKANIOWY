@@ -10,6 +10,8 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+## [2026-06-18]
+
 ### Naprawione (audyt 2026-06-12)
 - **`geocoder.py`: limit `MAX_NEW_GEOCODES` faktycznie działa.** Flaga
   `_geocoding_limited` była ustawiana w `main.py`, ale geocoder nigdy jej nie
