@@ -1,49 +1,64 @@
 {
   "system": "sonar",
   "version": "1.0.0",
-  "generatedAt": "2026-06-21T09:14:18.354161+02:00",
+  "generatedAt": "2026-06-21T12:49:45.413228+02:00",
   "status": {
-    "current": "operational",
+    "current": "degraded",
     "isHealthy": true,
-    "hasErrors": false,
-    "errorMessages": []
+    "hasErrors": true,
+    "errorMessages": [
+      "Scraper zwrócił 0 ofert (baza: 542 aktywnych) — prawdopodobna blokada OLX/Cloudflare. Dezaktywacja pominięta."
+    ]
   },
   "notification": {
-    "title": "✅ Skan 09:12 — +2 nowe / -2 znikły",
-    "body": "Pojawiło się 2 nowych, znikło 2 ofert mieszkań w Lublinie"
+    "title": "⚠️ Skan 12:49 — zakończony z ostrzeżeniami",
+    "body": "Scraper zwrócił 0 ofert (baza: 542 aktywnych) — prawdopodobna blokada OLX/Cloudflare. Dezaktywacja pominięta."
   },
   "lastScan": {
-    "id": "2026-06-21T09-12-17",
-    "timestamp": "2026-06-21T09:12:17.762260+02:00",
-    "endTimestamp": "2026-06-21T09:14:17.069157+02:00",
-    "durationSeconds": 119.31,
-    "durationFormatted": "1m 59s",
-    "uiStatus": "success",
+    "id": "2026-06-21T12-49-00",
+    "timestamp": "2026-06-21T12:49:00.012795+02:00",
+    "endTimestamp": "2026-06-21T12:49:00.143424+02:00",
+    "durationSeconds": 0.13,
+    "durationFormatted": "0s",
+    "uiStatus": "warning",
     "rawStatus": "completed",
-    "scanTimeFormatted": "09:12",
-    "failureReason": null,
+    "scanTimeFormatted": "12:49",
+    "failureReason": "Scraper zwrócił 0 ofert (baza: 542 aktywnych) — prawdopodobna blokada OLX/Cloudflare. Dezaktywacja pominięta.",
     "notification": {
-      "title": "✅ Skan 09:12 — +2 nowe / -2 znikły",
-      "body": "Pojawiło się 2 nowych, znikło 2 ofert mieszkań w Lublinie"
+      "title": "⚠️ Skan 12:49 — zakończony z ostrzeżeniami",
+      "body": "Scraper zwrócił 0 ofert (baza: 542 aktywnych) — prawdopodobna blokada OLX/Cloudflare. Dezaktywacja pominięta."
     },
     "offers": {
-      "found": 564,
-      "processed": 494,
-      "new": 2,
-      "disappeared": 2,
-      "updated": 492,
+      "found": 0,
+      "processed": 0,
+      "new": 0,
+      "disappeared": 0,
+      "updated": 0,
       "active": 542,
       "inactive": 1029
     },
     "skipped": {
-      "noAddress": 25,
-      "noCoords": 1,
-      "duplicates": 44
+      "noAddress": 0,
+      "noCoords": 0,
+      "duplicates": 0
     },
-    "errors": [],
-    "hasErrors": false
+    "errors": [
+      {
+        "message": "Scraper zwrócił 0 ofert (baza: 542 aktywnych) — prawdopodobna blokada OLX/Cloudflare. Dezaktywacja pominięta.",
+        "timestamp": "2026-06-21T12:49:00.077036+02:00"
+      }
+    ],
+    "hasErrors": true
   },
   "recentScans": [
+    {
+      "id": "2026-06-21T12-49-00",
+      "scanTimeFormatted": "12:49",
+      "uiStatus": "warning",
+      "newOffers": 0,
+      "disappearedOffers": 0,
+      "hasErrors": true
+    },
     {
       "id": "2026-06-21T09-12-17",
       "scanTimeFormatted": "09:12",
@@ -83,14 +98,6 @@
       "newOffers": 1,
       "disappearedOffers": 1,
       "hasErrors": false
-    },
-    {
-      "id": "2026-06-19T22-48-40",
-      "scanTimeFormatted": "22:48",
-      "uiStatus": "success",
-      "newOffers": 6,
-      "disappearedOffers": 6,
-      "hasErrors": false
     }
   ],
   "schedule": {
@@ -100,12 +107,12 @@
       "21:17"
     ],
     "timezone": "Europe/Warsaw",
-    "nextScanAt": "2026-06-21T09:17:00+02:00"
+    "nextScanAt": "2026-06-21T15:17:00+02:00"
   },
   "statistics": {
     "totalScans": 100,
     "successRate": 100.0,
-    "avgDurationSeconds": 123.59,
-    "avgOffersFound": 514.3
+    "avgDurationSeconds": 122.14,
+    "avgOffersFound": 508.9
   }
 }
