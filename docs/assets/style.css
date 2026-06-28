@@ -704,65 +704,6 @@ body {
     }
 }
 
-/* ════════════════════════════════════════════════════════════════
-   OPTYMALIZACJA MARKERÓW — klasy zamiast inline style
-   ════════════════════════════════════════════════════════════════ */
-
-/* Wrapper pinezki — position:relative tylko tu, nie w każdym div */
-.pin-wrap,
-.square-wrap {
-    position: relative;
-    display: inline-block;
-}
-
-/* SVG pinezki — stały rozmiar, will-change informuje GPU o animacji */
-.pin-svg {
-    width: 40px;
-    height: 50px;
-    display: block;
-    /* drop-shadow przeniesiony do SVG <filter> współdzielonego przez wszystkie markery */
-    will-change: transform;
-}
-
-.square-svg {
-    width: 36px;
-    height: 36px;
-    display: block;
-    /* drop-shadow przeniesiony do SVG <filter> współdzielonego przez wszystkie markery */
-    will-change: transform;
-}
-
-/* Badge na markerze — wspólna baza */
-.marker-badge {
-    position: absolute;
-    top: -6px;
-    right: -6px;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    border: 2px solid white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 10px;
-    font-weight: 700;
-    color: white;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
-    z-index: 1000;
-    line-height: 1;
-}
-
-.marker-badge--new  { background: #ef4444; }
-.marker-badge--down { background: #22c55e; font-size: 11px; }
-.marker-badge--up   { background: #ef4444; font-size: 11px; }
-
-/* Leaflet: wyłącz domyślny pointer-events na divIcon className */
-.pin-marker,
-.square-marker {
-    background: none !important;
-    border: none !important;
-}
-
 /* Pill zakres cenowy w legendzie */
 .price-dot {
     display: inline-block;

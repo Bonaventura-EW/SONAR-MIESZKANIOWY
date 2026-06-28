@@ -24,6 +24,10 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
   Efekt: płynny pan/zoom i filtrowanie przy ~1500 ofertach, bez klastrowania.
   Zachowane bez zmian: lazy popup, debounce filtrów, wszystkie warstwy/filtry,
   suwak dni, wyszukiwarka, deep-link `?offer=`, statystyki i escapowanie XSS.
+- **Sprzątnięcie martwego CSS po `divIcon`.** Usunięto z `assets/style.css`
+  nieużywane już klasy markerów (`.pin-wrap`, `.square-wrap`, `.pin-svg`,
+  `.square-svg`, `.marker-badge*`, `.pin-marker`, `.square-marker`) — markery
+  rysuje teraz canvas, więc nic ich nie referuje. Bump `style.css?v=2` → `v=3`.
 
 ## [2026-06-18]
 
