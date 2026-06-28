@@ -2,7 +2,10 @@
 // Kluczowe zmiany wydajnościowe:
 // 1. Lazy popup — HTML generowany przy pierwszym kliknięciu, nie przy tworzeniu markera
 // 2. Debounce filtrów — filterMarkers() wywołuje się max raz na 120ms
-// 3. Uproszczone SVG ikon — mniej węzłów DOM na marker
+// 3. RENDER NA CANVAS — wszystkie pinezki rysowane na JEDNYM <canvas> (L.canvas),
+//    zamiast ~1500 węzłów DOM (L.divIcon). Markery to kształty wektorowe
+//    (rozszerzenia L.CircleMarker) na wspólnym rendererze. Patrz sekcja
+//    "MARKERY NA CANVAS". Płynny pan/zoom i filtrowanie bez klastrowania.
 // 4. Tile layer z updateWhenIdle + keepBuffer dla płynniejszego przewijania
 // 5. Cache wartości filtrów w filterMarkers() — jeden odczyt DOM zamiast wielu
 
@@ -53,6 +56,10 @@ let markerLayers = {
     approxInactive: L.layerGroup()
 };
 
+// Wspólny renderer canvas dla WSZYSTKICH markerów — jeden <canvas>, jeden „paint".
+// padding: 0.5 = canvas obejmuje viewport + 50% z każdej strony (bufor na pan).
+const canvasRenderer = L.canvas({ padding: 0.5 });
+
 let dateSliderState = {
     enabled: false, days: [], countsPerDay: {}, selectedIndex: -1
 };
@@ -81,6 +88,10 @@ function initMap() {
         updateWhenIdle: true,
         keepBuffer: 2
     }).addTo(map);
+    // Renderer canvas musi być na mapie zanim dodamy markery (wszystkie współdzielą
+    // ten sam <canvas>). getRenderer() i tak dodałby go automatycznie, ale robimy
+    // to jawnie, by uniknąć przypadków brzegowych z kolejnością warstw.
+    canvasRenderer.addTo(map);
     markerLayers.active.addTo(map);
     markerLayers.approx.addTo(map);
     // markerLayers.inactive NIE dodajemy — domyślnie ukryta (checkbox odznaczony)
@@ -116,42 +127,136 @@ async function loadData() {
     }
 }
 
-// ─────────────────────── IKONY MARKERÓW ──────────────────────────────────────
+// ─────────────────────── MARKERY NA CANVAS ───────────────────────────────────
+//
+// `preferCanvas: true` w Leaflet działa TYLKO dla warstw wektorowych (L.Path /
+// L.CircleMarker), a NIE dla L.marker/divIcon. Dlatego markery to własne kształty
+// wektorowe — rozszerzenia L.CircleMarker — którym jawnie przekazujemy wspólny
+// `renderer: canvasRenderer`. Każda klasa nadpisuje trzy metody Leafletu:
+//   _updatePath()    — RYSOWANIE kształtu na ctx (kropla / kwadrat + nakładki)
+//   _updateBounds()  — prostokąt w pikselach (culling + trafienia)
+//   _containsPoint() — POLE KLIKALNE (popup) — liczone ręcznie, brak węzłów DOM
+// WAŻNE: kształt (_updatePath) i pole trafienia (_containsPoint) to DWIE osobne
+// rzeczy — zmieniając rozmiar kształtu zaktualizuj OBA, inaczej popup się rozjedzie.
 
-// Współdzielona definicja SVG filtra — wstrzyknięta raz do DOM, używana przez wszystkie piny
-const SVG_DEFS = '<defs><filter id="ps" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="rgba(0,0,0,0.30)"/></filter></defs>';
-
-function buildPinIcon(color, strokeColor, strokeWidth, badges, isActive = true) {
-    const { isNew, priceDown, priceUp } = badges;
-    let badge = '';
-    if (priceDown)      badge = '<div class="marker-badge marker-badge--down">📉</div>';
-    else if (priceUp)   badge = '<div class="marker-badge marker-badge--up">📈</div>';
-    else if (isNew)     badge = '<div class="marker-badge marker-badge--new">N</div>';
-    const inner = isActive
-        ? `<circle cx="20" cy="18" r="8" fill="white" fill-opacity="0.9"/>`
-        : `<circle cx="20" cy="18" r="8" fill="white" fill-opacity="0.9"/><line x1="14" y1="12" x2="26" y2="24" stroke="#555" stroke-width="2.5" stroke-linecap="round"/><line x1="26" y1="12" x2="14" y2="24" stroke="#555" stroke-width="2.5" stroke-linecap="round"/>`;
-    return L.divIcon({
-        className: 'pin-marker',
-        html: `<div class="pin-wrap">${badge}<svg class="pin-svg" viewBox="0 0 40 50" xmlns="http://www.w3.org/2000/svg">${SVG_DEFS}<path d="M20 0C9 0 0 9 0 20c0 15 20 30 20 30s20-15 20-30C40 9 31 0 20 0z" fill="${color}" stroke="${strokeColor}" stroke-width="${strokeWidth}" filter="url(#ps)"/>${inner}</svg></div>`,
-        iconSize: [40, 50], iconAnchor: [20, 50], popupAnchor: [0, -50]
-    });
+// Nakładka: białe kółko w środku kształtu (kontrast); dla nieaktywnej oferty „×".
+function drawInnerGlyph(ctx, cx, cy, r, inactive) {
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.fill();
+    if (inactive) {
+        const d = r * 0.7;
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(cx - d, cy - d); ctx.lineTo(cx + d, cy + d);
+        ctx.moveTo(cx + d, cy - d); ctx.lineTo(cx - d, cy + d);
+        ctx.stroke();
+    }
+    ctx.restore();
 }
 
-function buildSquareIcon(color, badges, isActive = true) {
-    const { isNew, priceDown, priceUp } = (badges && typeof badges === 'object') ? badges : { isNew: badges, priceDown: false, priceUp: false };
-    let badge = '';
-    if (priceDown)    badge = '<div class="marker-badge marker-badge--down">📉</div>';
-    else if (priceUp) badge = '<div class="marker-badge marker-badge--up">📈</div>';
-    else if (isNew)   badge = '<div class="marker-badge marker-badge--new">N</div>';
-    const inner = isActive
-        ? `<circle cx="18" cy="18" r="7" fill="white" fill-opacity="0.85"/><text x="18" y="22" text-anchor="middle" font-size="10" font-weight="bold" fill="${color}" font-family="Arial,sans-serif">~</text>`
-        : `<circle cx="18" cy="18" r="7" fill="white" fill-opacity="0.85"/><line x1="12" y1="12" x2="24" y2="24" stroke="#555" stroke-width="2.5" stroke-linecap="round"/><line x1="24" y1="12" x2="12" y2="24" stroke="#555" stroke-width="2.5" stroke-linecap="round"/>`;
-    return L.divIcon({
-        className: 'square-marker',
-        html: `<div class="square-wrap">${badge}<svg class="square-svg" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">${SVG_DEFS}<rect x="2" y="2" width="32" height="32" rx="7" fill="${color}" stroke="white" stroke-width="2" stroke-dasharray="5 3" filter="url(#ps)"/>${inner}</svg></div>`,
-        iconSize: [36, 36], iconAnchor: [18, 18], popupAnchor: [0, -20]
-    });
+// Nakładka: badge w prawym-górnym rogu. Priorytet ważności:
+//   1) zmiana ceny — kółko ze strzałką ↓ (spadek, zielone) / ↑ (wzrost, czerwone)
+//   2) w innym wypadku oferta NOWA — czerwone kółko z literą „N"
+// (badge „N" tylko gdy NIE ma badge zmiany ceny — jak na starej mapie)
+function drawCornerBadge(ctx, cx, cy, o) {
+    let bg, glyph;
+    if (o.hasPriceChange && (o.priceDown || o.priceUp)) {
+        bg    = o.priceDown ? '#28a745' : '#dc3545';
+        glyph = o.priceDown ? 'down' : 'up';
+    } else if (o.isNewFlag) {
+        bg = '#dc3545'; glyph = 'N';
+    } else {
+        return;
+    }
+    const r = 8;
+    ctx.save();
+    ctx.globalAlpha = 1;
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = 'white'; ctx.stroke();
+    ctx.strokeStyle = 'white'; ctx.fillStyle = 'white';
+    if (glyph === 'N') {
+        ctx.font = 'bold 10px Arial, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('N', cx, cy + 0.5);
+    } else {
+        ctx.lineWidth = 1.6; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.beginPath();
+        if (glyph === 'down') {           // ↓ spadek ceny
+            ctx.moveTo(cx, cy - 4); ctx.lineTo(cx, cy + 3.5);
+            ctx.moveTo(cx - 3, cy + 0.5); ctx.lineTo(cx, cy + 3.5); ctx.lineTo(cx + 3, cy + 0.5);
+        } else {                          // ↑ wzrost ceny
+            ctx.moveTo(cx, cy + 4); ctx.lineTo(cx, cy - 3.5);
+            ctx.moveTo(cx - 3, cy - 0.5); ctx.lineTo(cx, cy - 3.5); ctx.lineTo(cx + 3, cy - 0.5);
+        }
+        ctx.stroke();
+    }
+    ctx.restore();
 }
+
+// PinMarker — KROPLA 40×50 px. Ostrze kropli wskazuje DOKŁADNE współrzędne (tip = _point).
+// Dla ofert z dokładnym adresem (has_number !== false).
+const PinMarker = L.CircleMarker.extend({
+    _updatePath: function () {
+        const r = this._renderer;
+        // r._drawing — rysuj tylko w pętli malowania; _empty() — culling poza widokiem
+        if (!r._drawing || this._empty()) return;
+        const ctx = r._ctx, p = this._point, x = p.x, y = p.y, o = this.options;
+        // Kontur kropli (ostrze w x,y), bezier ×4 — port ścieżki SVG ze starej mapy
+        ctx.beginPath();
+        ctx.moveTo(x, y - 50);
+        ctx.bezierCurveTo(x - 11, y - 50, x - 20, y - 41, x - 20, y - 30);
+        ctx.bezierCurveTo(x - 20, y - 15, x, y, x, y);
+        ctx.bezierCurveTo(x, y, x + 20, y - 15, x + 20, y - 30);
+        ctx.bezierCurveTo(x + 20, y - 41, x + 11, y - 50, x, y - 50);
+        ctx.closePath();
+        r._fillStroke(ctx, this);                 // fillColor / color / weight z options
+        drawInnerGlyph(ctx, x, y - 30, 8, o.inactive);   // bąbel kropli ~30 px nad ostrzem
+        drawCornerBadge(ctx, x + 14, y - 44, o);
+    },
+    _updateBounds: function () {
+        // Od ostrza w górę (bąbel) + margines na badge w prawym-górnym rogu
+        const p = this._point;
+        this._pxBounds = new L.Bounds(p.add(L.point(-22, -54)), p.add(L.point(24, 4)));
+    },
+    _containsPoint: function (p) {
+        // Klikalny tylko BĄBEL kropli (koło r=19 px ~30 px nad ostrzem); „ogon" nieklikalny
+        const c = this._point.add(L.point(0, -30));
+        const dx = p.x - c.x, dy = p.y - c.y;
+        return dx * dx + dy * dy <= 361;          // 19²
+    }
+});
+
+// SquareMarker — KWADRAT 30×30 px z PRZERYWANĄ ramką (dashArray w options).
+// Środek kwadratu = współrzędne („gdzieś tutaj"). Dla adresów przybliżonych.
+const SquareMarker = L.CircleMarker.extend({
+    _updatePath: function () {
+        const r = this._renderer;
+        if (!r._drawing || this._empty()) return;
+        const ctx = r._ctx, p = this._point, x = p.x, y = p.y, o = this.options;
+        ctx.beginPath();
+        ctx.rect(x - 15, y - 15, 30, 30);
+        r._fillStroke(ctx, this);
+        drawInnerGlyph(ctx, x, y, 7, o.inactive);
+        drawCornerBadge(ctx, x + 15, y - 15, o);
+    },
+    _updateBounds: function () {
+        const p = this._point;
+        this._pxBounds = new L.Bounds(p.add(L.point(-18, -26)), p.add(L.point(26, 18)));
+    },
+    _containsPoint: function (p) {
+        // Kwadrat trafienia ±16 px od środka (nieco większy niż wizualny dla wygody)
+        return Math.abs(p.x - this._point.x) <= 16 && Math.abs(p.y - this._point.y) <= 16;
+    }
+});
 
 // ─────────────────────── TWORZENIE MARKERÓW ──────────────────────────────────
 
@@ -179,8 +284,30 @@ function createMarkers() {
     batches.approx.forEach(m        => markerLayers.approx.addLayer(m));
     batches.approxInactive.forEach(m => markerLayers.approxInactive.addLayer(m));
 
+    restackCanvasOrder();
     updateTagCounts();
     updateBadgeCounts();
+}
+
+// ─────────────────────── KOLEJNOŚĆ RYSOWANIA (Z-ORDER) ───────────────────────
+// Na canvasie „na wierzchu" jest to, co narysowane PÓŹNIEJ. Po przebudowaniu lub
+// przefiltrowaniu markerów (addLayer wrzuca marker na koniec listy rysowania)
+// wymuszamy kolejność warstw przez bringToFront() od najniższego „tieru":
+//   4  pinezki aktywne (dokładny adres)   <- najwyżej
+//   3  kwadraty aktywne (przybliżone)
+//   2  pinezki nieaktywne
+//   1  kwadraty nieaktywne                <- najniżej
+// bringToFront() działa tylko dla markerów aktualnie na mapie — resztę pomijamy.
+function restackCanvasOrder() {
+    if (!map) return;
+    const tierOf = item =>
+        ( item.isActive &&  item.hasNumber) ? 4 :
+        ( item.isActive && !item.hasNumber) ? 3 :
+        (!item.isActive &&  item.hasNumber) ? 2 : 1;
+    allMarkers
+        .filter(item => map.hasLayer(item.marker))
+        .sort((a, b) => tierOf(a) - tierOf(b))
+        .forEach(item => item.marker.bringToFront());
 }
 
 function createMarkerGroup(baseCoords, address, offers, isActive, batches) {
@@ -206,15 +333,34 @@ function createMarkerGroup(baseCoords, address, offers, isActive, batches) {
         const coords        = [baseCoords.lat + offsetLat, baseCoords.lon + offsetLon];
         const strokeColor   = isNew ? '#ff0000' : 'white';
         const strokeWidth   = isNew ? 3 : 2;
-        const markerColor   = color;
 
-        const icon = hasNumber
-            ? buildPinIcon(markerColor, strokeColor, strokeWidth, { isNew, priceDown, priceUp }, isActive)
-            : buildSquareIcon(markerColor, { isNew, priceDown, priceUp }, isActive);
+        // Opcje kształtu wektorowego na wspólnym canvasie.
+        // radius:20 (truthy) — żeby culling (_empty) działał; dashArray — przerywana
+        // ramka kwadratu; flagi inactive/isNewFlag/hasPriceChange/* czytane w nakładkach.
+        const markerOpts = {
+            renderer:    canvasRenderer,
+            radius:      20,
+            fillColor:   color,
+            fillOpacity: 1,
+            color:       strokeColor,
+            weight:      strokeWidth,
+            opacity:     1,
+            dashArray:   hasNumber ? null : '4 3',
+            interactive: true,
+            inactive:       !isActive,
+            isNewFlag:      isNew,
+            hasPriceChange: hasPriceChg,
+            priceDown,
+            priceUp
+        };
 
-        // KLUCZOWA OPTYMALIZACJA: popup z funkcją — HTML tworzony przy kliknięciu
-        const markerObj = L.marker(coords, { icon })
-            .bindPopup(() => createPopupContent(address, [offer]), { maxWidth: 400 });
+        // KLUCZOWA OPTYMALIZACJA: popup z funkcją — HTML tworzony przy kliknięciu.
+        // offset podnosi popup nad bąbel kropli / kwadrat (jak stary popupAnchor).
+        const markerObj = (hasNumber ? new PinMarker(coords, markerOpts) : new SquareMarker(coords, markerOpts))
+            .bindPopup(() => createPopupContent(address, [offer]), {
+                maxWidth: 400,
+                offset:   hasNumber ? L.point(0, -44) : L.point(0, -14)
+            });
 
         // Zamiast markerObj.addTo(layer) — wrzucamy do bufora wsadowego
         const key = (!hasNumber && isActive)  ? 'approx'
@@ -396,6 +542,8 @@ function filterMarkers() {
         else    layer.removeLayer(item.marker);
     });
 
+    // Re-add wrzuca markery na koniec listy rysowania → przywróć poprawny z-order
+    restackCanvasOrder();
     updateStats();
     updateBadgeCounts();
     updatePriceRangeCounts();

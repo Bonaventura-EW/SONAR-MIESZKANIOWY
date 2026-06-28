@@ -10,6 +10,21 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Zmienione
+- **Główna mapa renderuje markery na JEDNYM `<canvas>` (L.canvas) zamiast ~1500
+  węzłów DOM (L.divIcon).** Port mechanizmu z `SONAR-POKOJOWY`. Markery to
+  kształty wektorowe — rozszerzenia `L.CircleMarker` (`PinMarker` = kropla dla
+  dokładnego adresu, `SquareMarker` = kwadrat z przerywaną ramką dla adresów
+  przybliżonych, decyzja po `has_number`) ze wspólnym `renderer: canvasRenderer`.
+  Każda klasa nadpisuje `_updatePath` (rysowanie kropli/kwadratu + białe kółko
+  w środku, `×` dla nieaktywnych, badge `N`/`↓`/`↑` w rogu), `_updateBounds`
+  (culling) i `_containsPoint` (ręczne pole kliknięcia popupu — bąbel kropli
+  r=19 px, kwadrat ±16 px). Dodano `restackCanvasOrder()` utrzymujący z-order
+  (aktywne pinezki > aktywne kwadraty > nieaktywne) po przebudowie/filtrowaniu.
+  Efekt: płynny pan/zoom i filtrowanie przy ~1500 ofertach, bez klastrowania.
+  Zachowane bez zmian: lazy popup, debounce filtrów, wszystkie warstwy/filtry,
+  suwak dni, wyszukiwarka, deep-link `?offer=`, statystyki i escapowanie XSS.
+
 ## [2026-06-18]
 
 ### Naprawione (audyt 2026-06-12)
