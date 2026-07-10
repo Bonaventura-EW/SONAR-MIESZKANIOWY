@@ -1,56 +1,57 @@
 {
   "system": "sonar",
   "version": "1.0.0",
-  "generatedAt": "2026-07-10T07:11:18.439242+02:00",
+  "generatedAt": "2026-07-10T11:07:02.250653+02:00",
   "status": {
-    "current": "degraded",
+    "current": "operational",
     "isHealthy": true,
-    "hasErrors": true,
-    "errorMessages": [
-      "Scraper zwrócił tylko 173 ofert przy 678 aktywnych w bazie (próg: 203) — prawdopodobna blokada OLX. Dezaktywacja pominięta."
-    ]
+    "hasErrors": false,
+    "errorMessages": []
   },
   "notification": {
-    "title": "⚠️ Skan 07:10 — zakończony z ostrzeżeniami",
-    "body": "Scraper zwrócił tylko 173 ofert przy 678 aktywnych w bazie (próg: 203) — prawdopodobna blokada OLX. Dezaktywacja pominięta."
+    "title": "✅ Skan 11:04 — +13 nowe / -1 znikły",
+    "body": "Pojawiło się 13 nowych, znikło 1 ofert mieszkań w Lublinie"
   },
   "lastScan": {
-    "id": "2026-07-10T07-10-56",
-    "timestamp": "2026-07-10T07:10:56.866288+02:00",
-    "endTimestamp": "2026-07-10T07:11:17.048368+02:00",
-    "durationSeconds": 20.18,
-    "durationFormatted": "20s",
-    "uiStatus": "warning",
+    "id": "2026-07-10T11-04-07",
+    "timestamp": "2026-07-10T11:04:07.100656+02:00",
+    "endTimestamp": "2026-07-10T11:07:00.790409+02:00",
+    "durationSeconds": 173.69,
+    "durationFormatted": "2m 53s",
+    "uiStatus": "success",
     "rawStatus": "completed",
-    "scanTimeFormatted": "07:10",
-    "failureReason": "Scraper zwrócił tylko 173 ofert przy 678 aktywnych w bazie (próg: 203) — prawdopodobna blokada OLX. Dezaktywacja pominięta.",
+    "scanTimeFormatted": "11:04",
+    "failureReason": null,
     "notification": {
-      "title": "⚠️ Skan 07:10 — zakończony z ostrzeżeniami",
-      "body": "Scraper zwrócił tylko 173 ofert przy 678 aktywnych w bazie (próg: 203) — prawdopodobna blokada OLX. Dezaktywacja pominięta."
+      "title": "✅ Skan 11:04 — +13 nowe / -1 znikły",
+      "body": "Pojawiło się 13 nowych, znikło 1 ofert mieszkań w Lublinie"
     },
     "offers": {
-      "found": 173,
-      "processed": 140,
-      "new": 1,
-      "disappeared": 0,
-      "updated": 139,
-      "active": 678,
-      "inactive": 1414
+      "found": 716,
+      "processed": 635,
+      "new": 13,
+      "disappeared": 1,
+      "updated": 622,
+      "active": 686,
+      "inactive": 1419
     },
     "skipped": {
-      "noAddress": 10,
+      "noAddress": 32,
       "noCoords": 0,
-      "duplicates": 23
+      "duplicates": 48
     },
-    "errors": [
-      {
-        "message": "Scraper zwrócił tylko 173 ofert przy 678 aktywnych w bazie (próg: 203) — prawdopodobna blokada OLX. Dezaktywacja pominięta.",
-        "timestamp": "2026-07-10T07:11:16.946723+02:00"
-      }
-    ],
-    "hasErrors": true
+    "errors": [],
+    "hasErrors": false
   },
   "recentScans": [
+    {
+      "id": "2026-07-10T11-04-07",
+      "scanTimeFormatted": "11:04",
+      "uiStatus": "success",
+      "newOffers": 13,
+      "disappearedOffers": 1,
+      "hasErrors": false
+    },
     {
       "id": "2026-07-10T07-10-56",
       "scanTimeFormatted": "07:10",
@@ -90,14 +91,6 @@
       "newOffers": 12,
       "disappearedOffers": 7,
       "hasErrors": false
-    },
-    {
-      "id": "2026-07-08T17-36-39",
-      "scanTimeFormatted": "17:36",
-      "uiStatus": "success",
-      "newOffers": 13,
-      "disappearedOffers": 6,
-      "hasErrors": false
     }
   ],
   "schedule": {
@@ -107,12 +100,12 @@
       "21:17"
     ],
     "timezone": "Europe/Warsaw",
-    "nextScanAt": "2026-07-10T09:17:00+02:00"
+    "nextScanAt": "2026-07-10T15:17:00+02:00"
   },
   "statistics": {
     "totalScans": 100,
     "successRate": 100.0,
-    "avgDurationSeconds": 130.95,
-    "avgOffersFound": 617.5
+    "avgDurationSeconds": 131.53,
+    "avgOffersFound": 618.7
   }
 }
