@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Indeks podaży - SONAR MIESZKANIOWY</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.49.1/dist/apexcharts.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: #f5f7fa;
+            color: #1a1a1a;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 32px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 22px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .nav-links { display: flex; gap: 8px; flex-wrap: wrap; }
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+        .nav-links a:hover { background: rgba(255,255,255,0.35); }
+        .nav-links a.active {
+            background: rgba(255,255,255,0.45);
+            box-shadow: 0 0 0 2px rgba(255,255,255,0.4);
+        }
+
+        main { max-width: 1280px; margin: 0 auto; padding: 24px 24px 40px; }
+
+        .card {
+            background: white;
+            border-radius: 14px;
+            padding: 24px 26px 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+        }
+        .card + .foot + .card { margin-top: 22px; }
+        .card h2 { font-size: 22px; font-weight: 700; margin: 0 0 6px; color: #1a1a1a; }
+        .sub { color: #6b7280; font-size: 15px; margin-bottom: 14px; }
+        .sub b { color: #1a1a1a; }
+        .deltas {
+            display: flex; gap: 22px; font-size: 14px;
+            font-variant-numeric: tabular-nums; margin-bottom: 8px; flex-wrap: wrap;
+        }
+        .deltas b { color: #1a1a1a; font-weight: 700; margin-right: 4px; }
+        .pos { color: #16a34a; } .neg { color: #dc2626; } .na { color: #9ca3af; }
+
+        #chart { margin-top: 4px; min-height: 520px; }
+
+        .foot {
+            color: #6b7280; font-size: 12.5px; margin: 14px 4px 0; line-height: 1.65;
+        }
+        .foot code { background: #eef1f7; padding: 1px 6px; border-radius: 4px; color: #45506b; }
+        .loading { padding: 60px 0; text-align: center; color: #9ca3af; }
+
+        @media (max-width: 640px) {
+            .header { padding: 16px 18px; }
+            main { padding: 16px 14px 32px; }
+            .card { padding: 18px 16px 12px; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>📉 Indeks podaży</h1>
+        <nav class="nav-links">
+            <a href="index.html">🗺️ Mapa</a>
+            <a href="analytics.html">📈 Analityka</a>
+            <a href="trend.html" class="active">📉 Indeks</a>
+            <a href="monitoring.html">📊 Monitoring</a>
+            <a href="market_analysis.html">🔍 Analiza Rynku</a>
+            <a href="analiza_metraz.html">📐 Ceny/m²</a>
+            <a href="top5.html">🏆 Top 5</a>
+        </nav>
+    </header>
+
+    <main>
+        <div class="card">
+            <h2 id="title">Lublin &ndash; mieszkania: wynajem</h2>
+            <div class="sub"><span id="lastLabel">&mdash;</span> (<span id="curVal">&mdash;</span>)</div>
+            <div class="deltas" id="deltas"></div>
+            <div id="chart"><div class="loading">Ładowanie danych…</div></div>
+        </div>
+
+        <div class="foot">
+            <strong>Skąd dane:</strong> dzienna rekonstrukcja z <code>data/offers.json</code> — dla każdego dnia
+            liczba ofert, które tego dnia „żyły" (<code>first_seen &le; dzień &le; last_seen</code>). Każdy punkt = jeden dzień.
+            To analog indeksu podaży z betonometr.pl — pokazuje, ile żywych ofert wynajmu mieszkań w Lublinie jest na rynku.
+            Wykres startuje <strong>16.05.2026</strong> — wcześniejsze dane są zaniżone (parser adresów odrzucał wtedy
+            setki ofert na skan, więc nigdy nie trafiły do bazy). MAX/MIN/zakres liczone automatycznie; zmiany 6M/1Y
+            pojawią się, gdy uzbieramy dłuższą historię.
+        </div>
+
+        <div class="card" style="margin-top:22px">
+            <h2>📉 Odpływ ofert &ndash; ile znika z rynku</h2>
+            <div class="sub" id="outLabel">Dzienny odpływ + średnia 7-dniowa</div>
+            <div id="chart2"><div class="loading">Ładowanie danych…</div></div>
+        </div>
+
+        <div class="foot">
+            <strong>Skąd dane:</strong> dla każdego dnia liczba ofert, które tego dnia zniknęły z rynku
+            (oferta nieaktywna, jej <code>last_seen</code> = ten dzień). Czerwona linia to dzienny odpływ,
+            pomarańczowa to średnia krocząca z 7 dni — wygładza dzienny szum i pokazuje trend nasilenia znikania.
+            Ten sam start <strong>16.05.2026</strong> i to samo źródło co Indeks powyżej.
+        </div>
+    </main>
+
+    <script>
+    (async function () {
+        // Wszystkie wartości wstawiane do DOM pochodzą z trend_data.json (nasz
+        // generator: liczby + daty), nie z opisów OLX — mimo to trzymamy się
+        // textContent/liczb, żeby nie otwierać drogi do XSS przez plik danych.
+        const num = function (v) { return typeof v === 'number' && isFinite(v) ? v : null; };
+
+        let d;
+        try {
+            const res = await fetch('trend_data.json?v=' + Date.now());
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            d = await res.json();
+        } catch (e) {
+            document.getElementById('chart').innerHTML =
+                '<div class="loading">Nie udało się wczytać danych.</div>';
+            document.getElementById('chart2').innerHTML =
+                '<div class="loading">Nie udało się wczytać danych.</div>';
+            console.error('trend_data.json:', e);
+            return;
+        }
+
+        const RAW = Array.isArray(d.series) ? d.series : [];
+        document.getElementById('title').textContent = d.title || 'Lublin – mieszkania: wynajem';
+        document.getElementById('lastLabel').textContent = d.last_label || '—';
+        document.getElementById('curVal').textContent = num(d.current) != null ? d.current : '—';
+
+        // --- zmiany 1D / 1M / 6M / 1Y ---
+        const order = ['1D', '1M', '6M', '1Y'];
+        const deltas = d.deltas || {};
+        const deltaBox = document.getElementById('deltas');
+        deltaBox.textContent = '';
+        order.forEach(function (lab) {
+            const v = num(deltas[lab]);
+            const wrap = document.createElement('span');
+            const key = document.createElement('b');
+            key.textContent = lab + ':';
+            const val = document.createElement('span');
+            if (v === null) {
+                val.className = 'na';
+                val.textContent = '—';
+            } else {
+                val.className = v > 0 ? 'pos' : (v < 0 ? 'neg' : 'na');
+                val.textContent = (v > 0 ? '+' : '') + v;
+            }
+            wrap.appendChild(key);
+            wrap.appendChild(val);
+            deltaBox.appendChild(wrap);
+        });
+
+        if (!RAW.length) {
+            document.getElementById('chart').innerHTML = '<div class="loading">Brak danych w serii.</div>';
+            return;
+        }
+
+        const cur = d.current, mx = d.max, mn = d.min;
+        const unit = typeof d.unit === 'string' ? d.unit : 'ofert';
+
+        // Etykiety MAX/MIN/teraz potrafią się nakładać, gdy „teraz" = MAX lub MIN.
+        // Wtedy pomijamy redundantną etykietę „teraz" — ta sama wartość jest już
+        // na linii MAX/MIN i w nagłówku strony.
+        const range = (mx - mn) || 1;
+        const curNearEdge = Math.abs(cur - mx) <= range * 0.07 || Math.abs(cur - mn) <= range * 0.07;
+        // Etykiety mają ciemny tekst na jasnym tle: ApexCharts potrafi źle policzyć
+        // prostokąt tła etykiety (zapada się do zera), a biały napis znikałby wtedy
+        // na białej karcie. Kolorowy tekst czyta się i bez tła.
+        const yAnnotations = [
+            { y: mx, borderColor: '#dc2626', strokeDashArray: 5, label: { text: 'MAX: ' + mx, borderColor: '#dc2626', style: { background: '#fee2e2', color: '#991b1b', fontSize: '12px', fontWeight: 700, padding: { left: 6, right: 6, top: 3, bottom: 3 } }, position: 'left', offsetX: 74 } },
+            { y: mn, borderColor: '#16a34a', strokeDashArray: 5, label: { text: 'MIN: ' + mn, borderColor: '#16a34a', style: { background: '#dcfce7', color: '#166534', fontSize: '12px', fontWeight: 700, padding: { left: 6, right: 6, top: 3, bottom: 3 } }, position: 'left', offsetX: 74 } }
+        ];
+        if (!curNearEdge) {
+            yAnnotations.push({ y: cur, borderColor: '#667eea', strokeDashArray: 3, label: { text: String(cur), borderColor: '#667eea', style: { background: '#e0e7ff', color: '#3730a3', fontSize: '12px', fontWeight: 700, padding: { left: 6, right: 6, top: 3, bottom: 3 } }, position: 'left', offsetX: 48 } });
+        }
+
+        // Polski locale dla ApexCharts — miesiące na osi X po polsku (sty/lut/…)
+        const PL_LOCALE = {
+            name: 'pl',
+            options: {
+                months: ['styczeń', 'luty', 'marzec', 'kwiecień', 'maj', 'czerwiec', 'lipiec', 'sierpień', 'wrzesień', 'październik', 'listopad', 'grudzień'],
+                shortMonths: ['sty', 'lut', 'mar', 'kwi', 'maj', 'cze', 'lip', 'sie', 'wrz', 'paź', 'lis', 'gru'],
+                days: ['niedziela', 'poniedziałek', 'wtorek', 'środa', 'czwartek', 'piątek', 'sobota'],
+                shortDays: ['niedz', 'pon', 'wt', 'śr', 'czw', 'pt', 'sob'],
+                toolbar: {
+                    exportToSVG: 'Pobierz SVG', exportToPNG: 'Pobierz PNG', exportToCSV: 'Pobierz CSV',
+                    menu: 'Menu', selection: 'Zaznaczenie', selectionZoom: 'Zoom zaznaczenia',
+                    zoomIn: 'Powiększ', zoomOut: 'Pomniejsz', pan: 'Przesuń', reset: 'Reset zoomu'
+                }
+            }
+        };
+
+        const options = {
+            chart: {
+                type: 'area', height: 520, background: 'transparent',
+                locales: [PL_LOCALE], defaultLocale: 'pl',
+                fontFamily: 'inherit', foreColor: '#6b7280',
+                toolbar: { show: true, tools: { download: true, selection: true, zoom: true, zoomin: true, zoomout: true, pan: true, reset: true } },
+                animations: { enabled: true, speed: 600 },
+                zoom: { enabled: true }
+            },
+            series: [{ name: 'Aktywne oferty', data: RAW }],
+            colors: ['#667eea'],
+            stroke: { curve: 'straight', width: 2 },
+            fill: {
+                type: 'gradient', gradient: {
+                    shadeIntensity: 1, opacityFrom: 0.45, opacityTo: 0.03, stops: [0, 90, 100],
+                    colorStops: [
+                        { offset: 0, color: '#667eea', opacity: 0.45 },
+                        { offset: 100, color: '#764ba2', opacity: 0.03 }
+                    ]
+                }
+            },
+            dataLabels: { enabled: false },
+            grid: { borderColor: '#e5e7eb', strokeDashArray: 4, xaxis: { lines: { show: true } }, yaxis: { lines: { show: true } } },
+            xaxis: {
+                type: 'datetime', axisBorder: { show: false }, axisTicks: { color: '#e5e7eb' },
+                labels: {
+                    datetimeUTC: false, style: { colors: '#6b7280' },
+                    datetimeFormatter: { year: 'yyyy', month: "MMM 'yy", day: 'dd MMM', hour: 'HH:mm' }
+                }
+            },
+            yaxis: { labels: { style: { colors: '#6b7280' }, formatter: function (v) { return Math.round(v); } }, tickAmount: 5 },
+            tooltip: { x: { format: 'dd.MM.yyyy' }, y: { formatter: function (v) { return v + ' ' + unit; } } },
+            annotations: {
+                yaxis: yAnnotations,
+                points: [
+                    { x: d.max_ts, y: mx, marker: { size: 5, fillColor: '#dc2626', strokeColor: '#fff', strokeWidth: 1 } },
+                    { x: d.min_ts, y: mn, marker: { size: 5, fillColor: '#16a34a', strokeColor: '#fff', strokeWidth: 1 } }
+                ]
+            }
+        };
+
+        document.getElementById('chart').innerHTML = '';
+        new ApexCharts(document.querySelector('#chart'), options).render();
+
+        // --- drugi wykres: dzienny odpływ ofert + średnia krocząca 7 dni ---
+        const of = d.outflow;
+        if (of && Array.isArray(of.daily) && of.daily.length) {
+            const outLabel = document.getElementById('outLabel');
+            outLabel.textContent = '';
+            outLabel.appendChild(document.createTextNode('Znika średnio '));
+            const rate = document.createElement('b');
+            rate.textContent = String(of.rate).replace('.', ',') + '/dzień';
+            outLabel.appendChild(rate);
+            outLabel.appendChild(document.createTextNode(', rekord '));
+            const rec = document.createElement('b');
+            rec.textContent = String(of.max_day);
+            outLabel.appendChild(rec);
+            outLabel.appendChild(document.createTextNode(
+                ' (' + String(of.max_label) + '). Pomarańczowa = wygładzony trend (7 dni).'));
+
+            const opts2 = {
+                chart: {
+                    type: 'line', height: 380, background: 'transparent',
+                    locales: [PL_LOCALE], defaultLocale: 'pl',
+                    fontFamily: 'inherit', foreColor: '#6b7280',
+                    toolbar: { show: true, tools: { download: true, selection: true, zoom: true, zoomin: true, zoomout: true, pan: true, reset: true } },
+                    animations: { enabled: true, speed: 550 },
+                    zoom: { enabled: true }
+                },
+                series: [
+                    { name: 'Znikło danego dnia', data: of.daily },
+                    { name: 'Średnia 7 dni', data: of.avg }
+                ],
+                colors: ['#dc2626', '#f59e0b'],
+                stroke: { curve: ['straight', 'smooth'], width: [2, 3] },
+                dataLabels: { enabled: false },
+                markers: { size: 0, hover: { size: 5 } },
+                grid: { borderColor: '#e5e7eb', strokeDashArray: 4, xaxis: { lines: { show: true } }, yaxis: { lines: { show: true } } },
+                xaxis: {
+                    type: 'datetime', axisBorder: { show: false }, axisTicks: { color: '#e5e7eb' },
+                    labels: {
+                        datetimeUTC: false, style: { colors: '#6b7280' },
+                        datetimeFormatter: { year: 'yyyy', month: "MMM 'yy", day: 'dd MMM', hour: 'HH:mm' }
+                    }
+                },
+                yaxis: { min: 0, tickAmount: 4, labels: { style: { colors: '#6b7280' }, formatter: function (v) { return Math.round(v); } } },
+                legend: { labels: { colors: '#6b7280' }, markers: { radius: 12 }, itemMargin: { horizontal: 10 } },
+                tooltip: { shared: true, x: { format: 'dd.MM.yyyy' }, y: { formatter: function (v) { return v + ' ofert'; } } }
+            };
+            document.getElementById('chart2').innerHTML = '';
+            new ApexCharts(document.querySelector('#chart2'), opts2).render();
+        } else {
+            document.getElementById('chart2').innerHTML = '<div class="loading">Brak danych o odpływie.</div>';
+        }
+    })();
+    </script>
+</body>
+</html>

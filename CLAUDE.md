@@ -31,6 +31,7 @@ data/offers.json      → baza ofert (aktywne + historia)
 map_generator.py      → docs/data.json          (mapa Leaflet)
 api_generator.py      → docs/api/*.json          (mobile API: status/history/health)
 top5_generator.py     → docs/top5_data.json      (zmiany cen)
+trend_generator.py    → docs/trend_data.json    (indeks podaży + odpływ)
 monitoring_generator.py → docs/monitoring_data.json (dashboard skanów)
 skipped_debug_generator.py → docs/skipped_debug.html (diagnostyka odrzuconych)
 ```
@@ -55,6 +56,7 @@ python main.py              # pełny skan (~9 min): scraping → przetwarzanie �
 python map_generator.py     # generuje docs/data.json (+ monitoring + debug)
 python api_generator.py     # generuje docs/api/*.json
 python top5_generator.py    # generuje docs/top5_data.json
+python trend_generator.py   # generuje docs/trend_data.json
 
 # Podgląd frontendu:
 cd ../docs && python -m http.server 8000   # http://localhost:8000

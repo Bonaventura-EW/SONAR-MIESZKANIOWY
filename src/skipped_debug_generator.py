@@ -351,6 +351,7 @@ header .nav-links a.tmp {{ background: rgba(255,200,0,0.4); border: 1px dashed w
   <div class="nav-links">
     <a href="index.html">🗺️ Mapa</a>
     <a href="analytics.html">📈 Analityka</a>
+    <a href="trend.html">📉 Indeks</a>
     <a href="monitoring.html">📊 Monitoring</a>
     <a href="market_analysis.html">🔍 Analiza Rynku</a>
     <a href="skipped_debug.html" class="tmp">🐛 Pominięte (debug)</a>
