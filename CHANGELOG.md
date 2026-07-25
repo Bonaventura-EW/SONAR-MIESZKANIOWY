@@ -10,6 +10,21 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Dodane
+- **Nowa podstrona „Indeks podaży"** (`docs/trend.html`) — port `trend.html`
+  z `SONAR-POKOJOWY`. Dwa wykresy ApexCharts:
+  - *Indeks podaży* — dzienna rekonstrukcja liczby żywych ofert
+    (`first_seen ≤ dzień ≤ last_seen`), z liniami MAX/MIN i zmianami 1D/1M/6M/1Y
+    (6M/1Y = „—" dopóki nie uzbieramy historii). Analog indeksu z betonometr.pl.
+  - *Odpływ ofert* — ile ofert znikło danego dnia + średnia krocząca 7 dni.
+  - `src/trend_generator.py` — rekonstrukcja z `data/offers.json` →
+    `docs/trend_data.json` (zapis atomowy przez `atomic_json`). Seria startuje
+    16.05.2026: wcześniejsze dni są zaniżone, bo do tego dnia parser adresów
+    odrzucał setki ofert na skan (patrz wpis `[2026-05-16]`).
+  - Wpięty w `scanner.yml` (po `area_price_generator`) i w commit skanu.
+  - Link „📉 Indeks" w nawigacji mapy, Top 5 i strony debugowej.
+  - 12 nowych testów (`tests/test_trend_generator.py`); suite 118 → 130.
+
 ### Zmienione
 - **Główna mapa renderuje markery na JEDNYM `<canvas>` (L.canvas) zamiast ~1500
   węzłów DOM (L.divIcon).** Port mechanizmu z `SONAR-POKOJOWY`. Markery to
