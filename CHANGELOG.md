@@ -24,8 +24,18 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
   - Wpięty w `scanner.yml` (po `area_price_generator`) i w commit skanu.
   - Link „📉 Indeks" w nawigacji mapy, Top 5 i strony debugowej.
   - 12 nowych testów (`tests/test_trend_generator.py`); suite 118 → 130.
+- **Szablon PR** (`.github/pull_request_template.md`) — stała struktura opisu
+  zmiany: co się zmienia / dlaczego / changelog / testy / weryfikacja, plus
+  checklista pułapek projektu (ID `CID3`, `address.coords`, próg dezaktywacji,
+  limit geokodowań, `atomic_write_json`, `escapeHtml`, `paths.py`, harmonogram
+  skanów, wpięcie nowego generatora w `scanner.yml`). GitHub wypełnia nim
+  automatycznie opis każdego nowego PR-a.
 
 ### Zmienione
+- **`CLAUDE.md`: changelog czytany na starcie sesji, nie tylko dopisywany na
+  końcu.** Nagłówek pliku i pkt 8 „Pułapek" wymagają teraz przeczytania sekcji
+  `## [Niewydane]` przed pracą (kontekst ostatnich zmian) oraz dopisania wpisu
+  **w tym samym PR-ze**, co zmiana — zamiast osobnego commita „po fakcie".
 - **Główna mapa renderuje markery na JEDNYM `<canvas>` (L.canvas) zamiast ~1500
   węzłów DOM (L.divIcon).** Port mechanizmu z `SONAR-POKOJOWY`. Markery to
   kształty wektorowe — rozszerzenia `L.CircleMarker` (`PinMarker` = kropla dla
