@@ -4,6 +4,11 @@ Wytyczne dla Claude Code (i innych agentów) pracujących w tym repozytorium.
 Czytaj ten plik na starcie każdej sesji — opisuje jak projekt działa, jak go
 uruchomić i jakich pułapek unikać.
 
+> 📓 **Na starcie każdej sesji przeczytaj też `CHANGELOG.md`** (co najmniej
+> sekcję `## [Niewydane]` i 2–3 ostatnie wydania) — to najświeższy zapis tego,
+> co i dlaczego zmieniło się w projekcie. A na końcu każdej zmiany **dopisz do
+> niego wpis** (szczegóły w „Pułapki i konwencje" pkt 8).
+
 ## Czym jest projekt
 
 **SONAR MIESZKANIOWY** — automatyczny agent monitorujący oferty wynajmu
@@ -130,9 +135,13 @@ python price_parser.py     # parsowanie cen
    `# FIX YYYY-MM-DD: opis` lub `# OPTYMALIZACJA YYYY-MM:` przy zmienianym kodzie,
    a istotne zmiany dopisuj do `CHANGELOG.md`.
 
-8. **Po każdym mergu** dopisz wpis do `CHANGELOG.md` opisujący co zostało zmienione
-   (sekcja `## [Niewydane]` → odpowiedni podtytuł: `Naprawione`, `Dodane`, `Zmienione`).
-   Commit z wpisem pushuj bezpośrednio na `main`.
+8. **`CHANGELOG.md` czytaj na starcie, dopisuj na końcu.** Przed pracą przeczytaj
+   sekcję `## [Niewydane]` i ostatnie wydania — tam jest kontekst ostatnich zmian.
+   Każdą istotną zmianę opisz w `## [Niewydane]` → odpowiedni podtytuł
+   (`Dodane`, `Naprawione`, `Zmienione`, `Wydajność`). Wpis ma być **częścią
+   PR-a ze zmianą** (patrz `.github/pull_request_template.md`), a nie osobnym
+   commitem „po fakcie". Jeśli zmiana poszła bez PR-a — commit z wpisem pushuj
+   bezpośrednio na `main`.
 
 9. **Workflow CI używa `secrets.PAT_TOKEN`** (nie domyślnego `GITHUB_TOKEN`).
    `scanner.yml` ma `concurrency: sonar-scanner` — nigdy dwa skany równolegle.
