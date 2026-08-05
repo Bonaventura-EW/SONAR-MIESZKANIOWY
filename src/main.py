@@ -29,8 +29,18 @@ import paths
 
 class SonarMieszkaniowy:
     # Ochrona przed masową dezaktywacją: scrape musi zwrócić co najmniej
-    # 30% wcześniejszej liczby aktywnych ofert, inaczej nie dezaktywujemy.
-    MIN_DEACTIVATION_RATIO = 0.3
+    # 60% wcześniejszej liczby aktywnych ofert, inaczej nie dezaktywujemy.
+    #
+    # FIX 2026-08-05: podniesione z 0.3 → 0.6. Zdrowy skan zwraca ~770 ofert
+    # przy ~710 aktywnych (ratio ~1.08), więc próg 0.3 (≈212) łapał tylko
+    # DRASTYCZNE blokady (0/42/93 oferty). Częściowa blokada zwracająca ~połowę
+    # ofert (realny incydent 2026-08-05 06:31: 365 przy 706 aktywnych, ratio
+    # 0.52) prześlizgiwała się pod progiem i dezaktywowała 409 realnych ofert
+    # (aktywne 706 → 349). Próg 0.6 (≈424) łapie taki przypadek, mając wciąż
+    # ogromny margines do zdrowego ratio ~1.08 (zero fałszywych trafień na
+    # historycznych zdrowych skanach). Blokada → skan czeka i ponawia próbę
+    # (run_scan_with_retry), a dezaktywacja pozostaje pominięta.
+    MIN_DEACTIVATION_RATIO = 0.6
 
     # FIX 2026-08-05: retry przy wykrytej blokadzie OLX/Cloudflare. Gdy scraper
     # zwróci 0 / podejrzanie mało ofert (patrz _deactivation_block_reason),

@@ -40,17 +40,24 @@ def agent(tmp_path):
 
 
 class TestDeactivationProtection:
-    """Najważniejszy bezpiecznik systemu: przy blokadzie OLX (0 ofert lub <30%
+    """Najważniejszy bezpiecznik systemu: przy blokadzie OLX (0 ofert lub <60%
     aktywnych) NIE dezaktywujemy ofert. CLAUDE.md: 'Nie usuwaj tej ochrony'."""
 
     def test_zero_offers_blocks_deactivation(self, agent):
         assert agent._deactivation_block_reason(0, 500) is not None
 
-    def test_below_30pct_ratio_blocks_deactivation(self, agent):
-        assert agent._deactivation_block_reason(100, 500) is not None  # próg: 150
+    def test_far_below_ratio_blocks_deactivation(self, agent):
+        assert agent._deactivation_block_reason(100, 500) is not None  # próg: 300
+
+    def test_partial_block_below_60pct_blocks_deactivation(self, agent):
+        # FIX 2026-08-05: częściowa blokada (realny incydent 2026-08-05 06:31 —
+        # 365 ofert przy 706 aktywnych, ratio 0.52) wcześniej prześlizgiwała się
+        # pod progiem 0.3 i dezaktywowała 409 realnych ofert. Próg 0.6 ją łapie.
+        assert agent._deactivation_block_reason(365, 706) is not None  # próg: 423
 
     def test_healthy_scan_allows_deactivation(self, agent):
-        assert agent._deactivation_block_reason(200, 500) is None
+        # Zdrowy skan zwraca ofert więcej niż aktywnych w bazie (ratio ~1.08).
+        assert agent._deactivation_block_reason(520, 500) is None
 
     def test_empty_database_first_run_allows(self, agent):
         assert agent._deactivation_block_reason(0, 0) is None

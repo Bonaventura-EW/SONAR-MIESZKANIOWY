@@ -21,8 +21,7 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
   każda próba loguje osobny wpis w `scan_history` (widoczny w monitoringu).
   Ochrona przed dezaktywacją nie jest tym omijana — dopóki ofert jest za mało,
   dezaktywacja pozostaje pominięta. `scanner.yml` bez zmian (retry dzieje się
-  wewnątrz procesu `main.py`). 4 nowe testy (`tests/test_main_scan.py`); suite
-  130 → 134.
+  wewnątrz procesu `main.py`). 4 nowe testy (`tests/test_main_scan.py`).
 - **Nowa podstrona „Indeks podaży"** (`docs/trend.html`) — port `trend.html`
   z `SONAR-POKOJOWY`. Dwa wykresy ApexCharts:
   - *Indeks podaży* — dzienna rekonstrukcja liczby żywych ofert
@@ -42,6 +41,19 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
   limit geokodowań, `atomic_write_json`, `escapeHtml`, `paths.py`, harmonogram
   skanów, wpięcie nowego generatora w `scanner.yml`). GitHub wypełnia nim
   automatycznie opis każdego nowego PR-a.
+
+### Naprawione
+- **Domknięcie „martwej strefy" ochrony przed masową dezaktywacją** — próg
+  `MIN_DEACTIVATION_RATIO` podniesiony **0.3 → 0.6**. Zdrowy skan zwraca ~770 ofert
+  przy ~710 aktywnych (ratio ~1.08), więc próg 0.3 (≈212) łapał tylko drastyczne
+  blokady (0/42/93 oferty). *Częściowa* blokada zwracająca ~połowę ofert
+  prześlizgiwała się pod progiem — realny incydent **2026-08-05 06:31**: scraper
+  zwrócił 365 ofert przy 706 aktywnych (ratio 0.52), przez co system dezaktywował
+  **409 realnych ofert** (aktywne 706 → 349). Próg 0.6 (≈424) łapie taki przypadek,
+  zachowując ogromny margines do zdrowego ratio ~1.08 (zero fałszywych trafień na
+  historycznych zdrowych skanach). Częściowa blokada trafia teraz też w auto-retry
+  (wyżej). Zaktualizowano `CLAUDE.md` pkt 3, checklistę w szablonie PR (30% → 60%)
+  i testy (`tests/test_main_scan.py`). Łączna suite z auto-retry: 130 → 135.
 
 ### Zmienione
 - **`CLAUDE.md`: changelog czytany na starcie sesji, nie tylko dopisywany na

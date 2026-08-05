@@ -113,9 +113,13 @@ python price_parser.py     # parsowanie cen
 
 3. **Zabezpieczenie przed masową dezaktywacją** (`main.py` →
    `_deactivation_block_reason`, testy w `tests/test_main_scan.py`): jeśli scraper
-   zwróci 0 ofert lub <30% wcześniejszej liczby aktywnych, system **nie**
-   dezaktywuje ofert (zakłada blokadę OLX/Cloudflare). Blokada jest logowana jako
-   błąd skanu → API/aplikacja pokazują ⚠️ warning. Nie usuwaj tej ochrony.
+   zwróci 0 ofert lub <60% wcześniejszej liczby aktywnych (`MIN_DEACTIVATION_RATIO`),
+   system **nie** dezaktywuje ofert (zakłada blokadę OLX/Cloudflare). Blokada jest
+   logowana jako błąd skanu → API/aplikacja pokazują ⚠️ warning. Nie usuwaj tej
+   ochrony. **Auto-retry** (2026-08-05): po wykryciu blokady `run_scan_with_retry`
+   czeka 2 min i ponawia skan (do 2 dodatkowych prób) — próg 0.6 łapie też
+   *częściową* blokadę (~połowa ofert), która wcześniej pod progiem 0.3
+   dezaktywowała setki realnych ofert.
 
 4. **Limit geokodowań** `MAX_NEW_GEOCODES = 150` na skan (Nominatim ~1 req/s),
    egzekwowany flagą `geocoder._geocoding_limited` (od 2026-06-12 faktycznie
