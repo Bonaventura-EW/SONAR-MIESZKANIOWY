@@ -34,7 +34,7 @@ ma być CZĘŚCIĄ TEGO PR-a, nie osobnym commitem „po fakcie".
 
 - [ ] **ID ofert** — porównania po `CID3-IDxxxx` (`extract_cid`), nie po slugu URL
 - [ ] **Współrzędne** — czytane z `offer['address']['coords']`, nie z top-level `coordinates`
-- [ ] **Dezaktywacja** — zabezpieczenie przed masową dezaktywacją (próg 30%) nietknięte
+- [ ] **Dezaktywacja** — zabezpieczenie przed masową dezaktywacją (próg 60%) nietknięte
 - [ ] **Geokoder** — limit `MAX_NEW_GEOCODES`, TTL null-cache i fleksja bez zmian (albo pokryte testami)
 - [ ] **Zapisy JSON** — przez `atomic_json.atomic_write_json`, nie gołym `json.dump`
 - [ ] **Frontend** — dane z OLX przepuszczone przez `escapeHtml()` / `safeUrl()` przed `innerHTML`

@@ -29,8 +29,27 @@ import paths
 
 class SonarMieszkaniowy:
     # Ochrona przed masową dezaktywacją: scrape musi zwrócić co najmniej
-    # 30% wcześniejszej liczby aktywnych ofert, inaczej nie dezaktywujemy.
-    MIN_DEACTIVATION_RATIO = 0.3
+    # 60% wcześniejszej liczby aktywnych ofert, inaczej nie dezaktywujemy.
+    #
+    # FIX 2026-08-05: podniesione z 0.3 → 0.6. Zdrowy skan zwraca ~770 ofert
+    # przy ~710 aktywnych (ratio ~1.08), więc próg 0.3 (≈212) łapał tylko
+    # DRASTYCZNE blokady (0/42/93 oferty). Częściowa blokada zwracająca ~połowę
+    # ofert (realny incydent 2026-08-05 06:31: 365 przy 706 aktywnych, ratio
+    # 0.52) prześlizgiwała się pod progiem i dezaktywowała 409 realnych ofert
+    # (aktywne 706 → 349). Próg 0.6 (≈424) łapie taki przypadek, mając wciąż
+    # ogromny margines do zdrowego ratio ~1.08 (zero fałszywych trafień na
+    # historycznych zdrowych skanach). Blokada → skan czeka i ponawia próbę
+    # (run_scan_with_retry), a dezaktywacja pozostaje pominięta.
+    MIN_DEACTIVATION_RATIO = 0.6
+
+    # FIX 2026-08-05: retry przy wykrytej blokadzie OLX/Cloudflare. Gdy scraper
+    # zwróci 0 / podejrzanie mało ofert (patrz _deactivation_block_reason),
+    # skan czeka RETRY_ON_BLOCK_WAIT_SECONDS i próbuje ponownie, aż do
+    # RETRY_ON_BLOCK_MAX_RETRIES dodatkowych prób. Blokada bywa chwilowa
+    # (rate limit), a pełny cykl to tylko 3×/dzień — jeden strzał po 2 min
+    # ratuje skan, zamiast czekać ~5 h na następny harmonogram.
+    RETRY_ON_BLOCK_WAIT_SECONDS = 120
+    RETRY_ON_BLOCK_MAX_RETRIES = 2
 
     def __init__(self, data_file: str = paths.OFFERS_JSON, removed_file: str = paths.REMOVED_JSON):
         self.data_file = Path(data_file)
@@ -1115,7 +1134,11 @@ class SonarMieszkaniowy:
             print(f"⏱️ Czas wykonania: {total_duration:.1f}s")
             print(f"⏰ Następny scan: {datetime.fromisoformat(self.database['next_scan']).strftime('%Y-%m-%d %H:%M')}")
             print("="*60 + "\n")
-            
+
+            # FIX 2026-08-05: sygnał dla run_scan_with_retry — True gdy wykryto
+            # blokadę OLX/Cloudflare (dezaktywacja pominięta), False przy zdrowym skanie.
+            return scrape_blocked
+
         except Exception as e:
             # W przypadku błędu, zaloguj i zakończ jako failed
             print(f"\n❌ Błąd podczas skanowania: {e}")
@@ -1123,7 +1146,42 @@ class SonarMieszkaniowy:
             self.scan_logger.end_scan('failed', time.time() - scan_start_time)
             raise
 
+    def run_scan_with_retry(self, wait_seconds: int = None, max_retries: int = None) -> bool:
+        """
+        Uruchamia run_scan(), a przy wykrytej blokadzie OLX/Cloudflare
+        (0 / podejrzanie mało ofert) czeka i ponawia skan.
+
+        FIX 2026-08-05: blokada OLX bywa chwilowa (rate limit / Cloudflare
+        challenge). Zamiast czekać ~5 h do następnego skanu z harmonogramu,
+        odczekujemy wait_seconds (domyślnie 2 min) i próbujemy ponownie,
+        aż do max_retries dodatkowych prób. Każda próba loguje osobny wpis
+        w scan_history (widoczny w dashboardzie monitoringu).
+
+        Ochrona przed masową dezaktywacją NIE jest tym omijana — dopóki
+        scraper zwraca za mało ofert, dezaktywacja pozostaje pominięta.
+
+        Returns:
+            True gdy po wyczerpaniu prób blokada nadal trwa, False gdy skan
+            zakończył się zdrowo (bez blokady).
+        """
+        wait_seconds = self.RETRY_ON_BLOCK_WAIT_SECONDS if wait_seconds is None else wait_seconds
+        max_retries = self.RETRY_ON_BLOCK_MAX_RETRIES if max_retries is None else max_retries
+
+        attempt = 0
+        while True:
+            blocked = self.run_scan()
+            if not blocked:
+                return False
+            if attempt >= max_retries:
+                print(f"\n⚠️  Blokada OLX utrzymuje się po {attempt + 1} "
+                      f"próbach — kończę bez dezaktywacji ofert.")
+                return True
+            attempt += 1
+            print(f"\n⏳ Wykryto blokadę OLX — czekam {wait_seconds}s i ponawiam "
+                  f"scan (próba {attempt}/{max_retries})...")
+            time.sleep(wait_seconds)
+
 
 if __name__ == "__main__":
     agent = SonarMieszkaniowy(data_file=paths.OFFERS_JSON)
-    agent.run_scan()
+    agent.run_scan_with_retry()

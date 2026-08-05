@@ -40,17 +40,24 @@ def agent(tmp_path):
 
 
 class TestDeactivationProtection:
-    """Najważniejszy bezpiecznik systemu: przy blokadzie OLX (0 ofert lub <30%
+    """Najważniejszy bezpiecznik systemu: przy blokadzie OLX (0 ofert lub <60%
     aktywnych) NIE dezaktywujemy ofert. CLAUDE.md: 'Nie usuwaj tej ochrony'."""
 
     def test_zero_offers_blocks_deactivation(self, agent):
         assert agent._deactivation_block_reason(0, 500) is not None
 
-    def test_below_30pct_ratio_blocks_deactivation(self, agent):
-        assert agent._deactivation_block_reason(100, 500) is not None  # próg: 150
+    def test_far_below_ratio_blocks_deactivation(self, agent):
+        assert agent._deactivation_block_reason(100, 500) is not None  # próg: 300
+
+    def test_partial_block_below_60pct_blocks_deactivation(self, agent):
+        # FIX 2026-08-05: częściowa blokada (realny incydent 2026-08-05 06:31 —
+        # 365 ofert przy 706 aktywnych, ratio 0.52) wcześniej prześlizgiwała się
+        # pod progiem 0.3 i dezaktywowała 409 realnych ofert. Próg 0.6 ją łapie.
+        assert agent._deactivation_block_reason(365, 706) is not None  # próg: 423
 
     def test_healthy_scan_allows_deactivation(self, agent):
-        assert agent._deactivation_block_reason(200, 500) is None
+        # Zdrowy skan zwraca ofert więcej niż aktywnych w bazie (ratio ~1.08).
+        assert agent._deactivation_block_reason(520, 500) is None
 
     def test_empty_database_first_run_allows(self, agent):
         assert agent._deactivation_block_reason(0, 0) is None
@@ -81,6 +88,55 @@ class TestDeactivationProtection:
         offer = agent.database['offers'][0]
         assert offer['active'] is True
         assert offer['reactivation_source'] == 'skipped'
+
+
+class TestRetryOnBlock:
+    """FIX 2026-08-05: przy wykrytej blokadzie OLX (run_scan zwraca True)
+    run_scan_with_retry czeka i ponawia skan, aż do RETRY_ON_BLOCK_MAX_RETRIES
+    dodatkowych prób. Bez blokady (False) — żadnego retry ani czekania."""
+
+    def _patch(self, agent, monkeypatch, results):
+        """Podmienia run_scan sekwencją wyników i wyłapuje sleepy (bez czekania)."""
+        calls = {'scan': 0}
+        sleeps = []
+
+        def fake_run_scan():
+            i = calls['scan']
+            calls['scan'] += 1
+            # Po wyczerpaniu sekwencji trzymaj ostatni wynik (blokada trwa).
+            return results[i] if i < len(results) else results[-1]
+
+        monkeypatch.setattr(agent, 'run_scan', fake_run_scan)
+        monkeypatch.setattr('main.time.sleep', lambda s: sleeps.append(s))
+        return calls, sleeps
+
+    def test_healthy_scan_runs_once_without_sleep(self, agent, monkeypatch):
+        calls, sleeps = self._patch(agent, monkeypatch, [False])
+        blocked = agent.run_scan_with_retry()
+        assert blocked is False
+        assert calls['scan'] == 1
+        assert sleeps == []
+
+    def test_block_then_recovery_retries_and_succeeds(self, agent, monkeypatch):
+        calls, sleeps = self._patch(agent, monkeypatch, [True, False])
+        blocked = agent.run_scan_with_retry(wait_seconds=120, max_retries=2)
+        assert blocked is False
+        assert calls['scan'] == 2          # blokada + udany retry
+        assert sleeps == [120]             # jedno czekanie 2 min
+
+    def test_persistent_block_stops_after_max_retries(self, agent, monkeypatch):
+        calls, sleeps = self._patch(agent, monkeypatch, [True])  # zawsze blokada
+        blocked = agent.run_scan_with_retry(wait_seconds=120, max_retries=2)
+        assert blocked is True
+        assert calls['scan'] == 3          # 1 początkowa + 2 retry
+        assert sleeps == [120, 120]        # dwa czekania, potem koniec
+
+    def test_no_retries_config_runs_once(self, agent, monkeypatch):
+        calls, sleeps = self._patch(agent, monkeypatch, [True])
+        blocked = agent.run_scan_with_retry(wait_seconds=120, max_retries=0)
+        assert blocked is True
+        assert calls['scan'] == 1
+        assert sleeps == []
 
 
 class TestPriceUpdateLogic:
