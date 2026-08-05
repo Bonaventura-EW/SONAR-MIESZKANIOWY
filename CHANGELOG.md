@@ -11,6 +11,18 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 ## [Niewydane]
 
 ### Dodane
+- **Auto-retry skanu przy blokadzie OLX/Cloudflare** (`main.run_scan_with_retry`).
+  Gdy scraper zwróci 0 / podejrzanie mało ofert (ten sam warunek co ochrona przed
+  masową dezaktywacją, `_deactivation_block_reason`), skan czeka 2 min
+  (`RETRY_ON_BLOCK_WAIT_SECONDS = 120`) i ponawia próbę — do 2 dodatkowych podejść
+  (`RETRY_ON_BLOCK_MAX_RETRIES = 2`). Blokada bywa chwilowa (rate limit), a pełny
+  cykl to tylko 3×/dzień, więc jeden strzał po 2 min ratuje skan zamiast czekać
+  ~5 h do następnego harmonogramu. `run_scan()` zwraca teraz `scrape_blocked`;
+  każda próba loguje osobny wpis w `scan_history` (widoczny w monitoringu).
+  Ochrona przed dezaktywacją nie jest tym omijana — dopóki ofert jest za mało,
+  dezaktywacja pozostaje pominięta. `scanner.yml` bez zmian (retry dzieje się
+  wewnątrz procesu `main.py`). 4 nowe testy (`tests/test_main_scan.py`); suite
+  130 → 134.
 - **Nowa podstrona „Indeks podaży"** (`docs/trend.html`) — port `trend.html`
   z `SONAR-POKOJOWY`. Dwa wykresy ApexCharts:
   - *Indeks podaży* — dzienna rekonstrukcja liczby żywych ofert

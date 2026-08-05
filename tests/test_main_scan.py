@@ -83,6 +83,55 @@ class TestDeactivationProtection:
         assert offer['reactivation_source'] == 'skipped'
 
 
+class TestRetryOnBlock:
+    """FIX 2026-08-05: przy wykrytej blokadzie OLX (run_scan zwraca True)
+    run_scan_with_retry czeka i ponawia skan, aż do RETRY_ON_BLOCK_MAX_RETRIES
+    dodatkowych prób. Bez blokady (False) — żadnego retry ani czekania."""
+
+    def _patch(self, agent, monkeypatch, results):
+        """Podmienia run_scan sekwencją wyników i wyłapuje sleepy (bez czekania)."""
+        calls = {'scan': 0}
+        sleeps = []
+
+        def fake_run_scan():
+            i = calls['scan']
+            calls['scan'] += 1
+            # Po wyczerpaniu sekwencji trzymaj ostatni wynik (blokada trwa).
+            return results[i] if i < len(results) else results[-1]
+
+        monkeypatch.setattr(agent, 'run_scan', fake_run_scan)
+        monkeypatch.setattr('main.time.sleep', lambda s: sleeps.append(s))
+        return calls, sleeps
+
+    def test_healthy_scan_runs_once_without_sleep(self, agent, monkeypatch):
+        calls, sleeps = self._patch(agent, monkeypatch, [False])
+        blocked = agent.run_scan_with_retry()
+        assert blocked is False
+        assert calls['scan'] == 1
+        assert sleeps == []
+
+    def test_block_then_recovery_retries_and_succeeds(self, agent, monkeypatch):
+        calls, sleeps = self._patch(agent, monkeypatch, [True, False])
+        blocked = agent.run_scan_with_retry(wait_seconds=120, max_retries=2)
+        assert blocked is False
+        assert calls['scan'] == 2          # blokada + udany retry
+        assert sleeps == [120]             # jedno czekanie 2 min
+
+    def test_persistent_block_stops_after_max_retries(self, agent, monkeypatch):
+        calls, sleeps = self._patch(agent, monkeypatch, [True])  # zawsze blokada
+        blocked = agent.run_scan_with_retry(wait_seconds=120, max_retries=2)
+        assert blocked is True
+        assert calls['scan'] == 3          # 1 początkowa + 2 retry
+        assert sleeps == [120, 120]        # dwa czekania, potem koniec
+
+    def test_no_retries_config_runs_once(self, agent, monkeypatch):
+        calls, sleeps = self._patch(agent, monkeypatch, [True])
+        blocked = agent.run_scan_with_retry(wait_seconds=120, max_retries=0)
+        assert blocked is True
+        assert calls['scan'] == 1
+        assert sleeps == []
+
+
 class TestPriceUpdateLogic:
     """FIX 2026-06-12: upgrade źródła z różnicą >=50% = korekta błędu parsera,
     nie rynkowa zmiana ceny (bez trend/previous_price/price_changes/top5)."""
