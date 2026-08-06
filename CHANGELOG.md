@@ -11,6 +11,22 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 ## [Niewydane]
 
 ### Dodane
+- **`src/audit_map_placement.py` — audyt jakości umieszczenia pinezek na mapie.**
+  Mapa rysuje „kroplę" (adres dokładny) dla każdej oferty z `has_number=True`,
+  nie sprawdzając, czy geokoder trafił w budynek. Skrypt weryfikuje to dwoma
+  niezależnymi źródłami OSM: Overpass (punkty adresowe Lublina → dystans pinezki
+  od budynku o tym numerze) i Nominatim reverse (co faktycznie stoi w punkcie
+  pinezki), plus sprawdza, czy para „ulica numer" w ogóle występuje w treści
+  ogłoszenia. Werdykty: `DOKLADNA`, `SASIEDNI_BUDYNEK`, `PRZESUNIETA`,
+  `SRODEK_ULICY`, `BRAK_NUMERU`, `ZLA_ULICA`, `ADRES_WIDMO`, `BRAK_GPS`
+  + osobna sekcja `FALSZYWA_PRECYZJA`. Cache danych OSM leży poza repo
+  (katalog tymczasowy), więc `--offline` powtarza audyt bez sieci.
+  Wynik pierwszego przebiegu (2026-08-06, 322 aktywne oferty z `has_number`):
+  252 (78%) pinezek stoi na właściwym budynku (mediana błędu 1,6 m), ale tylko
+  232 (72%) ma jednocześnie numer potwierdzony w treści ogłoszenia; 51 ofert ma
+  numer dorobiony przez parser z innego zdania („2-pokojowe" → „Zana 2",
+  „34 m2" → „Nałęczowska 34", „dostępne od 1" → „Wolne 1"), 16 ma ulicę
+  nieistniejącą w Lublinie, 26 nie ma GPS.
 - **Auto-retry skanu przy blokadzie OLX/Cloudflare** (`main.run_scan_with_retry`).
   Gdy scraper zwróci 0 / podejrzanie mało ofert (ten sam warunek co ochrona przed
   masową dezaktywacją, `_deactivation_block_reason`), skan czeka 2 min
