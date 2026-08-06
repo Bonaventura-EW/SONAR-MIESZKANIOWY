@@ -174,7 +174,14 @@ python price_parser.py     # parsowanie cen
     **tylko do akceptowania** adresów ratunkowych — nigdy do odrzucania ofert,
     bo ~30 realnych adresów z ogłoszeń nie występuje w OSM w takiej formie.
 
-14. **O kształcie markera decyduje `address['precision']`, nie `has_number`**
+14. **Zmieniając parser adresów bumpnij `address_migration.ADDRESS_PARSER_VERSION`** —
+    inaczej poprawka ominie oferty już w bazie, a zwłaszcza **nieaktywne** (scraper
+    ich nie odwiedza, więc `_update_existing_offer` się dla nich nie uruchomi).
+    Migracja (`main._migrate_legacy_addresses`) przelicza adres z opisu zapisanego
+    w bazie, działa bez sieci i tylko przy identycznej nazwie ulicy. Podgląd przed
+    zmianą: `cd src && python address_migration.py` (sucha próba).
+
+15. **O kształcie markera decyduje `address['precision']`, nie `has_number`**
     ('exact' = pinezka pod budynkiem, 'street' = kwadrat na środku ulicy,
     'none' = warstwa „bez lokacji"). Ustawia je `main._address_precision` z meta
     geokodera (`number_fallback`), a dla starych rekordów offline'owy

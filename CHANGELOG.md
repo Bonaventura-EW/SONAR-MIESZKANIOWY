@@ -67,7 +67,27 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 - **Korpus regresyjny parsera** (`tests/data_address_corpus.json`, 120 realnych
   opisów) + `tests/test_address_regression.py` i `tests/test_address_precision.py`.
   Każda przyszła zmiana parsera, która zgubi albo przekręci adres, wywala CI.
-  Suite 135 → 163 testy (przechodzą przy dowolnym `PYTHONHASHSEED`).
+- **`src/address_migration.py` — jednorazowa migracja adresów w bazie.** Poprawka
+  parsera sama naprawia tylko oferty, które scraper widzi w listingu; **nieaktywne**
+  (2187 rekordów, wchodzą do mapy historycznej i analiz cen po adresach) zostałyby
+  ze zmyślonym numerem na zawsze. Opis oferty jest w bazie, więc adres przeliczamy
+  z zapisanego tekstu — **bez ani jednego zapytania do Nominatim**: punkt ulicy
+  bierzemy z `geocoding_cache.json`, a gdy go tam nie ma, zostawiamy dotychczasowe
+  współrzędne (realny budynek przy tej samej ulicy) i obniżamy `precision`.
+  Korekta działa wyłącznie przy **identycznej nazwie ulicy** — nigdy nie przenosi
+  oferty pod inny adres (76 takich przypadków świadomie pominiętych). Bezpiecznik
+  `MAX_RETRACTION_RATIO = 0.25` blokuje migrację, gdyby parser chciał przepisać
+  pół bazy (wtedy wersja nie jest stemplowana i próba powtórzy się po naprawie).
+  Migracja odpala się raz w skanie (`main._migrate_legacy_addresses`, stempel
+  `address_parser_version` w bazie); ręczny podgląd: `python address_migration.py`
+  (sucha próba) / `--apply`.
+  Efekt na bazie 2026-08-06: **127 poprawionych adresów (43 aktywne + 84 nieaktywne)**,
+  0 ofert utraconych, 0 ofert bez współrzędnych. Audyt pinezek przed → po:
+  pinezka pod właściwym budynkiem **78,3% → 86,1%**, fałszywa precyzja **51 → 10**,
+  adresy-widma **41 → 21**, pinezki na środku ulicy udające dokładne **21 → 12**.
+- **`audit_map_placement.py --offers PATH`** — audyt na dowolnym pliku bazy
+  (do porównań przed/po migracją). Suite 135 → 173 testy (przechodzą przy
+  dowolnym `PYTHONHASHSEED`).
 - **`src/audit_map_placement.py` — audyt jakości umieszczenia pinezek na mapie.**
   Mapa rysuje „kroplę" (adres dokładny) dla każdej oferty z `has_number=True`,
   nie sprawdzając, czy geokoder trafił w budynek. Skrypt weryfikuje to dwoma

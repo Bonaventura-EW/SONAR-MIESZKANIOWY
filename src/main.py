@@ -21,6 +21,7 @@ from geocoder import Geocoder
 from duplicate_detector import DuplicateDetector
 from scan_logger import ScanLogger
 from street_whitelist import is_known_street
+from address_migration import ADDRESS_PARSER_VERSION, retract_fake_numbers
 
 # Stabilny identyfikator oferty (CID3-IDxxxx). Współdzielony z scraper.py.
 from cid import extract_cid
@@ -229,6 +230,37 @@ class SonarMieszkaniowy:
         if geocode_meta and geocode_meta.get('number_fallback'):
             return 'street'
         return 'exact'
+
+    def _migrate_legacy_addresses(self):
+        """Jednorazowo przelicza adresy w bazie po zmianie parsera (bez sieci).
+
+        FIX 2026-08-06: poprawka „numer musi sąsiadować z ulicą" działa dla nowych
+        parsowań, a `_update_existing_offer` naprawia oferty, które scraper widzi
+        w listingu. Oferty **nieaktywne** nie są odwiedzane, więc zostałyby ze
+        zmyślonym numerem na zawsze (84 sztuki na 2026-08-06) — a wchodzą do mapy
+        historycznej i do analiz cen po adresach. Opis mamy w bazie, więc adres
+        przeliczamy z zapisanego tekstu.
+
+        Migracja odpala się raz — dopóki `address_parser_version` w bazie nie
+        zgadza się z `ADDRESS_PARSER_VERSION`. Bezpiecznik przed awarią parsera
+        siedzi w `retract_fake_numbers` (patrz MAX_RETRACTION_RATIO).
+        """
+        if self.database.get('address_parser_version') == ADDRESS_PARSER_VERSION:
+            return
+        print(f"\n🔧 Migracja adresów do wersji parsera {ADDRESS_PARSER_VERSION}…")
+        result = retract_fake_numbers(
+            self.database['offers'],
+            parser=self.address_parser,
+            geocoding_cache=self.geocoder.cache,
+        )
+        if result['blocked']:
+            print(f"   ⛔ {result['blocked']}")
+            self.scan_logger.log_error(result['blocked'])
+            return
+        self.database['address_parser_version'] = ADDRESS_PARSER_VERSION
+        print(f"   ✅ Wycofano zmyślony numer w {result['to_fix']} ofertach "
+              f"(aktywne: {result['active_to_fix']}, nieaktywne: {result['inactive_to_fix']}); "
+              f"bez zmian: {result['kept']}")
 
     def _backfill_address_precision(self):
         """Uzupełnia `precision` w ofertach sprzed FIX-a 2026-08-06 — bez sieci.
@@ -1219,7 +1251,10 @@ class SonarMieszkaniowy:
             # Aktualizuj days_active dla WSZYSTKICH ofert
             self._update_days_active()
 
-            # FIX 2026-08-06: domknij `precision` dla ofert sprzed tej zmiany (bez sieci)
+            # FIX 2026-08-06: przelicz adresy zapisane starym parserem (też nieaktywne),
+            # a potem domknij `precision` dla rekordów sprzed tej zmiany. Oba kroki
+            # są lokalne — zero zapytań do Nominatim.
+            self._migrate_legacy_addresses()
             self._backfill_address_precision()
             
             print(f"   Nowe oferty: {new_offers_count}")

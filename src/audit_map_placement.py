@@ -428,9 +428,11 @@ def main():
     ap.add_argument('--offline', action='store_true', help='tylko cache, zero zapytań do OSM')
     ap.add_argument('--refresh', action='store_true', help='odśwież cache danych OSM')
     ap.add_argument('--json', dest='json_out', help='zapisz pełny raport do pliku JSON')
+    ap.add_argument('--offers', default=paths.OFFERS_JSON,
+                    help='inna baza ofert niż data/offers.json (do porównań przed/po)')
     args = ap.parse_args()
 
-    db = json.loads(Path(paths.OFFERS_JSON).read_text(encoding='utf-8'))
+    db = json.loads(Path(args.offers).read_text(encoding='utf-8'))
     offers = [o for o in db['offers']
               if (args.all or o.get('active')) and (o.get('address') or {}).get('has_number')]
     print(f'📥 Ofert do audytu: {len(offers)} ({"wszystkie" if args.all else "aktywne"})')
