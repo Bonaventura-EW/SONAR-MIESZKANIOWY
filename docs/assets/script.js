@@ -202,8 +202,16 @@ function drawCornerBadge(ctx, cx, cy, o) {
     ctx.restore();
 }
 
+// Czy pinezka stoi pod konkretnym budynkiem, czy tylko na ulicy.
+// `precision` ('exact' | 'street' | 'none') liczy backend; starsze rekordy go nie mają,
+// więc wtedy zostaje dotychczasowe kryterium — czy ogłoszenie podało numer domu.
+function isExactLocation(offer) {
+    if (offer.precision) return offer.precision === 'exact';
+    return offer.has_number !== false;
+}
+
 // PinMarker — KROPLA 40×50 px. Ostrze kropli wskazuje DOKŁADNE współrzędne (tip = _point).
-// Dla ofert z dokładnym adresem (has_number !== false).
+// Dla ofert z dokładnym adresem (precision === 'exact').
 const PinMarker = L.CircleMarker.extend({
     _updatePath: function () {
         const r = this._renderer;
@@ -320,7 +328,11 @@ function createMarkerGroup(baseCoords, address, offers, isActive, batches) {
         const hasPriceChg   = !!(offer.previous_price && offer.price_trend);
         const priceUp       = offer.price_trend === 'up';
         const priceDown     = offer.price_trend === 'down';
-        const hasNumber     = offer.has_number !== false;
+        // FIX 2026-08-06: o kształcie markera decyduje PRECYZJA geokodu, nie sam numer
+        // domu z ogłoszenia. Pinezka (kropla) tylko dla precision === 'exact'; punkt,
+        // dla którego geokoder cofnął się do środka ulicy, dostaje kwadrat.
+        // Stare rekordy nie mają pola `precision` — wtedy fallback do has_number.
+        const hasNumber     = isExactLocation(offer);
 
         let offsetLat = 0, offsetLon = 0;
         if (total > 1) {
@@ -409,10 +421,10 @@ function createPopupContent(address, offers) {
     let html = `<div class="offer-popup"><h3>📍 ${escapeHtml(address)}</h3>`;
     offers.forEach(offer => {
         const isActive = offer.active;
-        const isApprox = offer.has_number === false;
+        const isApprox = !isExactLocation(offer);
         html += `<div class="offer-item${isActive ? '' : ' inactive'}" data-offer-id="${escapeHtml(offer.id)}">`;
         if (!isActive) html += `<div class="inactive-badge">❌ Nieaktywne</div>`;
-        if (isApprox)  html += `<div class="approx-notice">⬜ <strong>Lokalizacja przybliżona</strong> — brak numeru domu w ogłoszeniu.<br>Marker umieszczony na środku ulicy.</div>`;
+        if (isApprox)  html += `<div class="approx-notice">⬜ <strong>Lokalizacja przybliżona</strong> — nie znamy numeru budynku (nie ma go w ogłoszeniu albo nie ma go w bazie adresowej).<br>Marker umieszczony na środku ulicy.</div>`;
 
         if (offer.previous_price && offer.price_trend) {
             const diff = offer.price - offer.previous_price;

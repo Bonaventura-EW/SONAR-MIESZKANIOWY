@@ -30,6 +30,11 @@ class AddressParser:
         re.UNICODE | re.IGNORECASE
     )
     
+    # FIX 2026-08-06: numer, który jest w rzeczywistości metrażem ("55m", "40m2", "27M").
+    # W adresie "m" znaczy „mieszkanie" i zawsze stoi po numerze budynku ("Lipowa 12 m 5"),
+    # więc samo "55m" nigdy nie jest numerem domu.
+    AREA_AS_NUMBER_PATTERN = re.compile(r'^\d+\s*m[²2]?$', re.IGNORECASE)
+
     # NOWY: Wzorzec dla polskich nazwisk w dopełniaczu (Langiewicza, Słowackiego, Czuby itd.)
     # Łapie: "[Nazwisko kończące się na -a/-cza/-sza/-ego/-iego/-owej/-skiej] + numer"
     POLISH_SURNAME_PATTERN = re.compile(
@@ -377,8 +382,16 @@ class AddressParser:
         if not candidates:
             return None
         
-        # Wybierz najdłuższego kandydata (najbardziej specyficzny)
-        best_street_lower, _ = max(candidates, key=lambda x: x[1])
+        # Wybierz najdłuższego kandydata (najbardziej specyficzny).
+        #
+        # FIX 2026-08-06: remisy rozstrzygamy DETERMINISTYCZNIE. Wcześniej przy dwóch
+        # znanych ulicach o nazwach tej samej długości ("Wrotków" vs "Fulmana",
+        # "Spokojnej" vs "Stokrotka") zwycięzcę wybierała kolejność iteracji po zbiorze
+        # `_known_streets`, czyli losowy PYTHONHASHSEED — ten sam opis dawał różny adres
+        # w różnych uruchomieniach skanu (i przesuwał pinezkę na mapie).
+        # Kolejność: dłuższa nazwa → wcześniejsza pozycja w tekście (tytuł stoi na
+        # początku, więc jest bardziej wiarygodny) → alfabetycznie.
+        best_street_lower = min(candidates, key=lambda c: (-c[1], c[2], c[0]))[0]
         # Kapitalizacja zgodnie z polską normą (każde słowo z dużej litery)
         best_street = ' '.join(w.capitalize() for w in best_street_lower.split())
         
@@ -391,18 +404,25 @@ class AddressParser:
     def _find_in_text(self, words_set: set, text: str) -> list:
         """
         Pomocnicza: szuka znanych ulic w danym tekście.
-        Zwraca listę kandydatów (street_lower, score=length).
+        Zwraca listę kandydatów (street_lower, score=length, position).
+
+        FIX 2026-08-06: doszła `position` (offset pierwszego trafienia), żeby remis
+        długości nazw dało się rozstrzygnąć deterministycznie — patrz komentarz przy
+        wyborze zwycięzcy w `extract_from_whitelist`.
         """
         candidates = []
         for street_lower in self._known_streets:
             street_words = street_lower.split()
+            pattern = r'\b' + re.escape(street_lower) + r'\b'
             if len(street_words) == 1:
                 if street_lower in words_set:
-                    candidates.append((street_lower, len(street_lower)))
+                    match = re.search(pattern, text)
+                    candidates.append((street_lower, len(street_lower),
+                                       match.start() if match else len(text)))
             else:
-                pattern = r'\b' + re.escape(street_lower) + r'\b'
-                if re.search(pattern, text):
-                    candidates.append((street_lower, len(street_lower)))
+                match = re.search(pattern, text)
+                if match:
+                    candidates.append((street_lower, len(street_lower), match.start()))
         return candidates
     
     def extract_address(self, text: str) -> Optional[Dict[str, str]]:
@@ -557,8 +577,13 @@ class AddressParser:
             # Jeśli WSZYSTKIE słowa są wykluczone (np. "Kaucja Mieszkanie") - odrzucamy całość.
             street_words = street.split()
             # Odcinaj od końca dopóki ostatnie słowo jest wykluczone
+            # FIX 2026-08-06: zapamiętujemy, CZY coś odcięliśmy — jeśli tak, to numer
+            # nie sąsiadował z nazwą ulicy i prawie na pewno należy do innego zdania
+            # ("ul. ZANA Mieszkanie 2 pokojowe" → ulica Zana, numer 2 to liczba pokoi).
+            trimmed_tail = False
             while street_words and street_words[-1].lower() in excluded_words_lower:
                 street_words.pop()
+                trimmed_tail = True
             # Sprawdź teraz pierwsze słowo - jeśli ono jest wykluczone, to znaczy że NIE MA prawdziwej ulicy
             if not street_words or street_words[0].lower() in excluded_words_lower:
                 continue
@@ -576,7 +601,14 @@ class AddressParser:
             
             # Wyciągnij główny numer (przed / lub lok.)
             main_number = number.split('/')[0].split()[0]
-            
+
+            # FIX 2026-08-06: "55m", "40m2", "27M" to METRAŻ, nie numer domu.
+            # W polskich adresach "m" oznacza mieszkanie ("12 m 5"), nigdy numeru
+            # budynku — a w ogłoszeniach to po prostu metry kwadratowe.
+            # Ulicę zostawiamy, numer odrzucamy (adres bez numeru zamiast błędnego).
+            if self.AREA_AS_NUMBER_PATTERN.match(main_number):
+                trimmed_tail = True
+
             # FILTR BEZPIECZEŃSTWA: Odrzuć numery z literą O/o zaraz po cyfrze (błąd OCR)
             # Przykład: "1O", "10O", "2o" - prawdopodobnie błąd, powinno być "10", "100", "20"
             if re.search(r'\d[Oo](?:[^a-zA-Z]|$)', main_number):
@@ -623,13 +655,21 @@ class AddressParser:
             if has_prefix:
                 priority += 100  # Prefiks daje wysoką pewność
             priority += len(street)  # Dłuższa nazwa = wyższy priorytet
-            
+            # FIX 2026-08-06: kandydat z numerem "oderwanym" od ulicy jest gorszy od
+            # takiego, w którym numer stoi tuż przy nazwie — ale nadal jest kandydatem
+            # (ulica bywa poprawna, tracimy tylko numer).
+            if trimmed_tail:
+                priority -= 50
+
             candidates.append({
                 'street': street,
                 'number': number,
                 'full': f"{full_address} {number}",
                 'priority': priority,
-                'has_prefix': has_prefix
+                'has_prefix': has_prefix,
+                # numer sąsiadował bezpośrednio z nazwą ulicy?
+                'number_adjacent': not trimmed_tail,
+                'street_only_full': full_address,
             })
         
         # FIX 2026-05-14: Jeśli w tekście WIDZIMY jawny prefiks ulicy (ul./al./ulica/aleja/...)
@@ -663,15 +703,23 @@ class AddressParser:
             # Sortuj malejąco po priority - pierwszy to "główny" wybór
             sorted_candidates = sorted(candidates, key=lambda x: x['priority'], reverse=True)
             best = sorted_candidates[0]
+            # FIX 2026-08-06: kandydat, któremu numer nie sąsiadował z ulicą, wraca jako
+            # adres BEZ numeru (has_number=False) — mapa narysuje go jako obszar ulicy,
+            # a nie jako precyzyjną pinezkę pod zmyślonym numerem.
             alternatives = [
-                {'street': c['street'], 'number': c['number'], 'full': c['full'], 'has_number': True}
+                {
+                    'street': c['street'],
+                    'number': c['number'] if c['number_adjacent'] else None,
+                    'full': c['full'] if c['number_adjacent'] else c['street_only_full'],
+                    'has_number': c['number_adjacent'],
+                }
                 for c in sorted_candidates[1:]
             ]
             return {
                 'street': best['street'],
-                'number': best['number'],
-                'full': best['full'],
-                'has_number': True,
+                'number': best['number'] if best['number_adjacent'] else None,
+                'full': best['full'] if best['number_adjacent'] else best['street_only_full'],
+                'has_number': best['number_adjacent'],
                 'alternatives': alternatives  # może być pustą listą []
             }
         

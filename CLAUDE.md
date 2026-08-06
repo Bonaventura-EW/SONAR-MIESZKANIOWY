@@ -164,6 +164,24 @@ python price_parser.py     # parsowanie cen
     minuta 17 = off-peak). Zmieniając cron zaktualizuj też
     `main._calculate_next_scan_time`, `api_generator.SCAN_SCHEDULE` i README.
 
+13. **Zaostrzając parser adresów pamiętaj: brak adresu = oferta znika ze strony**
+    (`main._process_offer` → `return None`). Każdą zmianę w `address_parser.py`
+    zmierz na całej bazie („ile adresów ubyło?") i puść `pytest` — korpus
+    regresyjny (`tests/data_address_corpus.json`, 120 realnych opisów) wywala się,
+    gdy adres zniknie lub się przekręci. W skanie pilnuje tego bezpiecznik
+    `MAX_NO_ADDRESS_RATIO` (20% odrzuconych → błąd skanu i ⚠️ w monitoringu).
+    Whitelist ulic (`street_whitelist.py`, `data/streets_lublin.json`) służy
+    **tylko do akceptowania** adresów ratunkowych — nigdy do odrzucania ofert,
+    bo ~30 realnych adresów z ogłoszeń nie występuje w OSM w takiej formie.
+
+14. **O kształcie markera decyduje `address['precision']`, nie `has_number`**
+    ('exact' = pinezka pod budynkiem, 'street' = kwadrat na środku ulicy,
+    'none' = warstwa „bez lokacji"). Ustawia je `main._address_precision` z meta
+    geokodera (`number_fallback`), a dla starych rekordów offline'owy
+    `_backfill_address_precision`. Frontend czyta je przez `isExactLocation()`
+    z fallbackiem do `has_number` — zmieniając kontrakt bumpnij `script.js?v=`.
+    Kontrolę jakości pinezek robi `src/audit_map_placement.py --offline`.
+
 ## Konwencja commitów
 
 Format `typ(zakres): opis` po polsku, np.:

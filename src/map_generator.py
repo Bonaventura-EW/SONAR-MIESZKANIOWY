@@ -317,6 +317,10 @@ def generate_map_data(input_file, output_file):
             'active': offer.get('active', True),
             'is_new': is_new,  # ✅ Obliczone na podstawie daty
             'has_number': offer.get('address', {}).get('has_number', True),  # ✅ Czy znany numer domu
+            # FIX 2026-08-06: 'exact' | 'street' — czy pinezka stoi pod budynkiem, czy
+            # tylko na ulicy (geokoder cofnął się do samej ulicy). Frontend wybiera po
+            # tym kształt markera; brak pola = stary rekord, fallback do has_number.
+            'precision': offer.get('address', {}).get('precision'),
             'description': desc_preview,        # Podgląd; pełny opis w descriptions.json
             'desc_truncated': desc_truncated,   # True → frontend doczytuje pełny opis na żądanie
             'reactivated': offer.get('reactivated_at') is not None,  # Czy była reaktywowana

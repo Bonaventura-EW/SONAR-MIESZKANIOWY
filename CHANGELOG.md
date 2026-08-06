@@ -10,7 +10,64 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Naprawione (audyt pinezek 2026-08-06)
+- **Parser przestał dorabiać numery domów z innego zdania.** `ADDRESS_PATTERN`
+  łapie „ul. ZANA Mieszkanie 2" jako ulicę „ZANA Mieszkanie" + numer „2”; logika
+  odcinania słów-śmieci z końca nazwy (FIX 2026-05-16) zostawiała numer, choć po
+  odcięciu należał on już do innego zdania („2-pokojowe”, „34 m2”, „dostępne od 1”).
+  Teraz odcięcie ogona ⇒ `number=None`, `has_number=False` — zostaje sama ulica.
+  Dodatkowo numer w formie metrażu („55m”, „40m2”) nigdy nie jest numerem domu.
+  Zmierzone na całej bazie (2890 ofert): **0 utraconych adresów**, 129 poprawionych
+  zapisów, 40 z 51 ofert z „fałszywą precyzją” naprawionych, zero regresji wśród
+  232 pinezek stojących dziś poprawnie.
+- **`extract_from_whitelist` był niedeterministyczny.** Przy dwóch znanych ulicach
+  o nazwach tej samej długości („Wrotków” vs „Fulmana”, „Spokojnej” vs „Stokrotka”)
+  zwycięzcę wybierała kolejność iteracji po zbiorze `_known_streets`, czyli
+  `PYTHONHASHSEED` — ten sam opis dawał różny adres w różnych uruchomieniach skanu,
+  a pinezka skakała po mapie. Remis rozstrzyga teraz: dłuższa nazwa → wcześniejsza
+  pozycja w tekście → alfabetycznie.
+- **`has_number` liczone z adresu, który faktycznie wygrał geokodowanie** (mógł to
+  być wariant bez numeru z `alternatives`), a nie z głównego kandydata parsera.
+  6 aktywnych ofert miało `has_number=True` przy `number=None` — i kroplę „adres
+  dokładny" na mapie.
+
 ### Dodane
+- **`address['precision']` — mapa przestaje udawać precyzję, której nie ma.**
+  Geokoder od dawna zwracał w meta `number_fallback` („nie znalazłem numeru,
+  zwracam samą ulicę"), ale `main.py` tę informację wyrzucał, a mapa rysowała
+  kroplę po samym `has_number`. Teraz `precision` ('exact' | 'street' | 'none')
+  trafia do `offers.json` → `docs/data.json` → frontendu, który po niej wybiera
+  kształt markera (`isExactLocation`, `script.js?v=16`); stare rekordy bez pola
+  działają po staremu. `_backfill_address_precision()` uzupełnia pole dla ofert
+  sprzed zmiany **bez sieci** — punkt identyczny z geokodem samej ulicy = środek
+  ulicy, nie budynek. Efekt na obecnej bazie: 18 ofert traci mylącą kroplę,
+  aktywne rozkładają się na 273 `exact` / 370 `street` / 60 bez lokacji.
+- **Dwa ratunki przed wyrzuceniem oferty ze skanu** (`_process_offer`): parsowanie
+  samego **tytułu** (filtry chroniące przed śmieciami z opisu potrafiły skasować
+  poprawny adres z tytułu — „Cyrkoniowa 7 - kawalerka…") oraz `extract_street_only`
+  (main.py wypisywał w logu „extract_street_only znalazłby: X" i mimo to wyrzucał
+  ofertę). Oba przyjmują wynik tylko dla realnej ulicy Lublina — odzyskują ~4 z 37
+  ofert gubionych w każdym skanie, bez wpuszczania nowych śmieci.
+- **`data/streets_lublin.json` + `src/street_whitelist.py`** — snapshot 1563 nazw
+  ulic i osiedli Lublina z OSM (odświeżanie: `python street_whitelist.py --update`).
+  Lista służy **wyłącznie do akceptowania** adresów ratunkowych, nigdy do
+  odrzucania ofert: pomiar pokazał, że 114 aktywnych ofert ma nazwę spoza listy,
+  ale kilkadziesiąt z nich to prawdziwe adresy, których OSM nie ma w formie użytej
+  w ogłoszeniu („Osiedle Botanik", „Skłodowskiej", „Aleja Racławickiej").
+- **Korekta adresu „w dół" w `_update_existing_offer`.** Dotąd adres był
+  nadpisywany tylko wtedy, gdy nowy *dodawał* numer — poprawiony parser nigdy nie
+  naprawiłby ofert już w bazie. Teraz przy **identycznej nazwie ulicy** wycofanie
+  zmyślonego numeru aktualizuje rekord (i nie przenosi na nowy adres starych
+  współrzędnych, bo wskazywały zmyślony budynek). Licznik w podsumowaniu skanu.
+- **Bezpiecznik `MAX_NO_ADDRESS_RATIO = 0.20`** (`_no_address_alert`). Oferta bez
+  rozpoznanego adresu nie trafia na stronę w ogóle, więc regresja parsera potrafi
+  po cichu wyciąć setki ogłoszeń, a skan i tak kończy się „✅ sukces". Zdrowy skan
+  gubi ~5,5% ofert (42 z 767); przekroczenie 20% loguje błąd skanu → monitoring
+  pokazuje ⚠️ (ten sam mechanizm co ochrona przed masową dezaktywacją).
+- **Korpus regresyjny parsera** (`tests/data_address_corpus.json`, 120 realnych
+  opisów) + `tests/test_address_regression.py` i `tests/test_address_precision.py`.
+  Każda przyszła zmiana parsera, która zgubi albo przekręci adres, wywala CI.
+  Suite 135 → 163 testy (przechodzą przy dowolnym `PYTHONHASHSEED`).
 - **`src/audit_map_placement.py` — audyt jakości umieszczenia pinezek na mapie.**
   Mapa rysuje „kroplę" (adres dokładny) dla każdej oferty z `has_number=True`,
   nie sprawdzając, czy geokoder trafił w budynek. Skrypt weryfikuje to dwoma
