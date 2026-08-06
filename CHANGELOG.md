@@ -32,6 +32,21 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
   dokładny" na mapie.
 
 ### Dodane
+- **Adres brany NAJPIERW z tytułu, dopiero potem z treści ogłoszenia**
+  (`main._address_from_title`). Wcześniej tytuł był po prostu doklejany do opisu
+  (`full_text = title + " " + description`), więc nie miał żadnego pierwszeństwa —
+  a to on jest pisany świadomie („Cyrkoniowa 7 - kawalerka do wynajęcia") i nie ma
+  w nim zdań, z których parser sklei pseudo-adres. Wynik z tytułu przyjmujemy
+  tylko, gdy nazwa jest realną ulicą/osiedlem Lublina (whitelist OSM) i ma numer
+  albo jawny prefiks („ul.", „al.", „os.") — bez tego warunku tytuły typu
+  „Nowoczesne mieszkanie 2 pokoje" podstawiałyby śmieci w miejsce dobrego adresu
+  z opisu. Gdy tytuł podaje samą ulicę, numer dobieramy z treści, ale wyłącznie
+  dla **tej samej ulicy** (porównanie odporne na odmianę: „ul. Głęboka" w tytule +
+  „Głębokiej 21" w opisie → „Głęboka 21"). Dochodzi obcinanie reklamowego
+  przedrostka („BEZPOŚREDNIO Nałęczowska 20" → „Nałęczowska 20") — tylko gdy ogon
+  nazwy jest realną ulicą, więc „Krakowskie Przedmieście" zostaje nietknięte.
+  Pomiar na 703 aktywnych ofertach: **22 adresy lepsze, 2 gorsze, 0 utraconych**;
+  286 adresów pochodzi teraz z tytułu, 417 z treści.
 - **`address['precision']` — mapa przestaje udawać precyzję, której nie ma.**
   Geokoder od dawna zwracał w meta `number_fallback` („nie znalazłem numeru,
   zwracam samą ulicę"), ale `main.py` tę informację wyrzucał, a mapa rysowała

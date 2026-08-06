@@ -20,8 +20,14 @@ from price_parser import PriceParser
 from geocoder import Geocoder
 from duplicate_detector import DuplicateDetector
 from scan_logger import ScanLogger
-from street_whitelist import is_known_street
+from street_whitelist import is_known_street, name_variants
 from address_migration import ADDRESS_PARSER_VERSION, retract_fake_numbers
+
+# Jawny prefiks ulicy w tytule — wraz z whitelistą OSM decyduje, czy adres
+# z tytułu jest na tyle pewny, żeby wyprzedzić adres z treści ogłoszenia.
+TITLE_STREET_PREFIX_RE = re.compile(
+    r'\b(ul\.?|ulica|ulicy|ulicą|al\.?|aleja|aleje|alei|pl\.?|plac|placu|os\.?|osiedle|osiedlu)\s',
+    re.IGNORECASE)
 
 # Stabilny identyfikator oferty (CID3-IDxxxx). Współdzielony z scraper.py.
 from cid import extract_cid
@@ -300,6 +306,82 @@ class SonarMieszkaniowy:
         if updated:
             print(f"   🎯 Uzupełniono precyzję adresu dla {updated} ofert")
 
+    def _address_from_title(self, raw_offer: Dict, full_text: str):
+        """Adres z TYTUŁU ogłoszenia — pierwszeństwo przed treścią (2026-08-06).
+
+        Tytuł to najpewniejsze miejsce na adres: jest krótki, pisany świadomie
+        („Cyrkoniowa 7 - kawalerka do wynajęcia") i nie ma w nim zdań, z których
+        parser potrafi skleić pseudo-adres. Wcześniej tytuł był po prostu doklejany
+        do opisu (`full_text`), więc nie miał żadnego priorytetu, a filtry chroniące
+        przed śmieciami z opisu potrafiły skasować poprawny adres z tytułu.
+
+        Wynik z tytułu przyjmujemy tylko, gdy jest wiarygodny: nazwa musi być realną
+        ulicą/osiedlem Lublina (whitelist OSM) i mieć numer albo jawny prefiks
+        („ul.", „al.", „os."). Bez tego warunku tytuły typu „Nowoczesne mieszkanie…"
+        podstawiałyby śmieci w miejsce dobrego adresu z opisu.
+
+        Gdy tytuł podaje samą ulicę, numer dobieramy z treści — ale wyłącznie dla
+        TEJ SAMEJ ulicy (porównanie odporne na odmianę: „ul. Głęboka" w tytule +
+        „Głębokiej 21" w opisie → „Głęboka 21”).
+
+        Zwraca `address_data` albo None (wtedy caller idzie starą ścieżką).
+        """
+        title = (raw_offer.get('title') or '').strip()
+        if not title:
+            return None
+        candidate = self.address_parser.extract_address(title)
+        if not candidate:
+            return None
+        street = candidate.get('street') or candidate.get('full') or ''
+        if not is_known_street(street):
+            return None
+        if not candidate.get('has_number') and not TITLE_STREET_PREFIX_RE.search(title):
+            return None
+
+        candidate = self._trim_leading_junk(candidate)
+
+        if not candidate.get('has_number'):
+            from_body = self.address_parser.extract_address(full_text)
+            if from_body and from_body.get('has_number') and self._same_street(from_body, candidate):
+                print(f"      🏷️  Adres z tytułu + numer z treści: {from_body['full']}")
+                return from_body
+        print(f"      🏷️  Adres z tytułu: {candidate['full']}")
+        return candidate
+
+    @staticmethod
+    def _trim_leading_junk(candidate: Dict) -> Dict:
+        """Ucina reklamowy przedrostek sprzed nazwy ulicy („BEZPOŚREDNIO Nałęczowska 20").
+
+        `EXCLUDED_WORDS` w parserze obcina śmieci tylko z KOŃCA nazwy, a tytuły
+        ogłoszeń lubią zaczynać się od zawołania pisanego wielką literą, które
+        wygląda dla regexu jak pierwszy człon nazwy ulicy. Obcinamy wyłącznie
+        wtedy, gdy ogon nazwy jest realną ulicą Lublina, a początek nie jest —
+        więc „Krakowskie Przedmieście" czy „Jana Sawy" zostają nietknięte.
+        """
+        street = candidate.get('street') or ''
+        tokens = street.split()
+        full = candidate.get('full') or ''
+        # Przy zmapowanym prefiksie ("Aleja …", "Plac …") parser już rozdzielił
+        # nazwę poprawnie — nie ruszamy.
+        if len(tokens) < 2 or not full.startswith(street) or is_known_street(tokens[0]):
+            return candidate
+        for start in range(1, len(tokens)):
+            tail = ' '.join(tokens[start:])
+            if is_known_street(tail):
+                trimmed = dict(candidate)
+                trimmed['street'] = tail
+                trimmed['full'] = f"{tail} {candidate['number']}" if candidate.get('number') else tail
+                print(f"      ✂️  Obcięto przedrostek z tytułu: '{full}' → '{trimmed['full']}'")
+                return trimmed
+        return candidate
+
+    @staticmethod
+    def _same_street(first: Dict, second: Dict) -> bool:
+        """Czy dwa parsowania wskazują tę samą ulicę (odporne na odmianę i skróty)."""
+        variants_first = name_variants(first.get('street') or first.get('full') or '')
+        variants_second = name_variants(second.get('street') or second.get('full') or '')
+        return bool(variants_first & variants_second)
+
     def _process_offer(self, raw_offer: Dict) -> Dict:
         """
         Przetwarza surowe ogłoszenie: parsuje adres, cenę, geokoduje.
@@ -327,27 +409,21 @@ class SonarMieszkaniowy:
                 print(f"      ⚠️ Wykluczono (wynajem domu): {phrase}")
                 return None
         
-        # 2. Parsuj adres z pełnego tekstu (tytuł + opis)
-        address_data = self.address_parser.extract_address(full_text)
-        
-        # Jeśli nie znaleziono adresu w tytule, spróbuj w samym opisie
+        # 2. Parsuj adres: NAJPIERW TYTUŁ, potem treść ogłoszenia.
+        # FIX 2026-08-06: tytuł ma pierwszeństwo (patrz `_address_from_title`).
+        # Pomiar na 703 aktywnych ofertach: 22 adresy lepsze, 2 gorsze, reszta bez zmian.
+        address_data = self._address_from_title(raw_offer, full_text)
+
+        # Tytuł nie dał wiarygodnego adresu → cały tekst (tytuł + opis)
+        if not address_data:
+            address_data = self.address_parser.extract_address(full_text)
+
+        # Dalej nic → sam opis
         if not address_data and raw_offer.get('description'):
             print(f"      🔍 Brak adresu w tytule, szukam w opisie...")
             address_data = self.address_parser.extract_address(raw_offer['description'])
         
-        # FIX 2026-08-06: RATUNEK #1 — parsuj SAM TYTUŁ.
-        # `full_text` to tytuł + opis, więc filtry chroniące przed śmieciami z opisu
-        # („X metrów od", zdania bez prefiksu „ul.") potrafią skasować poprawny adres
-        # stojący w tytule („Cyrkoniowa 7 - kawalerka do wynajęcia"). Tytuł jest krótki
-        # i czysty, więc parsujemy go osobno — ale wynik przyjmujemy tylko, gdy nazwa
-        # jest realną ulicą Lublina (whitelist OSM), żeby nie wpuścić nowych śmieci.
-        if not address_data and raw_offer.get('title'):
-            candidate = self.address_parser.extract_address(raw_offer['title'])
-            if candidate and is_known_street(candidate.get('street') or candidate.get('full', '')):
-                print(f"      🛟 Adres odzyskany z tytułu: {candidate['full']}")
-                address_data = candidate
-
-        # FIX 2026-08-06: RATUNEK #2 — sama ulica bez numeru.
+        # FIX 2026-08-06: RATUNEK — sama ulica bez numeru.
         # Parser potrafi znać ulicę (`extract_street_only`), a mimo to oferta leciała
         # do kosza — main.py wypisywał nawet w logu „extract_street_only znalazłby: X".
         # Lepsza jest pinezka na poziomie ulicy (kwadrat) niż brak oferty na stronie.

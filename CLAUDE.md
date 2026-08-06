@@ -164,7 +164,13 @@ python price_parser.py     # parsowanie cen
     minuta 17 = off-peak). Zmieniając cron zaktualizuj też
     `main._calculate_next_scan_time`, `api_generator.SCAN_SCHEDULE` i README.
 
-13. **Zaostrzając parser adresów pamiętaj: brak adresu = oferta znika ze strony**
+13. **Kolejność źródeł adresu: TYTUŁ → pełny tekst → sam opis → ratunki.**
+    Tytuł ma pierwszeństwo (`main._address_from_title`), ale tylko gdy nazwa jest
+    realną ulicą z whitelisty OSM i ma numer albo jawny prefiks „ul./al./os.";
+    brakujący numer dobieramy z treści wyłącznie dla tej samej ulicy. Nie zmieniaj
+    tej kolejności bez pomiaru na całej bazie (patrz pkt 14).
+
+14. **Zaostrzając parser adresów pamiętaj: brak adresu = oferta znika ze strony**
     (`main._process_offer` → `return None`). Każdą zmianę w `address_parser.py`
     zmierz na całej bazie („ile adresów ubyło?") i puść `pytest` — korpus
     regresyjny (`tests/data_address_corpus.json`, 120 realnych opisów) wywala się,
@@ -174,14 +180,14 @@ python price_parser.py     # parsowanie cen
     **tylko do akceptowania** adresów ratunkowych — nigdy do odrzucania ofert,
     bo ~30 realnych adresów z ogłoszeń nie występuje w OSM w takiej formie.
 
-14. **Zmieniając parser adresów bumpnij `address_migration.ADDRESS_PARSER_VERSION`** —
+15. **Zmieniając parser adresów bumpnij `address_migration.ADDRESS_PARSER_VERSION`** —
     inaczej poprawka ominie oferty już w bazie, a zwłaszcza **nieaktywne** (scraper
     ich nie odwiedza, więc `_update_existing_offer` się dla nich nie uruchomi).
     Migracja (`main._migrate_legacy_addresses`) przelicza adres z opisu zapisanego
     w bazie, działa bez sieci i tylko przy identycznej nazwie ulicy. Podgląd przed
     zmianą: `cd src && python address_migration.py` (sucha próba).
 
-15. **O kształcie markera decyduje `address['precision']`, nie `has_number`**
+16. **O kształcie markera decyduje `address['precision']`, nie `has_number`**
     ('exact' = pinezka pod budynkiem, 'street' = kwadrat na środku ulicy,
     'none' = warstwa „bez lokacji"). Ustawia je `main._address_precision` z meta
     geokodera (`number_fallback`), a dla starych rekordów offline'owy
