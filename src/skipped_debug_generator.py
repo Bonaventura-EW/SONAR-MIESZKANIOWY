@@ -29,7 +29,7 @@ CATEGORY_LABELS = {
         'label': 'Bez adresu (na stronie, bez pinezki)',
         'short': 'bez adresu',
         'color': '#ef4444',
-        'sub': 'parser nie znalazł ulicy — oferta trafia do warstwy „bez lokacji"',
+        'sub': 'parser nie znalazł ulicy — oferta trafia do warstwy „bez lokacji”',
     },
     'no_coords': {
         'label': 'Brak współrzędnych',
