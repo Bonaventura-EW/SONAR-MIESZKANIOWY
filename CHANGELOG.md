@@ -10,6 +10,39 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Dodane (2026-08-07)
+- **`src/clean_geocoding_cache.py` — sprzątanie cache geokodera ze śmieciowych
+  kluczy**, wpięte w skan (`main._clean_geocoding_cache`, idempotentne). Powód:
+  `AddressParser` buduje whitelistę `_known_streets` **z kluczy cache'u**, więc
+  każdy zgeokodowany śmieć („pod nr 60", „Duze nowoczesne 2", „Dostępne 15")
+  stawał się „znaną ulicą" i uwiarygadniał kolejne takie parsowania — pętla
+  sprzężenia zwrotnego. Usuwane są wyłącznie klucze, których **nie używa żadna
+  oferta** i które nie odpowiadają realnej ulicy Lublina (z uwzględnieniem
+  odmiany), więc operacja z definicji nie rusza pinezek. Na obecnej bazie: 122
+  klucze z 2022; zero osieroconych adresów, parser zwraca identyczne wyniki.
+  Ręcznie: `cd src && python clean_geocoding_cache.py [--apply]`.
+
+### Zmienione (2026-08-07)
+- **Udokumentowany wynik negatywny: przecinek między ulicą a numerem.**
+  Dopuszczenie „ul. Skibińskiej, 20" w `ADDRESS_PATTERN` wygląda na oczywistą
+  poprawkę, ale w polskich ogłoszeniach przecinek kończy człon zdania — pomiar na
+  całej aktywnej bazie dał 7 nowych numerów i **wszystkie 7 fałszywych**:
+  „Skibińskiej, 20 m" i „Chopina, 50 m2" (metraż), „Legionowa, 20-053 Lublin"
+  (kod pocztowy), „Litewskiego, 10 min. do UMCS" i „Medycznego, 20 minut" (czas
+  dojścia), „Nałkowskich, 3 oddzielne pokoje" i „Filaretów, 2 pokoje" (liczba
+  pokoi). Zmiana wycofana, powód zapisany w komentarzu przy `ADDRESS_PATTERN`
+  i w 5 testach regresyjnych, żeby nikt nie próbował tego ponownie.
+
+### Weryfikacja na produkcji (skan 2026-08-07 07:26, pierwszy po merge PR #7)
+- Migracja adresów wykonała się raz (`address_parser_version: 2026-08-06`).
+- Audyt pinezek na żywych danych: **87,3% pod właściwym budynkiem** (przed: 78,3%),
+  mediana błędu 2,4 m; fałszywa precyzja **51 → 7**, adresy-widma **41 → 21**,
+  pinezki „środek ulicy" udające dokładne **21 → 8**, niespójne `has_number` **4 → 0**.
+- Ofert nie ubyło: aktywne 703 → **715**, a `skipped_no_address` spadło **42 → 31**
+  (ratunki z tytułu i `extract_street_only` odzyskują oferty, które wcześniej
+  znikały ze strony). Skan bez błędów, bezpiecznik `MAX_NO_ADDRESS_RATIO` nie
+  zadziałał (31/761 = 4,1%).
+
 ### Naprawione (audyt pinezek 2026-08-06)
 - **Parser przestał dorabiać numery domów z innego zdania.** `ADDRESS_PATTERN`
   łapie „ul. ZANA Mieszkanie 2" jako ulicę „ZANA Mieszkanie" + numer „2”; logika

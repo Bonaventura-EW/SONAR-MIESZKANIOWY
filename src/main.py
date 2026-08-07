@@ -22,6 +22,7 @@ from duplicate_detector import DuplicateDetector
 from scan_logger import ScanLogger
 from street_whitelist import is_known_street, name_variants
 from address_migration import ADDRESS_PARSER_VERSION, retract_fake_numbers
+from clean_geocoding_cache import find_junk_keys, street_forms
 
 # Jawny prefiks ulicy w tytule — wraz z whitelistą OSM decyduje, czy adres
 # z tytułu jest na tyle pewny, żeby wyprzedzić adres z treści ogłoszenia.
@@ -267,6 +268,24 @@ class SonarMieszkaniowy:
         print(f"   ✅ Wycofano zmyślony numer w {result['to_fix']} ofertach "
               f"(aktywne: {result['active_to_fix']}, nieaktywne: {result['inactive_to_fix']}); "
               f"bez zmian: {result['kept']}")
+
+    def _clean_geocoding_cache(self):
+        """Wyrzuca z cache klucze-śmieci, które udają nazwy ulic (FIX 2026-08-07).
+
+        `AddressParser` buduje whitelistę `_known_streets` z kluczy tego cache'u,
+        więc każdy zgeokodowany śmieć („pod nr 60", „Duze nowoczesne 2") staje się
+        „znaną ulicą" i uwiarygadnia kolejne takie parsowania — pętla sprzężenia
+        zwrotnego. Usuwamy wyłącznie klucze, których nie używa ŻADNA oferta i które
+        nie odpowiadają realnej ulicy Lublina, więc operacja nie rusza pinezek.
+        Idempotentna: po pierwszym przebiegu nie ma już czego usuwać.
+        """
+        junk = find_junk_keys(self.geocoder.cache, self.database['offers'], street_forms())
+        if not junk:
+            return
+        for key in junk:
+            self.geocoder.cache.pop(key, None)
+        self.geocoder._save_cache()
+        print(f"   🗑️  Usunięto {len(junk)} śmieciowych kluczy z cache geokodera")
 
     def _backfill_address_precision(self):
         """Uzupełnia `precision` w ofertach sprzed FIX-a 2026-08-06 — bez sieci.
@@ -1332,6 +1351,7 @@ class SonarMieszkaniowy:
             # są lokalne — zero zapytań do Nominatim.
             self._migrate_legacy_addresses()
             self._backfill_address_precision()
+            self._clean_geocoding_cache()
             
             print(f"   Nowe oferty: {new_offers_count}")
             print(f"   Zaktualizowane: {updated_offers_count}")

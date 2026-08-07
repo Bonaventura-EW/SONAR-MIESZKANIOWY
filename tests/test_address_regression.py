@@ -106,3 +106,25 @@ def test_wybor_ulicy_z_whitelisty_jest_deterministyczny():
     assert len(results) == 1, f"Parser zwraca różne ulice dla tego samego tekstu: {results}"
     # Tie-break: wygrywa nazwa stojąca wcześniej w tekście (tytuł jest na początku)
     assert results == {'Wrotków'}
+
+
+@pytest.mark.parametrize("text,expected_full", [
+    # Metraż i kod pocztowy po przecinku
+    ("Kawalerka na ul. Skibińskiej, 20 m, po remoncie", "Skibińskiej"),
+    ("Mieszkanie, Lublin, centrum, ul. Chopina, 50 m2, do wynajęcia", "Chopina"),
+    ("Lokalizacja: Wieniawa ul. Legionowa, 20-053 Lublin", "Legionowa"),
+    # Liczba pokoi i czas dojścia po przecinku
+    ("Wynajmę Lublin, os. Nałkowskich, 3 oddzielne pokoje", "Osiedle Nałkowskich"),
+    ("Mieszkanie na ul. Filaretów, 2 pokoje i kuchnia", "Filaretów"),
+])
+def test_przecinek_nie_lapie_numeru(parser, text, expected_full):
+    """Przecinek kończy człon zdania — to, co po nim stoi, nie jest numerem domu.
+
+    Sprawdzone 2026-08-07 na całej aktywnej bazie: dopuszczenie przecinka w
+    `ADDRESS_PATTERN` dało 7 nowych numerów i wszystkie 7 było fałszywych
+    (metraż, kod pocztowy „20-053", „10 min. do UMCS", liczba pokoi).
+    """
+    result = parser.extract_address(text)
+    assert result is not None, f"Zgubiono ulicę w: {text!r}"
+    assert result['has_number'] is False, f"Wzięto liczbę po przecinku za numer domu: {result['full']}"
+    assert result['full'] == expected_full
