@@ -473,8 +473,14 @@ class SonarMieszkaniowy:
                 cached_coords = raw_offer['cached_coordinates']
                 use_cached_coords = True
         
+        # FIX 2026-08-07: brak adresu NIE kasuje już oferty.
+        # Wcześniej `return None` sprawiał, że ~34 ogłoszenia na skan znikały ze
+        # strony bez śladu — a to normalne oferty, tyle że sprzedawca nie podał
+        # w treści żadnej ulicy. Teraz zostają z pustym adresem: mapa pokazuje je
+        # w warstwie „bez lokacji", a zakładka debugowa (skipped_debug.html) ma
+        # je w sekcji „brak adresu", więc regresje parsera dalej widać jak na dłoni.
         if not address_data:
-            return None  # Brak adresu → ignoruj
+            address_data = {'full': '', 'street': '', 'number': None, 'has_number': False}
         
         # 3. Parsuj cenę - NOWA LOGIKA TRÓJPOZIOMOWA (2C)
         # PRIORYTET 1: JSON-LD z OLX (najbardziej niezawodne, oficjalne dane)
@@ -549,7 +555,10 @@ class SonarMieszkaniowy:
             offer_id_temp = extract_cid(raw_offer['url'])
             reused_coords = None
             existing = self.existing_offers_index.get(offer_id_temp) if hasattr(self, 'existing_offers_index') else None
-            if existing and existing.get('coordinates') and existing.get('address_full') == address_data['full']:
+            # FIX 2026-08-07: pusty adres nie może „pasować" do pustego adresu innej
+            # oferty — inaczej ogłoszenie bez ulicy odziedziczyłoby cudze współrzędne.
+            if (existing and existing.get('coordinates') and address_data['full']
+                    and existing.get('address_full') == address_data['full']):
                 reused_coords = existing['coordinates']
             
             if reused_coords:
@@ -900,23 +909,28 @@ class SonarMieszkaniowy:
                     f"prawdopodobna blokada OLX. Dezaktywacja pominięta.")
         return None
 
-    def _no_address_alert(self, skipped_no_address: int, scraped_count: int):
+    def _no_address_alert(self, no_address_count: int, scraped_count: int):
         """
-        Zwraca ostrzeżenie, gdy zbyt duża część skanu wypadła na „brak adresu",
+        Zwraca ostrzeżenie, gdy zbyt duża część skanu została bez adresu,
         albo None gdy odsetek jest normalny.
 
-        FIX 2026-08-06: oferta bez rozpoznanego adresu nie trafia na stronę w ogóle,
-        więc regresja parsera potrafi wyciąć setki ogłoszeń bez żadnego sygnału —
-        skan kończy się statusem „✅ sukces". Zdrowy skan gubi tak ~5,5% ofert
-        (42 z 767); próg MAX_NO_ADDRESS_RATIO (20%) daje szeroki margines, a łapie
-        awarię typu „parser przestał rozpoznawać ulice".
+        FIX 2026-08-06: bez tego bezpiecznika regresja parsera przechodziła bez
+        żadnego sygnału — skan kończył się statusem „✅ sukces", choć setki ofert
+        traciły lokalizację. Zdrowy skan ma ~4–5% ofert bez adresu (34 z 764);
+        próg MAX_NO_ADDRESS_RATIO (20%) daje szeroki margines, a łapie awarię
+        typu „parser przestał rozpoznawać ulice".
+
+        FIX 2026-08-07: takie oferty nie znikają już ze strony (lądują w warstwie
+        „bez lokacji"), więc alert dotyczy teraz JAKOŚCI lokalizacji, a nie utraty
+        ogłoszeń. Skala zjawiska jest ta sama, dlatego próg zostaje bez zmian.
         """
-        if scraped_count < 50 or skipped_no_address <= scraped_count * self.MAX_NO_ADDRESS_RATIO:
+        if scraped_count < 50 or no_address_count <= scraped_count * self.MAX_NO_ADDRESS_RATIO:
             return None
-        pct = skipped_no_address / scraped_count * 100
-        return (f"Parser adresów odrzucił {skipped_no_address} z {scraped_count} ofert "
+        pct = no_address_count / scraped_count * 100
+        return (f"Parser adresów nie rozpoznał ulicy w {no_address_count} z {scraped_count} ofert "
                 f"({pct:.0f}%, próg: {self.MAX_NO_ADDRESS_RATIO * 100:.0f}%) — prawdopodobna "
-                f"regresja parsera lub zmiana formatu ogłoszeń. Te oferty nie trafiły na stronę.")
+                f"regresja parsera lub zmiana formatu ogłoszeń. Te oferty trafiły na stronę "
+                f"bez lokalizacji na mapie.")
 
     def _verify_inactive_offers(self, max_to_verify: int = 50) -> Dict:
         """
@@ -1129,6 +1143,9 @@ class SonarMieszkaniowy:
             # w obrębie tego samego adresu (zwykle 1-2 oferty na adres).
             processed_by_address = {}
             skipped_no_address = 0
+            # FIX 2026-08-07: oferty bez adresu nie są już odrzucane — liczymy je
+            # osobno, żeby monitoring i bezpiecznik dalej widziały skalę zjawiska.
+            no_address_count = 0
             skipped_no_price = 0
             skipped_no_coords = 0
             skipped_duplicate = 0
@@ -1202,7 +1219,26 @@ class SonarMieszkaniowy:
                             sample['address_parsed'] = addr['full'] if addr else None
                             skipped_samples['no_coords'].append(sample)
                     continue
-                
+
+                # FIX 2026-08-07: oferta bez rozpoznanego adresu zostaje na stronie
+                # (warstwa „bez lokacji"), ale wciąż ją liczymy i próbkujemy — inaczej
+                # regresja parsera byłaby niewidoczna. Zakładka debugowa pokazuje to
+                # w sekcji „brak adresu".
+                if not (processed.get('address') or {}).get('full'):
+                    no_address_count += 1
+                    if len(skipped_samples['no_address']) < SAMPLE_LIMIT:
+                        full_text = raw_offer['title'] + " " + raw_offer.get('description', '')
+                        sample = {
+                            'url': raw_offer.get('url', ''),
+                            'title': raw_offer.get('title', '')[:200],
+                            'description_preview': (raw_offer.get('description', '') or '')[:500],
+                            'note': 'oferta zostaje na stronie w warstwie „bez lokacji"',
+                        }
+                        street_only = self.address_parser.extract_street_only(full_text)
+                        if street_only:
+                            sample['note'] += f" | extract_street_only znalazłby: {street_only['full']}"
+                        skipped_samples['no_address'].append(sample)
+
                 # Sprawdź duplikaty — tylko wśród ofert pod tym samym adresem (indeks).
                 original_dup = self.duplicate_detector.find_duplicate_indexed(processed, processed_by_address)
                 if original_dup is not None:
@@ -1241,7 +1277,7 @@ class SonarMieszkaniowy:
                     json.dump({
                         'scan_timestamp': datetime.now(self.tz).isoformat(),
                         'counts': {
-                            'no_address': skipped_no_address,
+                            'no_address': no_address_count,
                             'no_price': skipped_no_price,
                             'no_coords': skipped_no_coords,
                             'duplicate': skipped_duplicate
@@ -1255,6 +1291,7 @@ class SonarMieszkaniowy:
             processing_duration = time.time() - processing_start
             self.scan_logger.log_phase('processing', processing_duration, {
                 'processed': len(processed_offers),
+                'no_address_kept': no_address_count,
                 'skipped_no_address': skipped_no_address,
                 'skipped_no_price': skipped_no_price,
                 'skipped_no_coords': skipped_no_coords,
@@ -1268,6 +1305,7 @@ class SonarMieszkaniowy:
             })
             
             print(f"\n✅ Przetworzone oferty: {len(processed_offers)}")
+            print(f"   Bez adresu (zostają w warstwie 'bez lokacji'): {no_address_count}")
             print(f"   Pominięte - brak adresu: {skipped_no_address}")
             print(f"   Pominięte - brak ceny: {skipped_no_price}")
             # skipped_no_coords jest teraz 0 - oferty bez coords trafiają do bazy jako unlocalised
@@ -1338,7 +1376,7 @@ class SonarMieszkaniowy:
             
             # FIX 2026-08-06: bezpiecznik — czy parser adresów nagle nie zaczął
             # wycinać ofert (regresja reguł / zmiana formatu opisów w OLX).
-            no_address_reason = self._no_address_alert(skipped_no_address, scraped_count)
+            no_address_reason = self._no_address_alert(no_address_count, scraped_count)
             if no_address_reason:
                 print(f"   ⚠️  UWAGA: {no_address_reason}")
                 self.scan_logger.log_error(no_address_reason)

@@ -220,7 +220,10 @@ def generate_map_data(input_file, output_file):
     full_descriptions = {}   # {offer_id: pełny_opis} — tylko dla obciętych (lazy-load)
     
     for offer in offers:
-        address_full = offer.get('address', {}).get('full', 'Nieznany adres')
+        # FIX 2026-08-07: oferty bez rozpoznanej ulicy mają `full` = '' (nie brak
+        # klucza), więc domyślna wartość `.get()` by nie zadziałała — a bez etykiety
+        # karta w warstwie „bez lokacji" byłaby pusta.
+        address_full = offer.get('address', {}).get('full') or 'Adres nieznany'
         coords = offer.get('address', {}).get('coords', {})
         
         # Sprawdź czy są współrzędne
