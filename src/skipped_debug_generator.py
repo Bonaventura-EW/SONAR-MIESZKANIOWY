@@ -1,6 +1,11 @@
 """
 Skipped Debug Generator - generuje statyczną stronę docs/skipped_debug.html
-z listą ofert pominiętych w ostatnim skanie (no_address / no_coords / duplicate / no_price).
+z diagnostyką ostatniego skanu (no_address / no_coords / duplicate / no_price).
+
+FIX 2026-08-07: kategoria `no_address` to już NIE są oferty odrzucone — takie
+ogłoszenia zostają na stronie w warstwie „bez lokacji" (patrz `main._process_offer`).
+Ta sekcja służy więc do wyłapywania regresji parsera adresów, a nie do liczenia
+straconych ofert. Pozostałe kategorie (duplikat, brak ceny) nadal oznaczają pominięcie.
 
 Stała strona diagnostyczna parsera/geokodera (pomaga wyłapywać regresje w
 ekstrakcji adresów/cen po zmianach w scraperze lub OLX).
@@ -18,11 +23,13 @@ import paths
 
 # Mapowanie kategorii → metadane wyświetlania
 CATEGORY_LABELS = {
+    # FIX 2026-08-07: te oferty NIE są już odrzucane — zostają na stronie w warstwie
+    # „bez lokacji". Sekcja pełni więc rolę diagnostyki parsera, a nie listy strat.
     'no_address': {
-        'label': 'Brak adresu',
-        'short': 'brak adresu',
+        'label': 'Bez adresu (na stronie, bez pinezki)',
+        'short': 'bez adresu',
         'color': '#ef4444',
-        'sub': 'parser nie znalazł żadnej ulicy w opisie',
+        'sub': 'parser nie znalazł ulicy — oferta trafia do warstwy „bez lokacji"',
     },
     'no_coords': {
         'label': 'Brak współrzędnych',
@@ -224,7 +231,7 @@ def generate_skipped_debug_page(
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SONAR MIESZKANIOWY - Pominięte oferty (debug)</title>
+<title>SONAR MIESZKANIOWY - Diagnostyka skanu (debug)</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <style>
 * {{ box-sizing: border-box; margin: 0; padding: 0; }}
@@ -367,6 +374,11 @@ header .nav-links a.tmp {{ background: rgba(255,200,0,0.4); border: 1px dashed w
   <div class="stats-grid">
     {cards_html}
   </div>
+
+  <p style="margin: 0 0 16px; padding: 10px 14px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px; color: #1e3a8a;">
+    ℹ️ <strong>Bez adresu</strong> = parser nie znalazł ulicy, ale oferta <strong>jest na stronie</strong> —
+    trafia do warstwy „bez lokacji" pod mapą. Pozostałe kategorie oznaczają ogłoszenia pominięte w skanie.
+  </p>
 
   <div class="filter-bar">
     <label for="category-filter">Kategoria:</label>

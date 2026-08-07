@@ -10,6 +10,28 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Zmienione (2026-08-07) — oferty bez adresu zostają na stronie
+- **`main._process_offer` nie kasuje już oferty, gdy parser nie znajdzie ulicy.**
+  Dotąd `return None` sprawiał, że **~34 ogłoszenia na skan znikały ze strony bez
+  śladu** — a to normalne oferty, tyle że sprzedawca nie podał w treści żadnej
+  ulicy („Kawalerka dla studenta w świetnej lokalizacji!"). Teraz dostają pusty
+  adres (`precision='none'`) i trafiają do istniejącej warstwy **„bez lokacji"**
+  pod mapą: są widoczne, klikalne i wchodzą do statystyk cenowych. Zweryfikowane
+  na realnej próbce: **27 z 27** wcześniej odrzuconych ofert zostaje na stronie.
+- **Zakładka debugowa (`docs/skipped_debug.html`) pokazuje je jako diagnostykę,
+  nie jako straty.** Kategoria „bez adresu" ma nową etykietę („na stronie, bez
+  pinezki"), opis mechanizmu i informację, że pozostałe kategorie (duplikat, brak
+  ceny) nadal oznaczają pominięcie. Dzięki temu regresja parsera dalej rzuca się
+  w oczy — zmienia się tylko to, że nie kosztuje już utraty ogłoszeń.
+- **Pusty adres nie dziedziczy cudzych współrzędnych.** Optymalizacja „ten sam
+  adres → użyj zapisanych coords" porównywała `address_full`, więc dwie oferty
+  bez ulicy („" == „") mogłyby dostać ten sam punkt na mapie. Dodany warunek
+  niepustego adresu.
+- **Nowa statystyka `no_address_kept`** w logu skanu (osobno od `skipped_*`), na
+  niej opiera się teraz bezpiecznik `MAX_NO_ADDRESS_RATIO` — jego znaczenie
+  zmieniło się z „ile ofert straciliśmy" na „ile ofert nie ma lokalizacji".
+- 4 nowe testy (`tests/test_offer_without_address.py`); suite 197 → 201.
+
 ### Dodane (2026-08-07)
 - **`src/clean_geocoding_cache.py` — sprzątanie cache geokodera ze śmieciowych
   kluczy**, wpięte w skan (`main._clean_geocoding_cache`, idempotentne). Powód:
