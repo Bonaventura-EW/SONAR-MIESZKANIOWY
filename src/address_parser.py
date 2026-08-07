@@ -25,6 +25,14 @@ class AddressParser:
     
     # Główny pattern adresu - z prefixem jako opcjonalną grupą
     # UWAGA: Dłuższe prefiksy MUSZĄ być przed krótszymi (ulica przed ul, aleja przed al, itd.)
+    # UWAGA (sprawdzone 2026-08-07): NIE dopuszczaj przecinka między nazwą ulicy
+    # a numerem (`([A-Z]...),?\s+(\d+)`). Wygląda niewinnie („ul. Skibińskiej, 20"),
+    # ale w polskich ogłoszeniach przecinek kończy człon zdania, więc łapie się na to
+    # WSZYSTKO, co po nim stoi. Pomiar na całej aktywnej bazie: 7 ofert dostało numer
+    # i **wszystkie 7 było fałszywe** — „Skibińskiej, 20 m" (metraż), „Chopina, 50 m2",
+    # „Legionowa, 20-053 Lublin" (kod pocztowy), „Litewskiego, 10 min. do UMCS",
+    # „Nałkowskich, 3 oddzielne pokoje", „Filaretów, 2 pokoje", „Medycznego, 20 minut".
+    # Regresja pilnowana w tests/test_address_regression.py.
     ADDRESS_PATTERN = re.compile(
         rf'(ulica|ulicy|ulicą|ul\.|ul|aleja|aleje|alei|alejami|al\.|al|plac|placu|pl\.|pl|osiedle|osiedlu|os\.|os)?\s*([A-ZŚĆŁĄĘÓŻŹŃ][a-zśćłąęóżźń]+(?:\s+[A-ZŚĆŁĄĘÓŻŹŃ]?[a-zśćłąęóżźń]+)?)\s+(\d+[a-zA-Z]?(?:/\d+)?(?:\s+lok\.\s+\d+)?)',
         re.UNICODE | re.IGNORECASE
