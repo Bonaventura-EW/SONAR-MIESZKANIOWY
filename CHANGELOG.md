@@ -10,7 +10,115 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Naprawione (audyt pinezek 2026-08-06)
+- **Parser przestał dorabiać numery domów z innego zdania.** `ADDRESS_PATTERN`
+  łapie „ul. ZANA Mieszkanie 2" jako ulicę „ZANA Mieszkanie" + numer „2”; logika
+  odcinania słów-śmieci z końca nazwy (FIX 2026-05-16) zostawiała numer, choć po
+  odcięciu należał on już do innego zdania („2-pokojowe”, „34 m2”, „dostępne od 1”).
+  Teraz odcięcie ogona ⇒ `number=None`, `has_number=False` — zostaje sama ulica.
+  Dodatkowo numer w formie metrażu („55m”, „40m2”) nigdy nie jest numerem domu.
+  Zmierzone na całej bazie (2890 ofert): **0 utraconych adresów**, 129 poprawionych
+  zapisów, 40 z 51 ofert z „fałszywą precyzją” naprawionych, zero regresji wśród
+  232 pinezek stojących dziś poprawnie.
+- **`extract_from_whitelist` był niedeterministyczny.** Przy dwóch znanych ulicach
+  o nazwach tej samej długości („Wrotków” vs „Fulmana”, „Spokojnej” vs „Stokrotka”)
+  zwycięzcę wybierała kolejność iteracji po zbiorze `_known_streets`, czyli
+  `PYTHONHASHSEED` — ten sam opis dawał różny adres w różnych uruchomieniach skanu,
+  a pinezka skakała po mapie. Remis rozstrzyga teraz: dłuższa nazwa → wcześniejsza
+  pozycja w tekście → alfabetycznie.
+- **`has_number` liczone z adresu, który faktycznie wygrał geokodowanie** (mógł to
+  być wariant bez numeru z `alternatives`), a nie z głównego kandydata parsera.
+  6 aktywnych ofert miało `has_number=True` przy `number=None` — i kroplę „adres
+  dokładny" na mapie.
+
 ### Dodane
+- **Adres brany NAJPIERW z tytułu, dopiero potem z treści ogłoszenia**
+  (`main._address_from_title`). Wcześniej tytuł był po prostu doklejany do opisu
+  (`full_text = title + " " + description`), więc nie miał żadnego pierwszeństwa —
+  a to on jest pisany świadomie („Cyrkoniowa 7 - kawalerka do wynajęcia") i nie ma
+  w nim zdań, z których parser sklei pseudo-adres. Wynik z tytułu przyjmujemy
+  tylko, gdy nazwa jest realną ulicą/osiedlem Lublina (whitelist OSM) i ma numer
+  albo jawny prefiks („ul.", „al.", „os.") — bez tego warunku tytuły typu
+  „Nowoczesne mieszkanie 2 pokoje" podstawiałyby śmieci w miejsce dobrego adresu
+  z opisu. Gdy tytuł podaje samą ulicę, numer dobieramy z treści, ale wyłącznie
+  dla **tej samej ulicy** (porównanie odporne na odmianę: „ul. Głęboka" w tytule +
+  „Głębokiej 21" w opisie → „Głęboka 21"). Dochodzi obcinanie reklamowego
+  przedrostka („BEZPOŚREDNIO Nałęczowska 20" → „Nałęczowska 20") — tylko gdy ogon
+  nazwy jest realną ulicą, więc „Krakowskie Przedmieście" zostaje nietknięte.
+  Pomiar na 703 aktywnych ofertach: **22 adresy lepsze, 2 gorsze, 0 utraconych**;
+  286 adresów pochodzi teraz z tytułu, 417 z treści.
+- **`address['precision']` — mapa przestaje udawać precyzję, której nie ma.**
+  Geokoder od dawna zwracał w meta `number_fallback` („nie znalazłem numeru,
+  zwracam samą ulicę"), ale `main.py` tę informację wyrzucał, a mapa rysowała
+  kroplę po samym `has_number`. Teraz `precision` ('exact' | 'street' | 'none')
+  trafia do `offers.json` → `docs/data.json` → frontendu, który po niej wybiera
+  kształt markera (`isExactLocation`, `script.js?v=16`); stare rekordy bez pola
+  działają po staremu. `_backfill_address_precision()` uzupełnia pole dla ofert
+  sprzed zmiany **bez sieci** — punkt identyczny z geokodem samej ulicy = środek
+  ulicy, nie budynek. Efekt na obecnej bazie: 18 ofert traci mylącą kroplę,
+  aktywne rozkładają się na 273 `exact` / 370 `street` / 60 bez lokacji.
+- **Dwa ratunki przed wyrzuceniem oferty ze skanu** (`_process_offer`): parsowanie
+  samego **tytułu** (filtry chroniące przed śmieciami z opisu potrafiły skasować
+  poprawny adres z tytułu — „Cyrkoniowa 7 - kawalerka…") oraz `extract_street_only`
+  (main.py wypisywał w logu „extract_street_only znalazłby: X" i mimo to wyrzucał
+  ofertę). Oba przyjmują wynik tylko dla realnej ulicy Lublina — odzyskują ~4 z 37
+  ofert gubionych w każdym skanie, bez wpuszczania nowych śmieci.
+- **`data/streets_lublin.json` + `src/street_whitelist.py`** — snapshot 1563 nazw
+  ulic i osiedli Lublina z OSM (odświeżanie: `python street_whitelist.py --update`).
+  Lista służy **wyłącznie do akceptowania** adresów ratunkowych, nigdy do
+  odrzucania ofert: pomiar pokazał, że 114 aktywnych ofert ma nazwę spoza listy,
+  ale kilkadziesiąt z nich to prawdziwe adresy, których OSM nie ma w formie użytej
+  w ogłoszeniu („Osiedle Botanik", „Skłodowskiej", „Aleja Racławickiej").
+- **Korekta adresu „w dół" w `_update_existing_offer`.** Dotąd adres był
+  nadpisywany tylko wtedy, gdy nowy *dodawał* numer — poprawiony parser nigdy nie
+  naprawiłby ofert już w bazie. Teraz przy **identycznej nazwie ulicy** wycofanie
+  zmyślonego numeru aktualizuje rekord (i nie przenosi na nowy adres starych
+  współrzędnych, bo wskazywały zmyślony budynek). Licznik w podsumowaniu skanu.
+- **Bezpiecznik `MAX_NO_ADDRESS_RATIO = 0.20`** (`_no_address_alert`). Oferta bez
+  rozpoznanego adresu nie trafia na stronę w ogóle, więc regresja parsera potrafi
+  po cichu wyciąć setki ogłoszeń, a skan i tak kończy się „✅ sukces". Zdrowy skan
+  gubi ~5,5% ofert (42 z 767); przekroczenie 20% loguje błąd skanu → monitoring
+  pokazuje ⚠️ (ten sam mechanizm co ochrona przed masową dezaktywacją).
+- **Korpus regresyjny parsera** (`tests/data_address_corpus.json`, 120 realnych
+  opisów) + `tests/test_address_regression.py` i `tests/test_address_precision.py`.
+  Każda przyszła zmiana parsera, która zgubi albo przekręci adres, wywala CI.
+- **`src/address_migration.py` — jednorazowa migracja adresów w bazie.** Poprawka
+  parsera sama naprawia tylko oferty, które scraper widzi w listingu; **nieaktywne**
+  (2187 rekordów, wchodzą do mapy historycznej i analiz cen po adresach) zostałyby
+  ze zmyślonym numerem na zawsze. Opis oferty jest w bazie, więc adres przeliczamy
+  z zapisanego tekstu — **bez ani jednego zapytania do Nominatim**: punkt ulicy
+  bierzemy z `geocoding_cache.json`, a gdy go tam nie ma, zostawiamy dotychczasowe
+  współrzędne (realny budynek przy tej samej ulicy) i obniżamy `precision`.
+  Korekta działa wyłącznie przy **identycznej nazwie ulicy** — nigdy nie przenosi
+  oferty pod inny adres (76 takich przypadków świadomie pominiętych). Bezpiecznik
+  `MAX_RETRACTION_RATIO = 0.25` blokuje migrację, gdyby parser chciał przepisać
+  pół bazy (wtedy wersja nie jest stemplowana i próba powtórzy się po naprawie).
+  Migracja odpala się raz w skanie (`main._migrate_legacy_addresses`, stempel
+  `address_parser_version` w bazie); ręczny podgląd: `python address_migration.py`
+  (sucha próba) / `--apply`.
+  Efekt na bazie 2026-08-06: **127 poprawionych adresów (43 aktywne + 84 nieaktywne)**,
+  0 ofert utraconych, 0 ofert bez współrzędnych. Audyt pinezek przed → po:
+  pinezka pod właściwym budynkiem **78,3% → 86,1%**, fałszywa precyzja **51 → 10**,
+  adresy-widma **41 → 21**, pinezki na środku ulicy udające dokładne **21 → 12**.
+- **`audit_map_placement.py --offers PATH`** — audyt na dowolnym pliku bazy
+  (do porównań przed/po migracją). Suite 135 → 173 testy (przechodzą przy
+  dowolnym `PYTHONHASHSEED`).
+- **`src/audit_map_placement.py` — audyt jakości umieszczenia pinezek na mapie.**
+  Mapa rysuje „kroplę" (adres dokładny) dla każdej oferty z `has_number=True`,
+  nie sprawdzając, czy geokoder trafił w budynek. Skrypt weryfikuje to dwoma
+  niezależnymi źródłami OSM: Overpass (punkty adresowe Lublina → dystans pinezki
+  od budynku o tym numerze) i Nominatim reverse (co faktycznie stoi w punkcie
+  pinezki), plus sprawdza, czy para „ulica numer" w ogóle występuje w treści
+  ogłoszenia. Werdykty: `DOKLADNA`, `SASIEDNI_BUDYNEK`, `PRZESUNIETA`,
+  `SRODEK_ULICY`, `BRAK_NUMERU`, `ZLA_ULICA`, `ADRES_WIDMO`, `BRAK_GPS`
+  + osobna sekcja `FALSZYWA_PRECYZJA`. Cache danych OSM leży poza repo
+  (katalog tymczasowy), więc `--offline` powtarza audyt bez sieci.
+  Wynik pierwszego przebiegu (2026-08-06, 322 aktywne oferty z `has_number`):
+  252 (78%) pinezek stoi na właściwym budynku (mediana błędu 1,6 m), ale tylko
+  232 (72%) ma jednocześnie numer potwierdzony w treści ogłoszenia; 51 ofert ma
+  numer dorobiony przez parser z innego zdania („2-pokojowe" → „Zana 2",
+  „34 m2" → „Nałęczowska 34", „dostępne od 1" → „Wolne 1"), 16 ma ulicę
+  nieistniejącą w Lublinie, 26 nie ma GPS.
 - **Auto-retry skanu przy blokadzie OLX/Cloudflare** (`main.run_scan_with_retry`).
   Gdy scraper zwróci 0 / podejrzanie mało ofert (ten sam warunek co ochrona przed
   masową dezaktywacją, `_deactivation_block_reason`), skan czeka 2 min

@@ -5,6 +5,7 @@ WERSJA 2.0: Równoległy scraping + monitoring
 """
 
 import json
+import re
 from pathlib import Path
 from datetime import datetime, timedelta
 import pytz
@@ -19,6 +20,14 @@ from price_parser import PriceParser
 from geocoder import Geocoder
 from duplicate_detector import DuplicateDetector
 from scan_logger import ScanLogger
+from street_whitelist import is_known_street, name_variants
+from address_migration import ADDRESS_PARSER_VERSION, retract_fake_numbers
+
+# Jawny prefiks ulicy w tytule — wraz z whitelistą OSM decyduje, czy adres
+# z tytułu jest na tyle pewny, żeby wyprzedzić adres z treści ogłoszenia.
+TITLE_STREET_PREFIX_RE = re.compile(
+    r'\b(ul\.?|ulica|ulicy|ulicą|al\.?|aleja|aleje|alei|pl\.?|plac|placu|os\.?|osiedle|osiedlu)\s',
+    re.IGNORECASE)
 
 # Stabilny identyfikator oferty (CID3-IDxxxx). Współdzielony z scraper.py.
 from cid import extract_cid
@@ -50,6 +59,14 @@ class SonarMieszkaniowy:
     # ratuje skan, zamiast czekać ~5 h na następny harmonogram.
     RETRY_ON_BLOCK_WAIT_SECONDS = 120
     RETRY_ON_BLOCK_MAX_RETRIES = 2
+
+    # FIX 2026-08-06: bezpiecznik przed regresją parsera adresów.
+    # Oferta bez rozpoznanego adresu jest wyrzucana ze skanu (`_process_offer`
+    # → None), więc każde zaostrzenie parsera grozi cichym zniknięciem setek
+    # ogłoszeń ze strony. Zdrowy skan gubi tak ~5,5% ofert (42 z 767).
+    # Przekroczenie progu logujemy jako błąd skanu → monitoring pokazuje ⚠️,
+    # zamiast raportować „✅ sukces" przy wyciętej połowie bazy.
+    MAX_NO_ADDRESS_RATIO = 0.20
 
     def __init__(self, data_file: str = paths.OFFERS_JSON, removed_file: str = paths.REMOVED_JSON):
         self.data_file = Path(data_file)
@@ -200,10 +217,175 @@ class SonarMieszkaniowy:
         next_time = tomorrow.replace(hour=scan_hours[0], minute=scan_minute, second=0, microsecond=0)
         return next_time.isoformat()
     
+    @staticmethod
+    def _address_precision(has_number: bool, coords: Dict, geocode_meta: Dict = None) -> str:
+        """Jak dokładny jest punkt na mapie — 'exact' | 'street' | 'none'.
+
+        FIX 2026-08-06: mapa rysowała kroplę „adres dokładny" po samym `has_number`,
+        więc oferta z numerem, dla której geokoder cofnął się do samej ulicy
+        (`meta['number_fallback']`), udawała precyzję, której nie ma.
+
+        - 'exact'  — geokod trafił w konkretny budynek,
+        - 'street' — znamy tylko ulicę (brak numeru albo fallback geokodera),
+        - 'none'   — brak współrzędnych, oferta idzie do warstwy „bez lokacji".
+        """
+        if not coords:
+            return 'none'
+        if not has_number:
+            return 'street'
+        if geocode_meta and geocode_meta.get('number_fallback'):
+            return 'street'
+        return 'exact'
+
+    def _migrate_legacy_addresses(self):
+        """Jednorazowo przelicza adresy w bazie po zmianie parsera (bez sieci).
+
+        FIX 2026-08-06: poprawka „numer musi sąsiadować z ulicą" działa dla nowych
+        parsowań, a `_update_existing_offer` naprawia oferty, które scraper widzi
+        w listingu. Oferty **nieaktywne** nie są odwiedzane, więc zostałyby ze
+        zmyślonym numerem na zawsze (84 sztuki na 2026-08-06) — a wchodzą do mapy
+        historycznej i do analiz cen po adresach. Opis mamy w bazie, więc adres
+        przeliczamy z zapisanego tekstu.
+
+        Migracja odpala się raz — dopóki `address_parser_version` w bazie nie
+        zgadza się z `ADDRESS_PARSER_VERSION`. Bezpiecznik przed awarią parsera
+        siedzi w `retract_fake_numbers` (patrz MAX_RETRACTION_RATIO).
+        """
+        if self.database.get('address_parser_version') == ADDRESS_PARSER_VERSION:
+            return
+        print(f"\n🔧 Migracja adresów do wersji parsera {ADDRESS_PARSER_VERSION}…")
+        result = retract_fake_numbers(
+            self.database['offers'],
+            parser=self.address_parser,
+            geocoding_cache=self.geocoder.cache,
+        )
+        if result['blocked']:
+            print(f"   ⛔ {result['blocked']}")
+            self.scan_logger.log_error(result['blocked'])
+            return
+        self.database['address_parser_version'] = ADDRESS_PARSER_VERSION
+        print(f"   ✅ Wycofano zmyślony numer w {result['to_fix']} ofertach "
+              f"(aktywne: {result['active_to_fix']}, nieaktywne: {result['inactive_to_fix']}); "
+              f"bez zmian: {result['kept']}")
+
+    def _backfill_address_precision(self):
+        """Uzupełnia `precision` w ofertach sprzed FIX-a 2026-08-06 — bez sieci.
+
+        Oferty z bazy nie mają meta z geokodera (a ich coords są reużywane, więc
+        geokoder się dla nich nie odpala i nigdy by go nie dostały). Rozpoznajemy
+        fallback „sama ulica" porównując zapisane coords z geokodem samej nazwy
+        ulicy w `geocoding_cache.json`: identyczny punkt = to jest środek ulicy,
+        nie budynek. Audyt z 2026-08-06 znalazł tak 21 aktywnych ofert.
+        """
+        cache = {k.strip().lower(): v for k, v in self.geocoder.cache.items() if v}
+        updated = 0
+        for offer in self.database['offers']:
+            addr = offer.get('address') or {}
+            if not isinstance(addr, dict) or addr.get('precision'):
+                continue
+            coords = addr.get('coords')
+            has_number = bool(addr.get('number'))
+            precision = self._address_precision(has_number, coords)
+            if precision == 'exact':
+                street_keys = {
+                    (addr.get('street') or '').strip().lower(),
+                    re.sub(r'\s+\S+$', '', addr.get('full') or '').strip().lower(),
+                }
+                for key in street_keys:
+                    street_coords = cache.get(key)
+                    if not street_coords:
+                        continue
+                    same_point = (abs(street_coords['lat'] - coords['lat']) < 5e-5 and
+                                  abs(street_coords['lon'] - coords['lon']) < 5e-5)
+                    if same_point:
+                        precision = 'street'
+                        break
+            addr['has_number'] = has_number   # domyka niespójność has_number=True/number=None
+            addr['precision'] = precision
+            updated += 1
+        if updated:
+            print(f"   🎯 Uzupełniono precyzję adresu dla {updated} ofert")
+
+    def _address_from_title(self, raw_offer: Dict, full_text: str):
+        """Adres z TYTUŁU ogłoszenia — pierwszeństwo przed treścią (2026-08-06).
+
+        Tytuł to najpewniejsze miejsce na adres: jest krótki, pisany świadomie
+        („Cyrkoniowa 7 - kawalerka do wynajęcia") i nie ma w nim zdań, z których
+        parser potrafi skleić pseudo-adres. Wcześniej tytuł był po prostu doklejany
+        do opisu (`full_text`), więc nie miał żadnego priorytetu, a filtry chroniące
+        przed śmieciami z opisu potrafiły skasować poprawny adres z tytułu.
+
+        Wynik z tytułu przyjmujemy tylko, gdy jest wiarygodny: nazwa musi być realną
+        ulicą/osiedlem Lublina (whitelist OSM) i mieć numer albo jawny prefiks
+        („ul.", „al.", „os."). Bez tego warunku tytuły typu „Nowoczesne mieszkanie…"
+        podstawiałyby śmieci w miejsce dobrego adresu z opisu.
+
+        Gdy tytuł podaje samą ulicę, numer dobieramy z treści — ale wyłącznie dla
+        TEJ SAMEJ ulicy (porównanie odporne na odmianę: „ul. Głęboka" w tytule +
+        „Głębokiej 21" w opisie → „Głęboka 21”).
+
+        Zwraca `address_data` albo None (wtedy caller idzie starą ścieżką).
+        """
+        title = (raw_offer.get('title') or '').strip()
+        if not title:
+            return None
+        candidate = self.address_parser.extract_address(title)
+        if not candidate:
+            return None
+        street = candidate.get('street') or candidate.get('full') or ''
+        if not is_known_street(street):
+            return None
+        if not candidate.get('has_number') and not TITLE_STREET_PREFIX_RE.search(title):
+            return None
+
+        candidate = self._trim_leading_junk(candidate)
+
+        if not candidate.get('has_number'):
+            from_body = self.address_parser.extract_address(full_text)
+            if from_body and from_body.get('has_number') and self._same_street(from_body, candidate):
+                print(f"      🏷️  Adres z tytułu + numer z treści: {from_body['full']}")
+                return from_body
+        print(f"      🏷️  Adres z tytułu: {candidate['full']}")
+        return candidate
+
+    @staticmethod
+    def _trim_leading_junk(candidate: Dict) -> Dict:
+        """Ucina reklamowy przedrostek sprzed nazwy ulicy („BEZPOŚREDNIO Nałęczowska 20").
+
+        `EXCLUDED_WORDS` w parserze obcina śmieci tylko z KOŃCA nazwy, a tytuły
+        ogłoszeń lubią zaczynać się od zawołania pisanego wielką literą, które
+        wygląda dla regexu jak pierwszy człon nazwy ulicy. Obcinamy wyłącznie
+        wtedy, gdy ogon nazwy jest realną ulicą Lublina, a początek nie jest —
+        więc „Krakowskie Przedmieście" czy „Jana Sawy" zostają nietknięte.
+        """
+        street = candidate.get('street') or ''
+        tokens = street.split()
+        full = candidate.get('full') or ''
+        # Przy zmapowanym prefiksie ("Aleja …", "Plac …") parser już rozdzielił
+        # nazwę poprawnie — nie ruszamy.
+        if len(tokens) < 2 or not full.startswith(street) or is_known_street(tokens[0]):
+            return candidate
+        for start in range(1, len(tokens)):
+            tail = ' '.join(tokens[start:])
+            if is_known_street(tail):
+                trimmed = dict(candidate)
+                trimmed['street'] = tail
+                trimmed['full'] = f"{tail} {candidate['number']}" if candidate.get('number') else tail
+                print(f"      ✂️  Obcięto przedrostek z tytułu: '{full}' → '{trimmed['full']}'")
+                return trimmed
+        return candidate
+
+    @staticmethod
+    def _same_street(first: Dict, second: Dict) -> bool:
+        """Czy dwa parsowania wskazują tę samą ulicę (odporne na odmianę i skróty)."""
+        variants_first = name_variants(first.get('street') or first.get('full') or '')
+        variants_second = name_variants(second.get('street') or second.get('full') or '')
+        return bool(variants_first & variants_second)
+
     def _process_offer(self, raw_offer: Dict) -> Dict:
         """
         Przetwarza surowe ogłoszenie: parsuje adres, cenę, geokoduje.
-        
+
         Returns:
             Dict z przetworzonymi danymi lub None jeśli oferta nieprawidłowa
         """
@@ -227,14 +409,30 @@ class SonarMieszkaniowy:
                 print(f"      ⚠️ Wykluczono (wynajem domu): {phrase}")
                 return None
         
-        # 2. Parsuj adres z pełnego tekstu (tytuł + opis)
-        address_data = self.address_parser.extract_address(full_text)
-        
-        # Jeśli nie znaleziono adresu w tytule, spróbuj w samym opisie
+        # 2. Parsuj adres: NAJPIERW TYTUŁ, potem treść ogłoszenia.
+        # FIX 2026-08-06: tytuł ma pierwszeństwo (patrz `_address_from_title`).
+        # Pomiar na 703 aktywnych ofertach: 22 adresy lepsze, 2 gorsze, reszta bez zmian.
+        address_data = self._address_from_title(raw_offer, full_text)
+
+        # Tytuł nie dał wiarygodnego adresu → cały tekst (tytuł + opis)
+        if not address_data:
+            address_data = self.address_parser.extract_address(full_text)
+
+        # Dalej nic → sam opis
         if not address_data and raw_offer.get('description'):
             print(f"      🔍 Brak adresu w tytule, szukam w opisie...")
             address_data = self.address_parser.extract_address(raw_offer['description'])
         
+        # FIX 2026-08-06: RATUNEK — sama ulica bez numeru.
+        # Parser potrafi znać ulicę (`extract_street_only`), a mimo to oferta leciała
+        # do kosza — main.py wypisywał nawet w logu „extract_street_only znalazłby: X".
+        # Lepsza jest pinezka na poziomie ulicy (kwadrat) niż brak oferty na stronie.
+        if not address_data:
+            candidate = self.address_parser.extract_street_only(full_text)
+            if candidate and is_known_street(candidate.get('street') or candidate.get('full', '')):
+                print(f"      🛟 Adres odzyskany jako sama ulica: {candidate['full']}")
+                address_data = candidate
+
         # REAKTYWACJA: Jeśli brak adresu ale mamy cache (oferta była nieaktywna)
         use_cached_coords = False
         cached_coords = None
@@ -311,6 +509,11 @@ class SonarMieszkaniowy:
             return None  # Brak ceny → ignoruj
         
         # 4. Geokoduj adres (lub użyj cache dla reaktywacji)
+        # FIX 2026-08-06: geokoder od dawna raportuje w meta `number_fallback` („nie
+        # znalazłem numeru, zwracam samą ulicę"), ale main.py tę informację wyrzucał.
+        # Bez niej mapa rysowała kroplę „adres dokładny" także dla punktów, które są
+        # w rzeczywistości środkiem ulicy. Zapisujemy ją jako address['precision'].
+        geocode_meta = None
         if use_cached_coords and cached_coords:
             coords = cached_coords
             # Reaktywacja: address_data['full'] to ten sam adres jaki oferta miała w bazie,
@@ -347,6 +550,7 @@ class SonarMieszkaniowy:
                     final_street = used_address['street']
                     final_number = used_address['number']
                     final_full = used_address['full']
+                    geocode_meta = used_address.get('meta')
                 else:
                     coords = None
                     final_street = address_data.get('street', '')
@@ -359,11 +563,17 @@ class SonarMieszkaniowy:
         
         # Buduj address dict (bez coords lub z coords=None jeśli nie znaleziono)
         # MIESZKANIOWY: zapisujemy KTÓRY adres faktycznie się zgeokodował (może być z alternatives)
+        # FIX 2026-08-06: has_number liczymy z adresu, który FAKTYCZNIE wygrał
+        # geokodowanie (mógł to być wariant bez numeru z `alternatives`), a nie
+        # z głównego kandydata parsera. Wcześniej 6 aktywnych ofert miało
+        # has_number=True przy number=None — i kroplę „adres dokładny" na mapie.
+        has_number = bool(final_number)
         address_dict = {
             'full': final_full,
             'street': final_street,
             'number': final_number,
-            'has_number': address_data.get('has_number', True),
+            'has_number': has_number,
+            'precision': self._address_precision(has_number, coords, geocode_meta),
         }
         if coords:
             address_dict['coords'] = coords
@@ -548,17 +758,39 @@ class SonarMieszkaniowy:
             _re.UNICODE
         )
         old_looks_like_garbage = bool(_garbage_addr.match(old_full)) and not old_has_num
+
+        # FIX 2026-08-06: KOREKTA W DÓŁ — ta sama ulica, ale nowy parser nie widzi
+        # już numeru. Wcześniej „lepszy" adres oznaczał wyłącznie *dodanie* numeru,
+        # więc oferty ze zmyślonym numerem („Zana 2" z „2-pokojowe") zostawały w bazie
+        # na zawsze, mimo poprawionego parsera. Warunek jest wąski: nazwa ulicy musi
+        # być identyczna — sam numer znika. To nie może przenieść pinezki na inną ulicę.
+        def _street_key(addr):
+            return (addr.get('street') or '').strip().lower()
+
+        number_retracted = (
+            old_has_num and not new_has_num
+            and _street_key(new_addr) and _street_key(new_addr) == _street_key(old_addr)
+        )
+
         new_looks_better = new_full and new_full != old_full and (
             (new_has_num and not old_has_num) or
-            (old_looks_like_garbage and len(new_full) >= 5)
+            (old_looks_like_garbage and len(new_full) >= 5) or
+            number_retracted
         )
 
         if new_looks_better:
             old_coords = old_addr.get('coords')  # zachowaj coords
             existing['address'] = dict(new_addr)
-            if old_coords and not new_addr.get('coords'):
+            if number_retracted:
+                # Stare coords wskazywały budynek o zmyślonym numerze — nie przenosimy
+                # ich na adres bez numeru. Gdy nowe geokodowanie nic nie dało, oferta
+                # trafia na skan do warstwy „bez lokacji" i zgeokoduje się przy kolejnym.
+                self.stats_number_retracted = getattr(self, 'stats_number_retracted', 0) + 1
+                print(f"      🔧 Wycofano zmyślony numer domu: '{old_full}' → '{new_full}'")
+            elif old_coords and not new_addr.get('coords'):
                 existing['address']['coords'] = old_coords
-            print(f"      🏠 Zaktualizowano adres: '{old_full}' → '{new_full}'")
+            if not number_retracted:
+                print(f"      🏠 Zaktualizowano adres: '{old_full}' → '{new_full}'")
         
         # Upewnij się że jest aktywne (REAKTYWACJA nieaktywnych ofert)
         was_inactive = not existing.get('active', True)
@@ -648,6 +880,24 @@ class SonarMieszkaniowy:
                     f"w bazie (próg: {int(active_in_db * self.MIN_DEACTIVATION_RATIO)}) — "
                     f"prawdopodobna blokada OLX. Dezaktywacja pominięta.")
         return None
+
+    def _no_address_alert(self, skipped_no_address: int, scraped_count: int):
+        """
+        Zwraca ostrzeżenie, gdy zbyt duża część skanu wypadła na „brak adresu",
+        albo None gdy odsetek jest normalny.
+
+        FIX 2026-08-06: oferta bez rozpoznanego adresu nie trafia na stronę w ogóle,
+        więc regresja parsera potrafi wyciąć setki ogłoszeń bez żadnego sygnału —
+        skan kończy się statusem „✅ sukces". Zdrowy skan gubi tak ~5,5% ofert
+        (42 z 767); próg MAX_NO_ADDRESS_RATIO (20%) daje szeroki margines, a łapie
+        awarię typu „parser przestał rozpoznawać ulice".
+        """
+        if scraped_count < 50 or skipped_no_address <= scraped_count * self.MAX_NO_ADDRESS_RATIO:
+            return None
+        pct = skipped_no_address / scraped_count * 100
+        return (f"Parser adresów odrzucił {skipped_no_address} z {scraped_count} ofert "
+                f"({pct:.0f}%, próg: {self.MAX_NO_ADDRESS_RATIO * 100:.0f}%) — prawdopodobna "
+                f"regresja parsera lub zmiana formatu ogłoszeń. Te oferty nie trafiły na stronę.")
 
     def _verify_inactive_offers(self, max_to_verify: int = 50) -> Dict:
         """
@@ -1067,13 +1317,29 @@ class SonarMieszkaniowy:
             else:
                 deactivated_count = self._mark_inactive_offers(current_offer_ids, skipped_ids)
             
+            # FIX 2026-08-06: bezpiecznik — czy parser adresów nagle nie zaczął
+            # wycinać ofert (regresja reguł / zmiana formatu opisów w OLX).
+            no_address_reason = self._no_address_alert(skipped_no_address, scraped_count)
+            if no_address_reason:
+                print(f"   ⚠️  UWAGA: {no_address_reason}")
+                self.scan_logger.log_error(no_address_reason)
+
             # Aktualizuj days_active dla WSZYSTKICH ofert
             self._update_days_active()
+
+            # FIX 2026-08-06: przelicz adresy zapisane starym parserem (też nieaktywne),
+            # a potem domknij `precision` dla rekordów sprzed tej zmiany. Oba kroki
+            # są lokalne — zero zapytań do Nominatim.
+            self._migrate_legacy_addresses()
+            self._backfill_address_precision()
             
             print(f"   Nowe oferty: {new_offers_count}")
             print(f"   Zaktualizowane: {updated_offers_count}")
             if reactivated_count > 0:
                 print(f"   🔄 Reaktywowane: {reactivated_count}")
+            retracted = getattr(self, 'stats_number_retracted', 0)
+            if retracted:
+                print(f"   🔧 Wycofane zmyślone numery domów: {retracted}")
             
             # 4. Weryfikacja nieaktywnych ofert
             # FIX 2026-06-12: przy blokadzie OLX pomijamy weryfikację — 50 requestów

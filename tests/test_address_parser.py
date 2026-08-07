@@ -16,8 +16,10 @@ def parser():
     ("ul. Lipowa 10, blisko UMCS", "Lipowa 10"),
     ("al. Andersa 13", "Aleja Andersa 13"),
     ("Aleje Racławickie 12/2", "Aleje Racławickie 12/2"),
-    # Słowo "mieszkaniowe" doklejone do ulicy ma zostać odcięte
-    ("Bursztynowa Mieszkanie 65m", "Bursztynowa 65m"),
+    # Słowo "mieszkaniowe" doklejone do ulicy ma zostać odcięte.
+    # FIX 2026-08-06: numer NIE sąsiaduje z nazwą ulicy (odcięliśmy "Mieszkanie"),
+    # a "65m" to metraż — zostaje sama ulica, bez zmyślonego numeru domu.
+    ("Bursztynowa Mieszkanie 65m", "Bursztynowa"),
 ])
 def test_extracts_address(parser, text, expected_full):
     result = parser.extract_address(text)
