@@ -38,6 +38,8 @@ USER_AGENT = 'sonar-mieszkaniowy/1.0 (https://github.com/Bonaventura-EW/SONAR-MI
 
 PREFIX_RE = re.compile(r'^(ul\.?|ulica|ulicy|ulicą|al\.?|aleja|aleje|alei|pl\.?|plac|placu|os\.?|osiedle|osiedlu|rondo|skwer)\s+', re.I)
 PL_MAP = str.maketrans('ąćęłńóśźż', 'acelnoszz')
+# Numer domu („3", „12a", „4/2") — nigdy nie jest nazwą ani jej wariantem.
+NUMBER_TOKEN_RE = re.compile(r'^\d+[a-z]?$', re.I)
 
 # Te same reguły co w geocoder.to_nominative, ale importujemy leniwie —
 # geocoder ciągnie geopy, a whitelist bywa używana w kontekstach bez sieci.
@@ -87,7 +89,11 @@ def name_variants(name: str, whole_only: bool = False) -> set:
     out = {base}
     tokens = base.split()
     out.add(' '.join(to_nominative(t) for t in tokens))
-    if len(tokens) > 1 and not whole_only:
+    # FIX 2026-08-08: sam numer nigdy nie jest wariantem nazwy. „Kwarcowa
+    # Nowoczesne 3" wyglądało jak kompletna nazwa ulicy, bo człon „3" trafiał
+    # w indeks (jest ulica z „3" w nazwie) — i sprzątanie etykiety odpuszczało,
+    # uznając ją za poprawną.
+    if len(tokens) > 1 and not whole_only and not NUMBER_TOKEN_RE.match(tokens[-1]):
         out.add(tokens[-1])
         out.add(to_nominative(tokens[-1]))
     return {deacc(v) for v in out if v}

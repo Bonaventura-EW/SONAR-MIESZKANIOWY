@@ -207,6 +207,15 @@ python price_parser.py     # parsowanie cen
     z tych reguł zmierz przejścia KEEP/CLEAN/DEMOTE na całej bazie: dozwolone są
     tylko KEEP→CLEAN i KEEP→DEMOTE — realna ulica nigdy nie może stracić pinezki.
 
+18. **`extract_address` ma cztery ścieżki i każdy filtr musi obowiązywać we wszystkich.**
+    Kolejność: kandydaci `ADDRESS_PATTERN` → fallback nazwiskowy
+    (`POLISH_SURNAME_PATTERN`) → `extract_street_only` → `extract_from_whitelist`.
+    Fallback nazwiskowy przez lata omijał filtry ścieżki głównej i wpuszczał z powrotem
+    adresy dopiero co odrzucone („Powierzchnia 32" z metrażu, „Nałęczowska 2" z czasu
+    dojścia). Dokładając filtr do ścieżki głównej **sprawdź, czy nie trzeba go dodać
+    również tam** — i pamiętaj, że tylko ten fallback zwraca `has_number=True`, czyli
+    jego błąd od razu daje na mapie „adres dokładny".
+
 ## Konwencja commitów
 
 Format `typ(zakres): opis` po polsku, np.:

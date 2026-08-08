@@ -433,6 +433,21 @@ class AddressParser:
                     candidates.append((street_lower, len(street_lower), match.start()))
         return candidates
     
+    @staticmethod
+    def _is_whitelisted_street(name: str) -> bool:
+        """Czy nazwa odpowiada realnej ulicy/osiedlu Lublina (snapshot OSM).
+
+        Import jest leniwy: `street_whitelist` ciąga geokoder, a parser bywa
+        używany w kontekstach bez tej zależności. Brak modułu = odpowiedź „tak",
+        czyli zachowanie sprzed FIX-a — whitelist ma tylko *wpuszczać*, więc jej
+        brak nie może nagle zacząć odrzucać adresów.
+        """
+        try:
+            from street_whitelist import is_known_street
+        except Exception:                                # pragma: no cover
+            return True
+        return is_known_street(name)
+
     def extract_address(self, text: str) -> Optional[Dict[str, str]]:
         """
         Wyciąga adres z tekstu.
@@ -690,6 +705,7 @@ class AddressParser:
             re.IGNORECASE
         )
         text_has_explicit_prefix = bool(PREFIX_REGEX.search(text))
+        prefix_rule_rejected_all = False
         if text_has_explicit_prefix:
             candidates_with_prefix = [c for c in candidates if c['has_prefix']]
             if candidates_with_prefix:
@@ -701,6 +717,7 @@ class AddressParser:
                 # bez prefiksu. Niech fallback (extract_street_only) zadziała.
                 print(f"      ⚠️ Tekst zawiera 'ul./al./...' ale parser ma tylko matche bez prefiksu - odrzucam (fallback do street_only)")
                 candidates = []
+                prefix_rule_rejected_all = True
         
         # Jeśli znaleziono kandydatów, wybierz najlepszego (najwyższy priorytet)
         # FIX 2026-05-15 (mieszkaniowy): dołączamy też 'alternatives' z pozostałymi kandydatami
@@ -733,20 +750,48 @@ class AddressParser:
         
         # NOWY FALLBACK: Wzorzec dla polskich nazwisk w dopełniaczu
         # Łapie przypadki jak "Langiewicza 3A", "Słowackiego 12" bez prefiksu
+        #
+        # FIX 2026-08-08: ten fallback omijał WSZYSTKIE filtry ścieżki głównej, więc
+        # wpuszczał z powrotem dokładnie te adresy, które przed chwilą odrzuciliśmy:
+        # „Powierzchnia 32" (z „Powierzchnia 32 m kw.", złapane przez filtr metrażu)
+        # przy tekście, w którym stoi „ul. Wschodnia", a także „Netia 30", „Kalina 38",
+        # „Stokrotka 3". Efekt był gorszy niż brak adresu — oferta dostawała
+        # `has_number=True`, czyli na mapie „adres dokładny" pod zmyślonym numerem.
+        # Trzy filtry ścieżki głównej obowiązują teraz również tutaj.
         surname_matches = self.POLISH_SURNAME_PATTERN.finditer(text)
-        
+
         for match in surname_matches:
             street = match.group(1).strip()
             number = match.group(2).strip()
-            
+
             # Sprawdź minimum 5 liter (żeby wykluczyć "Pokoja 5" itp.)
             if len(street) < 5:
                 continue
-            
+
             # Sprawdź czy nie jest wykluczonym słowem
             if street.lower() in excluded_words_lower:
                 continue
-            
+
+            # Ten sam filtr co w ścieżce głównej: „Powierzchnia 32" z „Powierzchnia
+            # 32 m kw." albo „UMCS 10" z „UMCS 10 minut pieszo" to nie są adresy.
+            if f"{street} {number.split('/')[0].split()[0]}".lower() in false_addresses:
+                print(f"      ⚠️ Odrzucono fałszywy adres (nazwiskowy): {street} {number}")
+                continue
+
+            # Ten sam filtr co w ścieżce głównej: instytucja/dzielnica to nie ulica.
+            if street.lower() in non_street_names:
+                continue
+
+            # …oraz warunek, którego ten fallback nigdy nie miał: nazwa musi być
+            # realną ulicą Lublina. Wzorzec łapie „NAZWA w dopełniaczu + numer",
+            # co poza nazwiskami trafia też w imiona i rzeczowniki stojące przed
+            # liczbą („Sylwia 50", „Monika 66", „Kalina 38", „Netia 30", „Sypialnia 1").
+            # Whitelist jest tu użyta zgodnie ze swoim przeznaczeniem — do
+            # *wpuszczania*: gdy nazwy w niej nie ma, oferta nie znika, tylko
+            # spada do łagodniejszych fallbacków niżej (ulica bez numeru).
+            if not self._is_whitelisted_street(street):
+                continue
+
             # Walidacja numeru (max 250)
             try:
                 main_num = number.rstrip('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ/').split('/')[0]
