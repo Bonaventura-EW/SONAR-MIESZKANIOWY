@@ -1,74 +1,5 @@
 [
   {
-    "timestamp": "2026-07-16T05:42:02.202510+02:00",
-    "status": "completed",
-    "phases": {
-      "scraping": {
-        "duration": 10.92,
-        "details": {
-          "offers_found": 102,
-          "max_pages": 50
-        }
-      },
-      "processing": {
-        "duration": 0.3,
-        "details": {
-          "processed": 87,
-          "skipped_no_address": 4,
-          "skipped_no_price": 0,
-          "skipped_no_coords": 0,
-          "skipped_duplicate": 11,
-          "skipped_removed": 0
-        }
-      },
-      "geocoding": {
-        "duration": 0.29,
-        "details": {
-          "geocoded_addresses": 87
-        }
-      }
-    },
-    "stats": {
-      "raw_offers": 102,
-      "processed": 87,
-      "new": 1,
-      "updated": 86,
-      "reactivated": 0,
-      "total_in_db": 2277,
-      "active": 729,
-      "inactive": 1548,
-      "skipped_no_address": 4,
-      "skipped_no_price": 0,
-      "skipped_no_coords": 0,
-      "skipped_duplicate": 11,
-      "skipped_removed": 0,
-      "disappeared": 0,
-      "verification": {
-        "verified": 0,
-        "reactivated": 0,
-        "confirmed_inactive": 0,
-        "errors": 0,
-        "skipped_blocked": true
-      }
-    },
-    "errors": [
-      {
-        "timestamp": "2026-07-16T05:42:13.430698+02:00",
-        "message": "Scraper zwrócił tylko 102 ofert przy 729 aktywnych w bazie (próg: 218) — prawdopodobna blokada OLX. Dezaktywacja pominięta."
-      }
-    ],
-    "end_timestamp": "2026-07-16T05:42:13.516821+02:00",
-    "total_duration": 11.31,
-    "performance": {
-      "offers_per_second": 9.02,
-      "pages_scanned": 50,
-      "geocoding_duration": 0.29,
-      "geocoding_per_address": 0.0,
-      "scraping_per_page": 0.22,
-      "processing_success_rate": 85.3
-    }
-  },
-  {
     "timestamp": "2026-07-16T07:39:23.914594+02:00",
     "status": "completed",
     "phases": {
@@ -6424,6 +6355,71 @@
       "geocoding_per_address": 0.01,
       "scraping_per_page": 0.85,
       "processing_success_rate": 91.9
+    }
+  },
+  {
+    "timestamp": "2026-08-08T10:02:06.721346+02:00",
+    "status": "completed",
+    "phases": {
+      "scraping": {
+        "duration": 47.46,
+        "details": {
+          "offers_found": 757,
+          "max_pages": 50
+        }
+      },
+      "processing": {
+        "duration": 10.77,
+        "details": {
+          "processed": 694,
+          "no_address_kept": 29,
+          "skipped_no_address": 0,
+          "skipped_no_price": 2,
+          "skipped_no_coords": 0,
+          "skipped_duplicate": 61,
+          "skipped_removed": 0
+        }
+      },
+      "geocoding": {
+        "duration": 10.67,
+        "details": {
+          "geocoded_addresses": 694
+        }
+      }
+    },
+    "stats": {
+      "raw_offers": 757,
+      "processed": 694,
+      "new": 0,
+      "updated": 694,
+      "reactivated": 48,
+      "total_in_db": 2965,
+      "active": 742,
+      "inactive": 2223,
+      "skipped_no_address": 0,
+      "skipped_no_price": 2,
+      "skipped_no_coords": 0,
+      "skipped_duplicate": 61,
+      "skipped_removed": 0,
+      "disappeared": 42,
+      "verification": {
+        "verified": 50,
+        "reactivated": 45,
+        "confirmed_inactive": 5,
+        "errors": 0,
+        "skipped_recently_verified": 198
+      }
+    },
+    "errors": [],
+    "end_timestamp": "2026-08-08T10:04:12.191000+02:00",
+    "total_duration": 125.47,
+    "performance": {
+      "offers_per_second": 6.03,
+      "pages_scanned": 50,
+      "geocoding_duration": 10.67,
+      "geocoding_per_address": 0.02,
+      "scraping_per_page": 0.95,
+      "processing_success_rate": 91.7
     }
   }
 ]
