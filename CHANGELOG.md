@@ -29,7 +29,15 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
   pokazuje teraz „Adres nieznany", a surowy odczyt ląduje pod spodem jako szara
   wskazówka diagnostyczna („parser odczytał: …"), żeby nie tracić informacji.
   Bump `script.js?v=16` → `v=17`.
-- 9 nowych testów; suite 201 → 213.
+- **Naprawiona niespójność wprowadzona przez ten odzysk** (złapana przy weryfikacji
+  na produkcji): blok „uzupełnij brakujące coords" wstawiał punkt do STAREGO adresu,
+  przez co warunek „zdobyto współrzędne" już nie działał — 8 ofert wylądowało na
+  mapie z etykietą „Piłsudskiego Okna" i `precision='none'`, więc frontend nie
+  wiedział, jakim markerem je narysować. Stan „miał coords" jest teraz zapamiętywany
+  przed kopiowaniem, precyzja idzie w parze ze współrzędnymi, a
+  `_backfill_address_precision` traktuje `none` przy istniejących coords jako
+  niespójność do przeliczenia (rekordy z bazy naprawią się przy kolejnym skanie).
+- 13 nowych testów; suite 201 → 217.
 
 ### Zmienione (2026-08-07) — oferty bez adresu zostają na stronie
 - **`main._process_offer` nie kasuje już oferty, gdy parser nie znajdzie ulicy.**

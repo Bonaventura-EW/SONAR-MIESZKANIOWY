@@ -300,7 +300,13 @@ class SonarMieszkaniowy:
         updated = 0
         for offer in self.database['offers']:
             addr = offer.get('address') or {}
-            if not isinstance(addr, dict) or addr.get('precision'):
+            if not isinstance(addr, dict):
+                continue
+            # FIX 2026-08-07: 'none' przy istniejących współrzędnych to niespójność
+            # (oferta dostała punkt, ale precyzja została z czasów bez GPS) — taki
+            # rekord przeliczamy ponownie, mimo że pole `precision` już jest.
+            inconsistent = addr.get('precision') == 'none' and addr.get('coords')
+            if addr.get('precision') and not inconsistent:
                 continue
             coords = addr.get('coords')
             has_number = bool(addr.get('number'))
@@ -812,8 +818,18 @@ class SonarMieszkaniowy:
         # Zaktualizuj coords jeśli nowe dane mają coords a stare nie
         new_coords = new_data.get('address', {}).get('coords')
         existing_coords = existing.get('address', {}).get('coords')
+        # FIX 2026-08-07: zapamiętaj stan SPRZED skopiowania coords — niżej decyduje
+        # on o podmianie całego adresu. Bez tego oferta z odzyskaną ulicą dostawała
+        # współrzędne, ale zachowywała starą etykietę i `precision='none'`
+        # („Piłsudskiego Okna" z pinezką, a mapa nie wiedziała, jak ją narysować).
+        old_had_coords = bool(existing_coords)
         if new_coords and not existing_coords:
             existing.setdefault('address', {})['coords'] = new_coords
+            # Precyzja musi iść w parze ze współrzędnymi, inaczej zostaje 'none'.
+            existing['address']['precision'] = (
+                new_data.get('address', {}).get('precision')
+                or self._address_precision(bool(existing['address'].get('number')), new_coords)
+            )
             print(f"      📍 Uzupełniono brakujące coords dla oferty: {existing['id']}")
 
         # Zaktualizuj adres jeśli nowe parsowanie dało lepszy wynik
@@ -850,7 +866,7 @@ class SonarMieszkaniowy:
         # FIX 2026-08-07: zdobycie współrzędnych zawsze jest poprawą — oferta
         # przenosi się z listy „bez lokacji" na mapę. Tak dociera do bazy odzysk
         # ulicy z zaśmieconej etykiety („PeowiakówZdjęcia są" → „Peowiaków").
-        gained_coords = bool(new_addr.get('coords')) and not old_addr.get('coords')
+        gained_coords = bool(new_addr.get('coords')) and not old_had_coords
 
         new_looks_better = new_full and new_full != old_full and (
             (new_has_num and not old_has_num) or
