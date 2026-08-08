@@ -20,7 +20,8 @@ from price_parser import PriceParser
 from geocoder import Geocoder
 from duplicate_detector import DuplicateDetector
 from scan_logger import ScanLogger
-from street_whitelist import is_known_street, name_variants
+from street_whitelist import (is_district_name, is_known_street, is_street_name,
+                              name_variants)
 from address_migration import ADDRESS_PARSER_VERSION, retract_fake_numbers
 from clean_geocoding_cache import find_junk_keys, street_forms
 
@@ -268,6 +269,61 @@ class SonarMieszkaniowy:
         print(f"   ✅ Wycofano zmyślony numer w {result['to_fix']} ofertach "
               f"(aktywne: {result['active_to_fix']}, nieaktywne: {result['inactive_to_fix']}); "
               f"bez zmian: {result['kept']}")
+
+    @staticmethod
+    def _is_area_not_address(label: str) -> bool:
+        """Czy etykieta opisuje OBSZAR (albo śmieć), a nie adres uliczny.
+
+        FIX 2026-08-08: takie oferty nie dostają pinezki — idą do warstwy
+        „bez lokacji". Warunek jest złożony, bo każdy pojedynczy test miał
+        zmierzone fałszywe trafienia:
+          - `is_street_name` (same drogi z OSM) nie zna form odmienionych po
+            stronie indeksu, więc „Racławickiej" (Aleje Racławickie) wypada,
+          - `is_district_name` po samym podciągu robiło z tej ulicy dzielnicę
+            („Racławicka Dzielnica Mieszkaniowa") — stąd dopasowanie pełne,
+          - szeroka whitelist (`is_known_street`) chroni realne, ale nietypowo
+            zapisane adresy („Sekutowicza Mieszkanie").
+        Zdejmujemy więc pinezkę tylko wtedy, gdy nazwa NIE jest ulicą i jest
+        albo znaną dzielnicą/osiedlem, albo w ogóle nie ma jej w whiteliście.
+        """
+        if not label or is_street_name(label):
+            return False
+        return is_district_name(label) or not is_known_street(label)
+
+    def _demote_non_street_pins(self):
+        """Zdejmuje z mapy pinezki, których adres nie jest ulicą (FIX 2026-08-08).
+
+        Nazwy osiedli („Botanik", „Piastowskie", „Skarpa"), instytucji
+        („Uniwersytetu Medycznego") i resztek po parserze („Wolne", „Miejsca",
+        „Stokrotka") dostawały punkt gdzieś w tej okolicy i na mapie wyglądały
+        jak normalny adres. Trafiają teraz do warstwy „bez lokacji" — oferta
+        zostaje na stronie, ale nie udaje, że wiadomo, gdzie stoi.
+
+        Kolejność ma znaczenie: najpierw próbujemy sprzątnąć etykietę
+        („Obywatelska piętro" → „Obywatelska"), bo to ratuje pinezkę; dopiero
+        gdy nic z niej nie zostaje, oferta traci punkt. Bez sieci, idempotentne.
+        """
+        cleaned = demoted = 0
+        for offer in self.database['offers']:
+            addr = offer.get('address')
+            if not isinstance(addr, dict) or not addr.get('coords'):
+                continue
+            label = addr.get('street') or addr.get('full') or ''
+            if not self._is_area_not_address(label):
+                continue
+            salvaged = self._salvage_street_label(addr.get('full') or '')
+            if salvaged and is_street_name(salvaged):
+                addr.update({'full': salvaged, 'street': salvaged, 'number': None,
+                             'has_number': False, 'precision': 'street'})
+                cleaned += 1
+                continue
+            addr.pop('coords', None)
+            addr['precision'] = 'none'
+            demoted += 1
+        if cleaned:
+            print(f"   🧹 Sprzątnięto etykietę (pinezka została): {cleaned}")
+        if demoted:
+            print(f"   📤 Zdjęto z mapy (adres nie jest ulicą): {demoted}")
 
     def _clean_geocoding_cache(self):
         """Wyrzuca z cache klucze-śmieci, które udają nazwy ulic (FIX 2026-08-07).
@@ -655,6 +711,17 @@ class SonarMieszkaniowy:
             if cleaned:
                 print(f"      🧹 Sprzątnięto etykietę adresu: '{final_full}' → '{cleaned}'")
                 final_full, final_street, final_number = cleaned, cleaned, None
+
+        # FIX 2026-08-08: na mapie stoją tylko adresy ULICZNE.
+        # Nazwy osiedli („Botanik", „Piastowskie"), instytucji („Uniwersytetu
+        # Medycznego") i śmieci parsera („Wolne", „Miejsca") dostawały pinezkę
+        # w losowym punkcie tej okolicy i wyglądały jak adres. Teraz trafiają do
+        # warstwy „bez lokacji" (widocznej też w zakładce debugowej), gdzie
+        # etykieta uczciwie mówi „Adres nieznany", a surowy odczyt zostaje jako
+        # wskazówka. Decyzja produktowa 2026-08-08.
+        if coords and self._is_area_not_address(final_street or final_full or ''):
+            print(f"      📤 '{final_full}' to nie ulica — bez pinezki, do warstwy bez lokacji")
+            coords, geocode_meta = None, None
 
         # FIX 2026-08-06: has_number liczymy z adresu, który FAKTYCZNIE wygrał
         # geokodowanie (mógł to być wariant bez numeru z `alternatives`), a nie
@@ -1478,6 +1545,7 @@ class SonarMieszkaniowy:
             # a potem domknij `precision` dla rekordów sprzed tej zmiany. Oba kroki
             # są lokalne — zero zapytań do Nominatim.
             self._migrate_legacy_addresses()
+            self._demote_non_street_pins()
             self._backfill_address_precision()
             self._clean_geocoding_cache()
             

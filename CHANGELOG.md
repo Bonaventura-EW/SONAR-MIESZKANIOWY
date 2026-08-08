@@ -39,6 +39,34 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
   niespójność do przeliczenia (rekordy z bazy naprawią się przy kolejnym skanie).
 - 13 nowych testów; suite 201 → 217.
 
+### Zmienione (2026-08-08) — na mapie stoją tylko adresy uliczne
+- **Adres opisujący OBSZAR nie dostaje pinezki** (`main._is_area_not_address`,
+  `_demote_non_street_pins`). Nazwy osiedli („Botanik", „Piastowskie", „Skarpa",
+  „Poręba", „Wrotków", „Rury"), instytucji („Uniwersytetu Medycznego") i resztek
+  po parserze („Wolne" — 10 ofert, „Miejsca" — 5, „Stokrotka", „Piętro") dostawały
+  punkt gdzieś w tej okolicy i na mapie wyglądały jak normalny adres. Trafiają
+  teraz do warstwy **„bez lokacji"**: oferta zostaje na stronie i w zakładce
+  debugowej, ale nie udaje, że wiadomo, gdzie stoi. Decyzja produktowa.
+  Efekt: na mapie 669 → 615 aktywnych ofert, warstwa „bez lokacji" 71 → 125.
+  Kolejność ma znaczenie — najpierw próbujemy sprzątnąć etykietę („Piłsudskiego
+  Okna" → „Piłsudskiego", 32 rekordy), bo to ratuje pinezkę; dopiero gdy nic
+  z nazwy nie zostaje, oferta traci punkt (203 rekordy, w tym nieaktywne).
+- **`data/districts_lublin.json`** (nowe) — 137 nazw dzielnic i osiedli z OSM
+  (`place=suburb|neighbourhood|quarter`, `landuse=residential`) + `is_district_name`
+  w `street_whitelist`. Współrzędne celowo **nie** są używane do stawiania markerów:
+  osiedle to obszar, nie punkt.
+- **`street_names` w `data/streets_lublin.json`** — podzbiór samych ulic (1445 nazw
+  `highway` z OSM) + `is_street_name`. Szeroka lista `names` (1563) dalej służy
+  wyłącznie do *akceptowania* adresów ratunkowych.
+- Warunek zdejmowania pinezki jest złożony, bo **każdy pojedynczy test miał
+  zmierzone fałszywe trafienia**: sama lista ulic nie zna form odmienionych po
+  stronie indeksu (wypadała realna „Racławickiej"), samo dopasowanie dzielnic po
+  podciągu robiło z tej ulicy dzielnicę („Racławicka Dzielnica Mieszkaniowa"),
+  a bez szerokiej whitelisty ginęły nietypowo zapisane adresy („Sekutowicza
+  Mieszkanie"). Zdejmujemy pinezkę tylko wtedy, gdy nazwa nie jest ulicą **i**
+  jest znaną dzielnicą albo w ogóle nie ma jej w whiteliście.
+- 24 nowe testy (`tests/test_area_not_address.py`); suite 221 → 245.
+
 ### Dodane (2026-08-08) — sprzątanie etykiet przy poprawnych pinezkach
 - **Etykieta adresu czyszczona, gdy pinezka stoi dobrze.** Audyt kwadratów liczył
   jako „źle postawione" 17 ofert, których punkt jest w porządku — brudna była tylko
