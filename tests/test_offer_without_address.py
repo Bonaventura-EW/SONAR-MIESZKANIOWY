@@ -93,3 +93,49 @@ class TestSalvageStreetLabel:
     def test_nie_akceptuje_krotkiego_jednoczlonowego_trafienia(self):
         """„Residence" ⊂ „Wikana Residence" — za słaba przesłanka na ulicę."""
         assert SonarMieszkaniowy._salvage_street_label('Residence Nowoczesne 3') is None
+
+
+class TestOdzyskDocieraDoBazy:
+    """Odzysk ulicy musi podmienić CAŁY adres, nie tylko dokleić współrzędne.
+
+    Regresja z 2026-08-07: blok „uzupełnij brakujące coords" wstawiał punkt do
+    starego adresu, przez co warunek „zdobyto współrzędne" już nie działał —
+    oferta lądowała na mapie z etykietą „Piłsudskiego Okna" i `precision='none'`,
+    czyli mapa nie wiedziała, jakim markerem ją narysować.
+    """
+
+    def _existing(self):
+        return {
+            'id': 'x-CID3-IDx', 'url': 'https://www.olx.pl/d/oferta/x-CID3-IDx.html',
+            'active': True, 'first_seen': '2026-08-01T10:00:00+02:00',
+            'last_seen': '2026-08-01T10:00:00+02:00',
+            'price': {'current': 2000, 'history': [2000], 'source': 'JSON-LD (OLX)'},
+            'description': 'opis', 'days_active': 1,
+            'address': {'full': 'Piłsudskiego Okna', 'street': 'Piłsudskiego Okna',
+                        'number': None, 'has_number': False, 'precision': 'none'},
+        }
+
+    def test_odzyskana_ulica_podmienia_caly_adres(self, agent):
+        existing = self._existing()
+        agent._update_existing_offer(existing, {
+            'id': 'x-CID3-IDx', 'url': existing['url'], 'description': 'opis',
+            'price': {'current': 2000, 'media_info': 'brak informacji', 'source': 'JSON-LD (OLX)'},
+            'address': {'full': 'Piłsudskiego', 'street': 'Piłsudskiego', 'number': None,
+                        'has_number': False, 'precision': 'street',
+                        'coords': {'lat': 51.24, 'lon': 22.55}},
+        })
+        assert existing['address']['full'] == 'Piłsudskiego'
+        assert existing['address']['precision'] == 'street'
+        assert existing['address']['coords'] == {'lat': 51.24, 'lon': 22.55}
+
+    def test_same_coords_bez_zmiany_adresu_domykaja_precyzje(self, agent):
+        """Gdy adres zostaje ten sam, a dochodzą coords — precyzja nie może zostać 'none'."""
+        existing = self._existing()
+        agent._update_existing_offer(existing, {
+            'id': 'x-CID3-IDx', 'url': existing['url'], 'description': 'opis',
+            'price': {'current': 2000, 'media_info': 'brak informacji', 'source': 'JSON-LD (OLX)'},
+            'address': {'full': 'Piłsudskiego Okna', 'street': 'Piłsudskiego Okna',
+                        'number': None, 'has_number': False,
+                        'coords': {'lat': 51.24, 'lon': 22.55}},
+        })
+        assert existing['address']['precision'] == 'street'

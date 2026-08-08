@@ -152,3 +152,28 @@ class TestNumberRetraction:
             'full': 'Zana 12', 'street': 'Zana', 'number': '12', 'has_number': True,
             'coords': {'lat': 51.2402, 'lon': 22.5302}}))
         assert existing['address']['full'] == 'Zana 12'
+
+
+class TestBackfillNaprawiaNiespojnosc:
+    """`precision='none'` przy istniejących coords to niespójność do naprawy.
+
+    Regresja z 2026-08-07: oferta z odzyskaną ulicą dostawała współrzędne, ale
+    precyzja zostawała z czasów, gdy ich nie miała — mapa nie wiedziała, jakim
+    markerem ją narysować.
+    """
+
+    def test_przelicza_none_gdy_sa_wspolrzedne(self, agent):
+        agent.database['offers'] = [{'id': 'a', 'address': {
+            'full': 'Piłsudskiego', 'street': 'Piłsudskiego', 'number': None,
+            'has_number': False, 'precision': 'none', 'coords': COORDS}}]
+        agent.geocoder.cache = {}
+        agent._backfill_address_precision()
+        assert agent.database['offers'][0]['address']['precision'] == 'street'
+
+    def test_none_bez_wspolrzednych_zostaje(self, agent):
+        agent.database['offers'] = [{'id': 'a', 'address': {
+            'full': '', 'street': '', 'number': None,
+            'has_number': False, 'precision': 'none'}}]
+        agent.geocoder.cache = {}
+        agent._backfill_address_precision()
+        assert agent.database['offers'][0]['address']['precision'] == 'none'
