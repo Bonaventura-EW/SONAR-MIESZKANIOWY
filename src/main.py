@@ -395,6 +395,38 @@ class SonarMieszkaniowy:
         return candidate
 
     @staticmethod
+    def _salvage_street_label(label: str):
+        """Wyłuskuje realną ulicę z zaśmieconej etykiety adresu (FIX 2026-08-07).
+
+        Ostatnia szansa dla ofert, których geokoder nie potrafił umiejscowić, bo do
+        nazwy ulicy dokleiło się pół zdania: „PeowiakówZdjęcia są" → „Peowiaków",
+        „Piłsudskiego Okna" → „Piłsudskiego", „Obywatelska piętro 10" → „Obywatelska".
+        Obcinamy człony od KOŃCA, aż zostanie nazwa z whitelisty OSM — czyli nigdy
+        nie zgadujemy, tylko potwierdzamy istniejącą ulicę.
+
+        Uruchamiane wyłącznie dla ofert BEZ współrzędnych, więc nie może przesunąć
+        żadnej istniejącej pinezki. Zwraca nazwę ulicy albo None.
+        """
+        if not label or is_known_street(label):
+            # Cała etykieta jest już nazwą z whitelisty — nie ma czego ucinać,
+            # a skracanie tylko by ją zepsuło („Osiedle Klemensa Junoszy" →
+            # „Osiedle Klemensa"). Winny jest geokoder, nie parser.
+            return None
+        # Rozklej sklejone tokeny („PeowiakówZdjęcia" → „Peowiaków Zdjęcia")
+        spaced = re.sub(r'([a-ząćęłńóśźż])([A-ZŚĆŁĄĘÓŻŹŃ])', r'\1 \2', label)
+        tokens = spaced.split()
+        for end in range(len(tokens), 0, -1):
+            candidate = ' '.join(tokens[:end])
+            # Jednoczłonowe nazwy bywają fałszywym trafieniem whitelisty
+            # („Residence" ⊂ „Wikana Residence"), więc wymagamy wielkiej litery
+            # i długości typowej dla nazwy ulicy.
+            if candidate == label or len(candidate) < 5 or not candidate[0].isupper():
+                continue
+            if is_known_street(candidate):
+                return candidate
+        return None
+
+    @staticmethod
     def _same_street(first: Dict, second: Dict) -> bool:
         """Czy dwa parsowania wskazują tę samą ulicę (odporne na odmianę i skróty)."""
         variants_first = name_variants(first.get('street') or first.get('full') or '')
@@ -585,6 +617,21 @@ class SonarMieszkaniowy:
                     final_number = address_data.get('number')
                     final_full = address_data['full']
                     print(f"⚠️ Nie można geokodować: {final_full} (próbowano też {len(address_data.get('alternatives', []))} alt.) — trafi do warstwy bez lokacji")
+
+                    # FIX 2026-08-07: ostatnia szansa — obetnij doklejone śmieci
+                    # z końca etykiety i spróbuj samej ulicy. Dotyczy tylko ofert,
+                    # które i tak nie mają pinezki, więc nic nie może się przesunąć.
+                    salvaged = self._salvage_street_label(final_full)
+                    if salvaged:
+                        rescue = self.geocoder.geocode_with_alternatives(
+                            {'street': salvaged, 'number': None, 'full': salvaged})
+                        if rescue:
+                            coords, used_address = rescue
+                            final_street = used_address['street']
+                            final_number = used_address['number']
+                            final_full = used_address['full']
+                            geocode_meta = used_address.get('meta')
+                            print(f"      🛟 Odzyskano ulicę z zaśmieconej etykiety: {final_full}")
         
         # 5. Stwórz ID z URL (unikalne)
         offer_id = raw_offer['url'].split('/')[-1].split('.')[0]
@@ -800,10 +847,16 @@ class SonarMieszkaniowy:
             and _street_key(new_addr) and _street_key(new_addr) == _street_key(old_addr)
         )
 
+        # FIX 2026-08-07: zdobycie współrzędnych zawsze jest poprawą — oferta
+        # przenosi się z listy „bez lokacji" na mapę. Tak dociera do bazy odzysk
+        # ulicy z zaśmieconej etykiety („PeowiakówZdjęcia są" → „Peowiaków").
+        gained_coords = bool(new_addr.get('coords')) and not old_addr.get('coords')
+
         new_looks_better = new_full and new_full != old_full and (
             (new_has_num and not old_has_num) or
             (old_looks_like_garbage and len(new_full) >= 5) or
-            number_retracted
+            number_retracted or
+            gained_coords
         )
 
         if new_looks_better:

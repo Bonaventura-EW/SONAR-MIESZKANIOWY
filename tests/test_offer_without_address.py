@@ -60,3 +60,36 @@ class TestOfertaBezAdresu:
         result = agent._process_offer(raw)
         assert result is not None
         assert 'coords' not in result['address'], 'Pusty adres odziedziczył cudze coords'
+
+
+class TestSalvageStreetLabel:
+    """Odzysk ulicy z zaśmieconej etykiety (FIX 2026-08-07).
+
+    Dotyczy wyłącznie ofert, których geokoder nie umiał umiejscowić — nie może
+    więc przesunąć żadnej istniejącej pinezki.
+    """
+
+    @pytest.mark.parametrize("label,expected", [
+        ('PeowiakówZdjęcia są', 'Peowiaków'),          # sklejone tokeny
+        ('Piłsudskiego Okna', 'Piłsudskiego'),
+        ('Obywatelska piętro 10', 'Obywatelska'),
+        ('Młodej Polski Powierzchnia', 'Młodej Polski'),
+    ])
+    def test_odzyskuje_ulice_z_doklejonym_smieciem(self, label, expected):
+        assert SonarMieszkaniowy._salvage_street_label(label) == expected
+
+    @pytest.mark.parametrize("label", [
+        'Osiedle Klemensa Junoszy',   # cała nazwa jest poprawna — nie skracamy
+        'Krakowskie Przedmieście',
+        'Lipowa',
+    ])
+    def test_nie_skraca_poprawnej_nazwy(self, label):
+        assert SonarMieszkaniowy._salvage_street_label(label) is None
+
+    @pytest.mark.parametrize("label", ['Umowa', 'DOSTĘPNE', 'Nowoczesne', ''])
+    def test_smiec_bez_ulicy_zwraca_none(self, label):
+        assert SonarMieszkaniowy._salvage_street_label(label) is None
+
+    def test_nie_akceptuje_krotkiego_jednoczlonowego_trafienia(self):
+        """„Residence" ⊂ „Wikana Residence" — za słaba przesłanka na ulicę."""
+        assert SonarMieszkaniowy._salvage_street_label('Residence Nowoczesne 3') is None
