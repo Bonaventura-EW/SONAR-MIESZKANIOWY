@@ -36,7 +36,7 @@ from address_parser import AddressParser
 from atomic_json import atomic_write_json
 
 # Wersja kontraktu parsera adresów. Bump = migracja przeliczy bazę raz jeszcze.
-ADDRESS_PARSER_VERSION = '2026-08-06'
+ADDRESS_PARSER_VERSION = '2026-08-08'
 
 # Ile ofert może maksymalnie zmienić adres, zanim uznamy to za awarię parsera.
 # (Na 2026-08-06: 127 z 1219 ofert z numerem, czyli 10,4% — próg ma spory zapas.)
@@ -121,6 +121,79 @@ def retract_fake_numbers(offers: list, parser: AddressParser = None, geocoding_c
     return result
 
 
+def upgrade_junk_streets(offers: list, parser: AddressParser = None, geocoding_cache: dict = None) -> dict:
+    """Podmienia śmieciową etykietę adresu na realną ulicę (in-place).
+
+    FIX 2026-08-08: poprawka fallbacku nazwiskowego w `address_parser` sprawia, że
+    ten sam opis daje teraz „Niepodległości" zamiast „Kalina 38" czy „Wschodnia"
+    zamiast „Powierzchnia 32". Dla ofert **nieaktywnych** scraper nigdy nie
+    uruchomi `_update_existing_offer`, więc bez migracji zostałyby ze śmieciem
+    na zawsze. Opis jest w bazie, więc liczymy offline, bez Nominatim.
+
+    Warunki są jednokierunkowe — operacja może adres tylko poprawić:
+      - stara etykieta NIE jest ulicą (`is_street_name`), nowa JEST,
+      - oferta nie ma współrzędnych, więc żadna pinezka nie może się przesunąć;
+        nową dokładamy tylko wtedy, gdy ulica jest już w cache geokodera.
+    """
+    from street_whitelist import is_street_name
+
+    parser = parser or AddressParser()
+    cache = {_key(k): v for k, v in (geocoding_cache or {}).items() if v}
+
+    planned = []
+    stats = {'already_street': 0, 'still_junk': 0, 'has_coords': 0, 'unparsable': 0}
+
+    for offer in offers:
+        address = offer.get('address')
+        if not isinstance(address, dict):
+            continue
+        old_label = (address.get('street') or address.get('full') or '').strip()
+        if not old_label:
+            continue
+        if is_street_name(old_label):
+            stats['already_street'] += 1
+            continue
+        if address.get('coords'):
+            # Pinezka już stoi; jej przesuwanie to inna, ryzykowniejsza operacja —
+            # tu zajmujemy się wyłącznie ofertami z warstwy „bez lokacji".
+            stats['has_coords'] += 1
+            continue
+        parsed = parser.extract_address(offer.get('description') or '')
+        if not parsed or not parsed.get('full'):
+            stats['unparsable'] += 1
+            continue
+        if not is_street_name(parsed.get('street') or ''):
+            stats['still_junk'] += 1
+            continue
+
+        new_address = dict(address)
+        new_address.update({
+            'full': parsed['full'],
+            'street': parsed.get('street', ''),
+            'number': parsed.get('number'),
+            'has_number': bool(parsed.get('number')),
+            'precision': 'none',
+        })
+        street_coords = cache.get(_key(parsed['full']))
+        if street_coords:
+            new_address['coords'] = dict(street_coords)
+            new_address['precision'] = 'exact' if parsed.get('number') else 'street'
+        planned.append((offer, new_address))
+
+    result = {
+        'to_fix': len(planned),
+        'active_to_fix': sum(1 for o, _ in planned if o.get('active')),
+        'inactive_to_fix': sum(1 for o, _ in planned if not o.get('active')),
+        'gained_coords': sum(1 for _, a in planned if a.get('coords')),
+        'changes': [((o.get('address') or {}).get('full'), a['full'], bool(o.get('active')))
+                    for o, a in planned],
+        **stats,
+    }
+    for offer, new_address in planned:
+        offer['address'] = new_address
+    return result
+
+
 def main():
     ap = argparse.ArgumentParser(description='Migracja adresów po poprawce parsera (FIX 2026-08-06)')
     ap.add_argument('--apply', action='store_true', help='zapisz zmiany (domyślnie sucha próba)')
@@ -130,7 +203,10 @@ def main():
     db = json.loads(Path(paths.OFFERS_JSON).read_text(encoding='utf-8'))
     cache = json.loads(Path(paths.GEOCODING_CACHE_JSON).read_text(encoding='utf-8'))
 
-    result = retract_fake_numbers(db['offers'], geocoding_cache=cache)
+    parser = AddressParser()
+    result = retract_fake_numbers(db['offers'], parser=parser, geocoding_cache=cache)
+    upgrade = None if result['blocked'] else upgrade_junk_streets(
+        db['offers'], parser=parser, geocoding_cache=cache)
 
     print(f"\n📋 Ofert z numerem domu: {result['considered']}")
     print(f"   ✅ numer potwierdzony przez parser:      {result['kept']}")
@@ -144,8 +220,18 @@ def main():
         print(f"\n⛔ {result['blocked']}")
         return 1
 
+    print(f"\n🏚️  Śmieciowa etykieta → realna ulica: {upgrade['to_fix']} "
+          f"(aktywne: {upgrade['active_to_fix']}, nieaktywne: {upgrade['inactive_to_fix']})")
+    print(f"      … z tego zyskało pinezkę z cache:     {upgrade['gained_coords']}")
+    print(f"   ⏭️  etykieta już jest ulicą (pomijane):        {upgrade['already_street']}")
+    print(f"   ⏭️  ma pinezkę, nie ruszamy (pomijane):        {upgrade['has_coords']}")
+    print(f"   ⏭️  nowy parse też nie daje ulicy (pomijane):  {upgrade['still_junk']}")
+
     print(f"\nPrzykłady zmian:")
     for old, new, active in result['changes'][:args.limit_preview]:
+        print(f"   {'🟢' if active else '⚪'} {str(old)[:30]:31} → {new}")
+    print(f"\nPrzykłady podmian etykiety:")
+    for old, new, active in upgrade['changes'][:args.limit_preview]:
         print(f"   {'🟢' if active else '⚪'} {str(old)[:30]:31} → {new}")
 
     if not args.apply:

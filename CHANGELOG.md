@@ -10,6 +10,54 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Naprawione (2026-08-08) — „ulice", których nie ma w Lublinie
+Audyt po poprzedniej zmianie pokazał **21 aktywnych ofert stojących na nazwie, która
+nie jest żadną ulicą Lublina** — „Netia 30", „King Size 180x", „Duże łóżko 120",
+„Powierzchnia 32", „Kalina 38". Każda z `has_number=True`, czyli dla mapy „adres
+dokładny" pod zmyślonym numerem.
+
+- **Fallback nazwiskowy w `address_parser` omijał WSZYSTKIE filtry ścieżki głównej.**
+  `POLISH_SURNAME_PATTERN` („NAZWA w dopełniaczu + numer") stoi w kolejności *przed*
+  `extract_street_only`, więc wpuszczał z powrotem dokładnie te adresy, które parser
+  chwilę wcześniej odrzucił: „Powierzchnia 32" pochodziło z „Powierzchnia 32 m kw."
+  (złapane filtrem metrażu), „Nałęczowska 2" z „przystanek Nałęczowska 2 minuty
+  pieszą". Obowiązują tam teraz te same trzy warunki co w ścieżce głównej: lista
+  fałszywych adresów, lista instytucji i **przynależność nazwy do whitelisty ulic** —
+  wzorzec poza nazwiskami trafiał też w imiona i rzeczowniki („Sylwia 50",
+  „Monika 66", „Sypialnia 1", „Netia 30").
+  Pomiar na 2976 opisach: **25 adresów śmieć→ULICA, 0 pogorszeń, 1 utracony**
+  (śmieciowy „Powierzchnia 32" oferty nieaktywnej — oferta zostaje na stronie).
+  Whitelist tylko *wpuszcza*: brak modułu = zachowanie sprzed poprawki, więc jej
+  awaria nie może zacząć odrzucać adresów.
+- **Poprawka parsera dociera teraz do bazy** (`_update_existing_offer` →
+  `street_upgraded`, `address_migration.upgrade_junk_streets`). Dotąd nie miała jak:
+  „Kalina 38" ma numer, więc nie łapało się ani na „nowy ma numer, stary nie", ani na
+  `old_looks_like_garbage` (ten warunek wprost wyklucza stary adres z numerem), ani na
+  `number_retracted` (inna ulica). Kierunek jest jednostronny — nie-ulica → ulica —
+  a warunek `not old_had_coords` pilnuje, żeby oferta z **poprawnie stojącą** pinezką
+  i brzydką nazwą („Parysa Wynajmę", 23 m od ul. Parysa) trafiła do
+  `_demote_non_street_pins`, które punkt zostawia. Migracja wsteczna działa offline
+  i tylko dla ofert bez współrzędnych: **116 etykiet** (5 aktywnych, 111 nieaktywnych),
+  z czego **102 zyskały pinezkę** z cache geokodera.
+- **Stare współrzędne nie jadą już za etykietą na inną ulicę.** Blok „zachowaj coords"
+  w `_update_existing_offer` działał bezwarunkowo, więc podmiana „Zana" → „Lipowa 5"
+  stawiała punkt ul. Zana pod adresem przy Lipowej. Teraz punkt zostaje tylko przy tej
+  samej ulicy (albo przy sprzątaniu ogona etykiety).
+- **Sam numer domu przestał być wariantem nazwy** (`street_whitelist.name_variants`).
+  „Kwarcowa Nowoczesne 3" uchodziło za kompletną nazwę ulicy, bo człon „3" trafiał
+  w indeks (istnieje ulica z „3" w nazwie) — i sprzątanie etykiety odpuszczało.
+  Na bazie: 1 etykieta („Politechniki 3") przestaje udawać ulicę.
+- **Warstwa „bez lokacji" nie pokazuje już śmiecia jako adresu.** `map_generator`
+  decydował o tym przez `is_known_street` (dopasowanie po podciągu), więc
+  „Nieruchomość 3", „Stokrotka 3", „GRATIS Przestronne 3" wyświetlały się jako adres.
+  Kryterium jest teraz `is_known_place` (dopasowanie pełne).
+
+Wynik na 21 ofertach z audytu: **5 dostało realną ulicę** (Beliniaków, Wschodnia ×2,
+Niepodległości, Laurowej; 4 z pinezką), pozostałe **16 pokazuje uczciwe
+„Adres nieznany"** zamiast wymyślonego adresu. Żadna oferta nie zniknęła ze strony.
+- 18 nowych testów (`tests/test_surname_fallback.py`, `tests/test_street_upgrade.py`);
+  suite 275 → 293.
+
 ### Naprawione (2026-08-08) — dopasowanie nazw: strona zapytania kontra strona indeksu
 Po poprzedniej zmianie na mapie zostało **6 aktywnych pinezek stojących na nazwie,
 która nie jest ulicą**. Każda próba domknięcia tego jedną regułą cofała którąś

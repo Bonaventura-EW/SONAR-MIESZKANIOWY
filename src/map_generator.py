@@ -11,7 +11,7 @@ from pathlib import Path
 
 # Import taggera ofert (B1)
 from offer_tagger import build_tags, title_from_url, TAGS as OFFER_TAGS
-from street_whitelist import is_known_street
+from street_whitelist import is_known_place
 
 
 def resolve_tags(offer):
@@ -254,7 +254,11 @@ def generate_map_data(input_file, output_file):
             # go nie ma. Etykiety typu „PeowiakówZdjęcia są", „Umowa" czy „DOSTĘPNE"
             # to resztki po parserze, nie ulice — pokazujemy „Adres nieznany",
             # a surowy odczyt zostawiamy obok jako wskazówkę diagnostyczną.
-            address_looks_real = bool(offer.get('address', {}).get('coords')) or is_known_street(address_full)
+            # FIX 2026-08-08: kryterium to dopasowanie PEŁNE (`is_known_place`),
+            # nie po podciągu członów. `is_known_street` przepuszczało śmieci, które
+            # są tylko fragmentem realnej nazwy — „Nieruchomość 3", „Stokrotka 3",
+            # „GRATIS Przestronne 3" wyświetlały się jako adres, choć nimi nie są.
+            address_looks_real = bool(offer.get('address', {}).get('coords')) or is_known_place(address_full)
             address_label = address_full if address_looks_real else 'Adres nieznany'
             address_raw = None if address_looks_real or address_full == 'Adres nieznany' else address_full
 

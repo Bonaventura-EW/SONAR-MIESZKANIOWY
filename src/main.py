@@ -22,7 +22,8 @@ from duplicate_detector import DuplicateDetector
 from scan_logger import ScanLogger
 from street_whitelist import (is_district_name, is_known_place, is_known_street,
                               is_street_name, name_variants)
-from address_migration import ADDRESS_PARSER_VERSION, retract_fake_numbers
+from address_migration import (ADDRESS_PARSER_VERSION, retract_fake_numbers,
+                               upgrade_junk_streets)
 from clean_geocoding_cache import find_junk_keys, street_forms
 
 # Jawny prefiks ulicy w tytule — wraz z whitelistą OSM decyduje, czy adres
@@ -265,10 +266,21 @@ class SonarMieszkaniowy:
             print(f"   ⛔ {result['blocked']}")
             self.scan_logger.log_error(result['blocked'])
             return
-        self.database['address_parser_version'] = ADDRESS_PARSER_VERSION
         print(f"   ✅ Wycofano zmyślony numer w {result['to_fix']} ofertach "
               f"(aktywne: {result['active_to_fix']}, nieaktywne: {result['inactive_to_fix']}); "
               f"bez zmian: {result['kept']}")
+
+        # FIX 2026-08-08: druga część migracji — śmieciowa etykieta na realną ulicę.
+        # Dotyczy wyłącznie ofert BEZ współrzędnych, więc nie może przesunąć pinezki.
+        upgrade = upgrade_junk_streets(
+            self.database['offers'],
+            parser=self.address_parser,
+            geocoding_cache=self.geocoder.cache,
+        )
+        print(f"   ✅ Śmieciowa etykieta → realna ulica w {upgrade['to_fix']} ofertach "
+              f"(aktywne: {upgrade['active_to_fix']}, nieaktywne: {upgrade['inactive_to_fix']}); "
+              f"pinezkę z cache zyskało: {upgrade['gained_coords']}")
+        self.database['address_parser_version'] = ADDRESS_PARSER_VERSION
 
     @staticmethod
     def _is_area_not_address(label: str) -> bool:
@@ -961,16 +973,44 @@ class SonarMieszkaniowy:
             and is_known_street(new_full) and not is_known_street(old_full)
         )
 
+        # FIX 2026-08-08: śmieciowa etykieta → realna ULICA. Bez tego poprawki
+        # parsera nie docierały do bazy: „Kalina 38" ma numer, więc nie łapało się
+        # ani na „nowy ma numer, stary nie", ani na `old_looks_like_garbage`
+        # (ten warunek wprost wyklucza stary adres Z numerem), ani na
+        # `number_retracted` (inna ulica). Oferta zostawała ze zmyślonym adresem
+        # na zawsze, mimo że parser od dawna czytał z jej opisu „Niepodległości".
+        # Kierunek jest jednostronny — nie-ulica → ulica — więc realny adres nie
+        # może przez to zostać podmieniony na śmieć.
+        # Warunek `not old_had_coords` jest krytyczny: gdy stara etykieta ma już
+        # pinezkę, punkt bywa poprawny mimo brzydkiej nazwy („Parysa Wynajmę" stoi
+        # 23 m od ul. Parysa). Takie rekordy należą do `_demote_non_street_pins`,
+        # które obcina ogon i ZOSTAWIA punkt; podmiana na inną ulicę zabrałaby go.
+        street_upgraded = (
+            new_full and not old_had_coords
+            and is_street_name(new_addr.get('street') or new_full)
+            and not is_street_name(old_addr.get('street') or old_full or '')
+        )
+
         new_looks_better = new_full and new_full != old_full and (
             (new_has_num and not old_has_num) or
             (old_looks_like_garbage and len(new_full) >= 5) or
             number_retracted or
             gained_coords or
-            label_cleaned
+            label_cleaned or
+            street_upgraded
         )
 
         if new_looks_better:
             old_coords = old_addr.get('coords')  # zachowaj coords
+            # FIX 2026-08-08: stare coords wolno przenieść tylko wtedy, gdy adres
+            # dotyczy TEJ SAMEJ ulicy (albo jest jej sprzątniętą etykietą). Przy
+            # podmianie „Kalina 38" → „Niepodległości" punkt starego adresu leży
+            # gdzie indziej — przeniesiony postawiłby pinezkę pod złym budynkiem.
+            same_place = (
+                _street_key(new_addr) == _street_key(old_addr)
+                or label_cleaned
+                or (old_full and new_full and old_full.startswith(new_full))
+            )
             existing['address'] = dict(new_addr)
             if number_retracted:
                 # Stare coords wskazywały budynek o zmyślonym numerze — nie przenosimy
@@ -978,7 +1018,7 @@ class SonarMieszkaniowy:
                 # trafia na skan do warstwy „bez lokacji" i zgeokoduje się przy kolejnym.
                 self.stats_number_retracted = getattr(self, 'stats_number_retracted', 0) + 1
                 print(f"      🔧 Wycofano zmyślony numer domu: '{old_full}' → '{new_full}'")
-            elif old_coords and not new_addr.get('coords'):
+            elif old_coords and not new_addr.get('coords') and same_place:
                 existing['address']['coords'] = old_coords
             if not number_retracted:
                 print(f"      🏠 Zaktualizowano adres: '{old_full}' → '{new_full}'")
