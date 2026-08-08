@@ -39,6 +39,20 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
   niespójność do przeliczenia (rekordy z bazy naprawią się przy kolejnym skanie).
 - 13 nowych testów; suite 201 → 217.
 
+### Dodane (2026-08-08) — sprzątanie etykiet przy poprawnych pinezkach
+- **Etykieta adresu czyszczona, gdy pinezka stoi dobrze.** Audyt kwadratów liczył
+  jako „źle postawione" 17 ofert, których punkt jest w porządku — brudna była tylko
+  nazwa: „Parysa Wynajmę" stoi **23 m** od ul. Parysa, „Przyjaźni Kuchnia Hol" 28 m,
+  „Nowy Świat Przytulne" 20 m, „Ćwiklińskiej Przestronny" 23 m. Teraz doklejony
+  ogon jest obcinany, a **współrzędne zostają nietknięte** (osobna ścieżka od
+  odzysku z 2026-08-07: tam geokoder nic nie znalazł, tu znalazł dobrze).
+  Na obecnej bazie: 18 aktywnych ofert (48 łącznie z nieaktywnymi).
+  W `_update_existing_offer` warunek jest wąski — nowa nazwa musi być **początkiem**
+  starej i realną ulicą, a stara nie; to gwarantuje obcięcie ogona zamiast zmiany
+  adresu. Krytyczny warunek `not final_number`: bez niego „Lipowa 10" skróciłoby się
+  do „Lipowa", bo obcinanie nie odróżnia numeru domu od śmiecia (złapane testem).
+- 4 nowe testy; suite 217 → 221.
+
 ### Zmienione (2026-08-07) — oferty bez adresu zostają na stronie
 - **`main._process_offer` nie kasuje już oferty, gdy parser nie znajdzie ulicy.**
   Dotąd `return None` sprawiał, że **~34 ogłoszenia na skan znikały ze strony bez
