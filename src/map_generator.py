@@ -11,6 +11,7 @@ from pathlib import Path
 
 # Import taggera ofert (B1)
 from offer_tagger import build_tags, title_from_url, TAGS as OFFER_TAGS
+from street_whitelist import is_known_street
 
 
 def resolve_tags(offer):
@@ -249,10 +250,19 @@ def generate_map_data(input_file, output_file):
             desc_preview, desc_truncated = split_description(full_desc)
             if desc_truncated:
                 full_descriptions[offer.get('id')] = full_desc
+            # FIX 2026-08-07: w warstwie „bez lokacji" nie udajemy adresu tam, gdzie
+            # go nie ma. Etykiety typu „PeowiakówZdjęcia są", „Umowa" czy „DOSTĘPNE"
+            # to resztki po parserze, nie ulice — pokazujemy „Adres nieznany",
+            # a surowy odczyt zostawiamy obok jako wskazówkę diagnostyczną.
+            address_looks_real = bool(offer.get('address', {}).get('coords')) or is_known_street(address_full)
+            address_label = address_full if address_looks_real else 'Adres nieznany'
+            address_raw = None if address_looks_real or address_full == 'Adres nieznany' else address_full
+
             unlocalised_offers.append({
                 'id': offer.get('id'),
                 'url': offer.get('url'),
-                'address': address_full,
+                'address': address_label,
+                'address_raw': address_raw,
                 'price': current_price,
                 'price_range': get_price_range(current_price),
                 'media_info': price_data.get('media_info', 'brak informacji'),

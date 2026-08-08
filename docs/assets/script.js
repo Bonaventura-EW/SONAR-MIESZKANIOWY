@@ -999,7 +999,11 @@ function renderUnlocalised() {
         const bd    = o.active ? '#f59e0b' : '#e2e8f0';
         return `<div style="background:${bg};border:1px solid ${bd};border-radius:8px;padding:12px;font-size:13px;opacity:${o.active?1:0.75}">
             <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
-                <div style="font-weight:600;color:#1e293b;flex:1;margin-right:8px">${ti} ${escapeHtml(o.address||'Nieznany adres')} ${isNew}${inact}</div>
+                <div style="font-weight:600;color:#1e293b;flex:1;margin-right:8px">${ti} ${escapeHtml(o.address||'Nieznany adres')} ${isNew}${inact}${
+                    /* FIX 2026-08-07: gdy parser wyciągnął z opisu coś, co nie jest ulicą,
+                       nie udajemy adresu — pokazujemy surowy odczyt jako wskazówkę. */
+                    o.address_raw ? `<span style="display:block;font-weight:400;color:#94a3b8;font-size:11px;margin-top:2px">parser odczytał: „${escapeHtml(o.address_raw)}”</span>` : ''
+                }</div>
                 <div style="font-weight:700;color:#7c3aed;white-space:nowrap;font-size:15px">${o.price?o.price.toLocaleString('pl-PL')+' zł':'—'}</div>
             </div>
             ${media?`<div style="margin-bottom:4px">${media}</div>`:''}

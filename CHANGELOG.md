@@ -10,6 +10,27 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Dodane (2026-08-07) — sprzątanie warstwy „bez lokacji"
+- **Odzysk ulicy z zaśmieconej etykiety** (`main._salvage_street_label`). Gdy
+  geokoder nie umie umiejscowić adresu, obcinamy człony z końca nazwy, aż zostanie
+  ulica z whitelisty OSM: „PeowiakówZdjęcia są" → „Peowiaków", „Piłsudskiego Okna"
+  → „Piłsudskiego", „Obywatelska piętro 10" → „Obywatelska". Na obecnej bazie
+  **7 ofert wraca z listy „bez lokacji" na mapę**. Uruchamiane wyłącznie dla ofert
+  bez współrzędnych, więc nie może przesunąć żadnej istniejącej pinezki.
+  Zabezpieczenia (każde z realnego przypadku): nie skracamy nazwy, która **w całości**
+  jest poprawna („Osiedle Klemensa Junoszy" nie może stać się „Osiedle Klemensa"),
+  odrzucamy krótkie jednoczłonowe trafienia whitelisty („Residence" ⊂ „Wikana
+  Residence") i wymagamy wielkiej litery na początku.
+- **`_update_existing_offer`: zdobycie współrzędnych zawsze jest poprawą.** Bez tego
+  odzysk nie dotarłby do ofert już w bazie — dotychczasowe warunki „lepszości"
+  wymagały dodania numeru albo śmieciowego starego adresu.
+- **Warstwa „bez lokacji" nie udaje adresu tam, gdzie go nie ma.** Etykiety typu
+  „Umowa", „DOSTĘPNE", „Nowoczesne" (39 z 73 kart) to resztki po parserze — karta
+  pokazuje teraz „Adres nieznany", a surowy odczyt ląduje pod spodem jako szara
+  wskazówka diagnostyczna („parser odczytał: …"), żeby nie tracić informacji.
+  Bump `script.js?v=16` → `v=17`.
+- 9 nowych testów; suite 201 → 213.
+
 ### Zmienione (2026-08-07) — oferty bez adresu zostają na stronie
 - **`main._process_offer` nie kasuje już oferty, gdy parser nie znajdzie ulicy.**
   Dotąd `return None` sprawiał, że **~34 ogłoszenia na skan znikały ze strony bez
