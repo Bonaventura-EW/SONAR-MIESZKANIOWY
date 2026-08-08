@@ -10,6 +10,46 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Naprawione (2026-08-08) — dopasowanie nazw: strona zapytania kontra strona indeksu
+Po poprzedniej zmianie na mapie zostało **6 aktywnych pinezek stojących na nazwie,
+która nie jest ulicą**. Każda próba domknięcia tego jedną regułą cofała którąś
+z wcześniejszych napraw, więc rozdzieliliśmy role obu stron dopasowania.
+
+- **`name_variants` (ZAPYTANIE) jest wąskie, `index_variants` (SNAPSHOT) szerokie.**
+  Zamiana l. mnogiej na pojedynczą (`Racławickie` → `Racławicka`) jest potrzebna,
+  żeby „Racławickiej" trafiło w „Aleje Racławickie" — ale zastosowana do **tekstu
+  z ogłoszenia** zamieniała osiedle „Piastowskie" w realną, zupełnie inną ulicę
+  „Piastowska". Po stronie indeksu ten sam wariant tylko dokłada zapis nazwy,
+  która w OSM istnieje, więc nie może uwiarygodnić śmiecia. Snapshot ulic
+  (`_index`) wchodzi teraz do pamięci we wszystkich formach.
+  Pomiar na 2890 ofertach: **+2 rozpoznane ulice** („Racławickiej", „Brzeska"
+  = Magdaleny Brzeskiej), zero nowych fałszywych.
+- **`is_known_place` — dopasowanie PEŁNE zamiast po podciągu.** `is_known_street`
+  celowo dopasowuje po członach (ogłoszenia skracają nazwy), więc chroniło przed
+  zdjęciem z mapy nawet czysty śmieć „Nowe" — bo taki człon ma „Nowe Sady".
+  Do pytania „czy ta etykieta w ogóle jest czyimś adresem" właściwe jest
+  dopasowanie całości.
+- **`is_district_name` nie liczy już samego ostatniego członu** (`whole_only`).
+  „Rury Jezuickie" robiło dzielnicę z ul. Jezuickiej, a nazwa osiedla z **59 ofert
+  przy ul. Nałęczowskiej**. Dzielnice i tak są w liście pod krótkimi nazwami
+  („Rury", „Czuby"), więc nic na tym nie tracimy. Do tej pory te ulice ratował
+  wyłącznie warunek `is_street_name` sprawdzany wcześniej — pułapka czekała na
+  pierwsze użycie predykatu bez tej osłony.
+- **`_salvage_street_label` mierzy „nazwa już jest kompletna" listą ULIC**, nie
+  szeroką whitelistą — ta ostatnia dopasowuje po podciągu, więc „Sekutowicza
+  Mieszkanie" uchodziło za nazwę kompletną i śmieć zostawał doklejony na zawsze.
+
+Efekt na bazie (2976 ofert, pomiar przed/po): **8 etykiet sprzątniętych z zachowaniem
+pinezki** („Sekutowicza Mieszkanie" → „Sekutowicza", „Granata NOWE" → „Granata",
+„Bursztynowa Mieszkanie" → „Bursztynowa"…), **14 pinezek zdjętych do warstwy
+„bez lokacji"** (12× śmieć „Nowe", „Osiedle Piastowskie Mieszkanie", „Mała").
+Żadnego przejścia w drugą stronę — **ani jedna realna ulica nie straciła pinezki**.
+Wśród aktywnych: 2 sprzątnięte, 3 zdjęte → **0 pinezek na nie-ulicach**.
+Bez bumpa `ADDRESS_PARSER_VERSION`: `address_parser.py` się nie zmienił,
+a `_demote_non_street_pins` i tak przelicza całą bazę przy każdym skanie.
+- 30 nowych testów (`tests/test_street_whitelist.py` + rozszerzony
+  `test_area_not_address.py`); suite 245 → 275.
+
 ### Dodane (2026-08-07) — sprzątanie warstwy „bez lokacji"
 - **Odzysk ulicy z zaśmieconej etykiety** (`main._salvage_street_label`). Gdy
   geokoder nie umie umiejscowić adresu, obcinamy człony z końca nazwy, aż zostanie

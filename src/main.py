@@ -20,8 +20,8 @@ from price_parser import PriceParser
 from geocoder import Geocoder
 from duplicate_detector import DuplicateDetector
 from scan_logger import ScanLogger
-from street_whitelist import (is_district_name, is_known_street, is_street_name,
-                              name_variants)
+from street_whitelist import (is_district_name, is_known_place, is_known_street,
+                              is_street_name, name_variants)
 from address_migration import ADDRESS_PARSER_VERSION, retract_fake_numbers
 from clean_geocoding_cache import find_junk_keys, street_forms
 
@@ -277,18 +277,21 @@ class SonarMieszkaniowy:
         FIX 2026-08-08: takie oferty nie dostają pinezki — idą do warstwy
         „bez lokacji". Warunek jest złożony, bo każdy pojedynczy test miał
         zmierzone fałszywe trafienia:
-          - `is_street_name` (same drogi z OSM) nie zna form odmienionych po
-            stronie indeksu, więc „Racławickiej" (Aleje Racławickie) wypada,
-          - `is_district_name` po samym podciągu robiło z tej ulicy dzielnicę
-            („Racławicka Dzielnica Mieszkaniowa") — stąd dopasowanie pełne,
-          - szeroka whitelist (`is_known_street`) chroni realne, ale nietypowo
-            zapisane adresy („Sekutowicza Mieszkanie").
+          - `is_street_name` musi znać formy odmienione PO STRONIE INDEKSU,
+            inaczej „Racławickiej" (= Aleje Racławickie) wypada jako nie-ulica,
+          - `is_district_name` po podciągu robiło z ulic dzielnice
+            („Nałęczowska" ⊂ nazwy osiedla) — stąd dopasowanie pełne,
+          - `is_known_place` też musi być pełne: dopasowanie po podciągu
+            (`is_known_street`) chroniło nawet śmieć „Nowe", bo taki człon ma
+            „Nowe Sady".
         Zdejmujemy więc pinezkę tylko wtedy, gdy nazwa NIE jest ulicą i jest
         albo znaną dzielnicą/osiedlem, albo w ogóle nie ma jej w whiteliście.
+        Etykiety typu „Sekutowicza Mieszkanie" ratuje `_salvage_street_label`
+        w `_demote_non_street_pins` — obcina ogon i zostawia pinezkę.
         """
         if not label or is_street_name(label):
             return False
-        return is_district_name(label) or not is_known_street(label)
+        return is_district_name(label) or not is_known_place(label)
 
     def _demote_non_street_pins(self):
         """Zdejmuje z mapy pinezki, których adres nie jest ulicą (FIX 2026-08-08).
@@ -469,10 +472,13 @@ class SonarMieszkaniowy:
         Uruchamiane wyłącznie dla ofert BEZ współrzędnych, więc nie może przesunąć
         żadnej istniejącej pinezki. Zwraca nazwę ulicy albo None.
         """
-        if not label or is_known_street(label):
-            # Cała etykieta jest już nazwą z whitelisty — nie ma czego ucinać,
-            # a skracanie tylko by ją zepsuło („Osiedle Klemensa Junoszy" →
-            # „Osiedle Klemensa"). Winny jest geokoder, nie parser.
+        if not label or is_street_name(label) or is_district_name(label):
+            # Cała etykieta jest już nazwą ulicy albo dzielnicy — nie ma czego
+            # ucinać, a skracanie tylko by ją zepsuło („Osiedle Klemensa Junoszy"
+            # → „Osiedle Klemensa"). FIX 2026-08-08: kryterium to lista ULIC,
+            # nie szeroka whitelist — ta ostatnia dopasowuje po podciągu, więc
+            # „Sekutowicza Mieszkanie" uchodziło za nazwę kompletną i śmieć
+            # zostawał doklejony na zawsze.
             return None
         # Rozklej sklejone tokeny („PeowiakówZdjęcia" → „Peowiaków Zdjęcia")
         spaced = re.sub(r'([a-ząćęłńóśźż])([A-ZŚĆŁĄĘÓŻŹŃ])', r'\1 \2', label)
@@ -484,7 +490,7 @@ class SonarMieszkaniowy:
             # i długości typowej dla nazwy ulicy.
             if candidate == label or len(candidate) < 5 or not candidate[0].isupper():
                 continue
-            if is_known_street(candidate):
+            if is_street_name(candidate):
                 return candidate
         return None
 

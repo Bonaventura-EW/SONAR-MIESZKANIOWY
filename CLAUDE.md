@@ -195,6 +195,18 @@ python price_parser.py     # parsowanie cen
     z fallbackiem do `has_number` — zmieniając kontrakt bumpnij `script.js?v=`.
     Kontrolę jakości pinezek robi `src/audit_map_placement.py --offline`.
 
+17. **W `street_whitelist.py` strona ZAPYTANIA i strona INDEKSU mają różne reguły.**
+    `name_variants` (tekst z ogłoszenia) jest wąskie, `index_variants` (nazwy z OSM)
+    szerokie — bo wariant dołożony do zapytania potrafi trafić w *inną* realną nazwę
+    („Piastowskie" → „Piastowska"), a dołożony do indeksu tylko dokłada zapis nazwy,
+    która i tak istnieje. Nie przenoś przekształceń na stronę zapytania.
+    Do tego dwa tryby dopasowania: **po podciągu członów** (`is_known_street`,
+    `is_street_name` — ogłoszenia skracają nazwy) i **pełne** (`is_known_place`,
+    `is_district_name` — inaczej śmieć „Nowe" broni się podciągiem „Nowe Sady",
+    a „Rury Jezuickie" robi dzielnicę z ul. Jezuickiej). Zmieniając którąkolwiek
+    z tych reguł zmierz przejścia KEEP/CLEAN/DEMOTE na całej bazie: dozwolone są
+    tylko KEEP→CLEAN i KEEP→DEMOTE — realna ulica nigdy nie może stracić pinezki.
+
 ## Konwencja commitów
 
 Format `typ(zakres): opis` po polsku, np.:

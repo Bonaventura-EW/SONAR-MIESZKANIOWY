@@ -42,10 +42,13 @@ PL_MAP = str.maketrans('ąćęłńóśźż', 'acelnoszz')
 # Te same reguły co w geocoder.to_nominative, ale importujemy leniwie —
 # geocoder ciągnie geopy, a whitelist bywa używana w kontekstach bez sieci.
 try:
-    from geocoder import to_nominative
+    from geocoder import to_nominative, to_nominative_singular_feminine
 except Exception:                                    # pragma: no cover
     def to_nominative(text):
         return text
+
+    def to_nominative_singular_feminine(text):
+        return ''
 
 
 def deacc(text: str) -> str:
@@ -68,28 +71,78 @@ def _tokens(name: str) -> list:
     return [t for t in re.split(r'[\s-]+', deacc(norm_street(name))) if t]
 
 
-def name_variants(name: str) -> set:
-    """Warianty zapisu nazwy: oryginał, mianownik, sam ostatni człon (nazwisko)."""
+def name_variants(name: str, whole_only: bool = False) -> set:
+    """Warianty ZAPYTANIA: oryginał, mianownik, sam ostatni człon.
+
+    Celowo wąskie — nazwa z ogłoszenia jest tu tekstem podejrzanym i każde
+    dodatkowe przekształcenie zwiększa ryzyko, że trafi w *inną* realną nazwę.
+    Rozwijaniem form zajmuje się `index_variants`, po stronie snapshotu OSM.
+
+    `whole_only` pomija wariant „sam ostatni człon" — używany tam, gdzie nazwa
+    ma znaczyć całość, a nie swoją końcówkę (patrz `_district_variants`).
+    """
     base = ' '.join(_tokens(name))
     if not base:
         return set()
     out = {base}
     tokens = base.split()
     out.add(' '.join(to_nominative(t) for t in tokens))
-    if len(tokens) > 1:
+    if len(tokens) > 1 and not whole_only:
         out.add(tokens[-1])
         out.add(to_nominative(tokens[-1]))
     return {deacc(v) for v in out if v}
 
 
+def index_variants(name: str, whole_only: bool = False) -> set:
+    """Warianty INDEKSU: jak wyżej + forma pojedyncza rodzaju żeńskiego.
+
+    FIX 2026-08-08: bez niej „Racławickiej" nie łączyło się z „Aleje
+    Racławickie" — mianownik zapytania daje „Racławicka", a OSM ma liczbę
+    mnogą; realna ulica wyglądała przez to jak nie-ulica.
+
+    Rozwijamy WYŁĄCZNIE stronę indeksu, bo l.mn.→l.poj. bywa dwuznaczne:
+    dla zapytania „Piastowskie" (osiedle) dawało „Piastowska", czyli nazwę
+    zupełnie innego, ale realnego miejsca — i osiedle zaczynało uchodzić za
+    ulicę. Po stronie indeksu ten sam wariant tylko dokłada zapis nazwy, która
+    i tak w OSM istnieje, więc nie może zmyśloną formą uwiarygodnić śmiecia.
+    """
+    out = set(name_variants(name, whole_only))
+    if not out:
+        return out
+    tokens = ' '.join(_tokens(name)).split()
+    forms = [to_nominative_singular_feminine(' '.join(tokens))]
+    if len(tokens) > 1 and not whole_only:
+        forms.append(to_nominative_singular_feminine(tokens[-1]))
+    for form in forms:
+        normalized = ' '.join(_tokens(form))
+        if normalized:
+            out.add(deacc(normalized))
+    return out
+
+
 @lru_cache(maxsize=2)
 def _index(path: str = None, key: str = 'names'):
-    """[(człony_nazwy, ...)] ze snapshotu — pusty, gdy pliku brak (fail-open)."""
+    """[(człony_nazwy, ...)] ze snapshotu — pusty, gdy pliku brak (fail-open).
+
+    FIX 2026-08-08: każda nazwa wchodzi do indeksu we WSZYSTKICH swoich formach
+    (`index_variants`), nie tylko w tej zapisanej w OSM. Bez tego „Racławickiej"
+    nie trafiało w „Aleje Racławickie" i realna ulica uchodziła za nie-ulicę.
+    Rozszerzamy tylko indeks — na 2890 ofertach dokłada to 2 rozpoznane ulice
+    i zero nowych fałszywych, bo warianty opisują nazwy, które w OSM istnieją.
+    """
     try:
         raw = json.loads(Path(path or WHITELIST_JSON).read_text(encoding='utf-8'))
     except (OSError, json.JSONDecodeError):
         return ()
-    return tuple(tuple(_tokens(n)) for n in raw.get(key, []) if n)
+    entries = set()
+    for name in raw.get(key, []):
+        if not name:
+            continue
+        for variant in index_variants(name):
+            tokens = tuple(variant.split())
+            if tokens:
+                entries.add(tokens)
+    return tuple(sorted(entries))
 
 
 def is_street_name(name: str, path: str = None) -> bool:
@@ -106,14 +159,20 @@ def is_street_name(name: str, path: str = None) -> bool:
 
 @lru_cache(maxsize=1)
 def _district_variants(path: str = None):
-    """Warianty zapisu nazw dzielnic — dopasowanie musi być PEŁNE, nie po podciągu."""
+    """Warianty zapisu nazw dzielnic — dopasowanie musi być PEŁNE, nie po podciągu.
+
+    `whole_only=True`: nazwa złożona liczy się tylko w całości. Sam ostatni człon
+    to za mało — „Rury Jezuickie" robiło dzielnicę z ul. Jezuickiej, a „Osiedle
+    Jagiellońskie" z ul. Jagiellońskiej. Dzielnice i tak są w liście pod swoimi
+    krótkimi nazwami („Rury", „Czuby"), więc nic na tym nie tracimy.
+    """
     try:
         raw = json.loads(Path(path or DISTRICTS_JSON).read_text(encoding='utf-8'))
     except (OSError, json.JSONDecodeError):
         return frozenset()
     forms = set()
     for name in raw.get('names', []):
-        forms |= name_variants(name)
+        forms |= index_variants(name, whole_only=True)
     return frozenset(forms)
 
 
@@ -128,7 +187,7 @@ def is_district_name(name: str, path: str = None) -> bool:
     dzielnice: „Racławickiej" trafiało w „Racławicka Dzielnica Mieszkaniowa"
     i realna ulica traciłaby pinezkę.
     """
-    return bool(name_variants(name) & _district_variants(path))
+    return bool(name_variants(name, whole_only=True) & _district_variants(path))
 
 
 def is_known_street(name: str, path: str = None) -> bool:
@@ -140,6 +199,30 @@ def is_known_street(name: str, path: str = None) -> bool:
     po prostu brak dodatkowych ratunków, a nie utratę ofert).
     """
     return _matches(name, _index(path, 'names'))
+
+
+@lru_cache(maxsize=1)
+def _place_variants(path: str = None):
+    """Warianty wszystkich nazw z szerokiej listy — do dopasowania PEŁNEGO."""
+    try:
+        raw = json.loads(Path(path or WHITELIST_JSON).read_text(encoding='utf-8'))
+    except (OSError, json.JSONDecodeError):
+        return frozenset()
+    forms = set()
+    for name in raw.get('names', []):
+        forms |= index_variants(name)
+    return frozenset(forms)
+
+
+def is_known_place(name: str, path: str = None) -> bool:
+    """Czy nazwa w CAŁOŚCI odpowiada jakiejś nazwie z whitelisty.
+
+    FIX 2026-08-08: `is_known_street` dopasowuje po podciągu, więc chroniło przed
+    zdjęciem z mapy nawet śmieć „Nowe" (podciąg „Nowe Sady"). Tu wymagamy zgodności
+    całego wariantu nazwy — to właściwe kryterium dla pytania „czy ta etykieta
+    w ogóle jest czyimś adresem".
+    """
+    return bool(name_variants(name) & _place_variants(path))
 
 
 def _matches(name: str, index) -> bool:

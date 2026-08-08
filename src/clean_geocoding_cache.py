@@ -31,7 +31,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 import paths
 from atomic_json import atomic_write_json
-from street_whitelist import name_variants
+from street_whitelist import index_variants, name_variants
 
 NUMBER_SUFFIX_RE = re.compile(r'\s+\d+\S*$')
 
@@ -59,7 +59,7 @@ def street_forms(whitelist_path: str = None) -> set:
         return set()
     forms = set()
     for name in names:
-        forms |= name_variants(name)
+        forms |= index_variants(name)   # strona indeksu — im szerzej, tym mniej ryzyka
     return forms
 
 

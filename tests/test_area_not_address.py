@@ -30,6 +30,7 @@ class TestRozpoznanieObszaru:
         'Botanik', 'Piastowskie', 'Skarpa', 'Poręba',   # osiedla spoza OSM
         'Uniwersytetu Medycznego',                # instytucja
         'Wolne', 'Miejsca', 'Piętro', 'Stokrotka',      # śmieci parsera
+        'Nowe',                  # śmieć, który jest tylko PODCIĄGIEM „Nowe Sady"
     ])
     def test_obszar_i_smiec_bez_pinezki(self, label):
         assert SonarMieszkaniowy._is_area_not_address(label) is True
@@ -37,14 +38,23 @@ class TestRozpoznanieObszaru:
     @pytest.mark.parametrize("label", [
         'Lipowa', 'Krakowskie Przedmieście', 'Chodźki',
         'Racławickiej',          # odmiana Alej Racławickich — realna ulica
+        'Aleja Racławickiej',    # ta sama ulica z prefiksem z ogłoszenia
         'Sekutowicza',           # skrót od „Bazylego Sekutowicza"
-        'Sekutowicza Mieszkanie',  # realna ulica z doklejonym śmieciem
     ])
     def test_realna_ulica_zostaje_na_mapie(self, label):
         assert SonarMieszkaniowy._is_area_not_address(label) is False
 
     def test_pusta_etykieta_nie_wywraca(self):
         assert SonarMieszkaniowy._is_area_not_address('') is False
+
+    def test_osiedle_nie_udaje_podobnej_ulicy(self):
+        """Regresja 2026-08-08: l.mn.→l.poj. po stronie ZAPYTANIA robiło
+        z osiedla „Piastowskie" ulicę „Piastowska" — inne, ale realne miejsce.
+        Ta zamiana należy do indeksu (`index_variants`), nie do zapytania."""
+        from street_whitelist import index_variants, name_variants
+        assert 'piastowska' not in name_variants('Piastowskie')
+        assert 'raclawicka' in index_variants('Aleje Racławickie'), \
+            'Indeks musi znać formę pojedynczą — inaczej „Racławickiej" traci ulicę'
 
 
 class TestPrzejscieBazy:
@@ -66,13 +76,20 @@ class TestPrzejscieBazy:
         agent._demote_non_street_pins()
         assert agent.database['offers'][0]['address']['coords'] == COORDS
 
-    def test_najpierw_probuje_sprzatnac_etykiete(self, agent):
-        """„Piłsudskiego Okna" ma zostać ulicą z pinezką, nie trafić do bez-lokacji."""
-        agent.database['offers'] = [self._offer('Piłsudskiego Okna')]
+    @pytest.mark.parametrize("label,expected", [
+        ('Piłsudskiego Okna', 'Piłsudskiego'),
+        ('Sekutowicza Mieszkanie', 'Sekutowicza'),   # realna ulica + śmieć w ogonie
+        ('Granata NOWE', 'Granata'),
+    ])
+    def test_najpierw_probuje_sprzatnac_etykiete(self, agent, label, expected):
+        """Etykieta z doklejonym śmieciem ma zostać ulicą z pinezką, nie trafić
+        do bez-lokacji — sprzątamy napis, punkt zostaje na miejscu."""
+        agent.database['offers'] = [self._offer(label)]
         agent._demote_non_street_pins()
         addr = agent.database['offers'][0]['address']
-        assert addr['full'] == 'Piłsudskiego'
+        assert addr['full'] == expected
         assert addr['coords'] == COORDS
+        assert addr['precision'] == 'street'
 
     def test_jest_idempotentne(self, agent):
         agent.database['offers'] = [self._offer('Botanik')]
