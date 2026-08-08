@@ -139,3 +139,57 @@ class TestOdzyskDocieraDoBazy:
                         'coords': {'lat': 51.24, 'lon': 22.55}},
         })
         assert existing['address']['precision'] == 'street'
+
+
+class TestSprzatanieEtykiety:
+    """Pinezka stoi dobrze, brudna jest tylko nazwa (FIX 2026-08-07).
+
+    17 aktywnych ofert miało etykietę typu „Parysa Wynajmę" przy punkcie
+    oddalonym o 23 m od ul. Parysa — audyt liczył je jako źle postawione,
+    choć błąd był wyłącznie w napisie.
+    """
+
+    def _existing(self, full='Parysa Wynajmę'):
+        return {
+            'id': 'x-CID3-IDx', 'url': 'https://www.olx.pl/d/oferta/x-CID3-IDx.html',
+            'active': True, 'first_seen': '2026-08-01T10:00:00+02:00',
+            'last_seen': '2026-08-01T10:00:00+02:00',
+            'price': {'current': 2000, 'history': [2000], 'source': 'JSON-LD (OLX)'},
+            'description': 'opis', 'days_active': 1,
+            'address': {'full': full, 'street': full, 'number': None, 'has_number': False,
+                        'precision': 'street', 'coords': {'lat': 51.24, 'lon': 22.53}},
+        }
+
+    def _new(self, address):
+        return {'id': 'x-CID3-IDx', 'url': 'https://www.olx.pl/d/oferta/x-CID3-IDx.html',
+                'description': 'opis', 'address': address,
+                'price': {'current': 2000, 'media_info': 'brak informacji', 'source': 'JSON-LD (OLX)'}}
+
+    def test_obcina_ogon_i_zachowuje_pinezke(self, agent):
+        existing = self._existing()
+        agent._update_existing_offer(existing, self._new({
+            'full': 'Parysa', 'street': 'Parysa', 'number': None, 'has_number': False,
+            'precision': 'street', 'coords': {'lat': 51.24, 'lon': 22.53}}))
+        assert existing['address']['full'] == 'Parysa'
+        assert existing['address']['coords'] == {'lat': 51.24, 'lon': 22.53}
+
+    def test_nie_podmienia_na_niepowiazana_nazwe(self, agent):
+        """Nowa nazwa musi być początkiem starej — inaczej to zmiana adresu, nie sprzątanie."""
+        existing = self._existing()
+        agent._update_existing_offer(existing, self._new({
+            'full': 'Lipowa', 'street': 'Lipowa', 'number': None, 'has_number': False}))
+        assert existing['address']['full'] == 'Parysa Wynajmę'
+
+    def test_nie_skraca_gdy_stara_nazwa_jest_poprawna(self, agent):
+        existing = self._existing('Krakowskie Przedmieście')
+        agent._update_existing_offer(existing, self._new({
+            'full': 'Krakowskie', 'street': 'Krakowskie', 'number': None, 'has_number': False}))
+        assert existing['address']['full'] == 'Krakowskie Przedmieście'
+
+    def test_nie_zjada_numeru_domu(self, agent):
+        """„Lipowa 10" nie może zostać skrócone do „Lipowa" — obcinanie nie odróżnia
+        numeru domu od śmiecia, więc sprzątanie działa tylko dla adresów bez numeru."""
+        raw = _raw('Mieszkanie ul. Lipowa 10', 'Do wynajęcia mieszkanie przy ul. Lipowa 10.')
+        result = agent._process_offer(raw)
+        assert result['address']['full'] == 'Lipowa 10'
+        assert result['address']['number'] == '10'

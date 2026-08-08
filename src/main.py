@@ -644,6 +644,18 @@ class SonarMieszkaniowy:
         
         # Buduj address dict (bez coords lub z coords=None jeśli nie znaleziono)
         # MIESZKANIOWY: zapisujemy KTÓRY adres faktycznie się zgeokodował (może być z alternatives)
+        # FIX 2026-08-07: sprzątnij etykietę, gdy pinezka już stoi dobrze.
+        # „Parysa Wynajmę" ma poprawny punkt (23 m od ul. Parysa), ale brzydką
+        # nazwę — obcinamy doklejony ogon, NIE ruszając współrzędnych. Osobna
+        # ścieżka od odzysku wyżej: tam geokoder nic nie znalazł, tu znalazł dobrze.
+        # Warunek `not final_number` jest krytyczny: bez niego „Lipowa 10" zostałoby
+        # skrócone do „Lipowa" (obcinanie nie odróżnia numeru domu od śmiecia).
+        if coords and final_full and not final_number:
+            cleaned = self._salvage_street_label(final_full)
+            if cleaned:
+                print(f"      🧹 Sprzątnięto etykietę adresu: '{final_full}' → '{cleaned}'")
+                final_full, final_street, final_number = cleaned, cleaned, None
+
         # FIX 2026-08-06: has_number liczymy z adresu, który FAKTYCZNIE wygrał
         # geokodowanie (mógł to być wariant bez numeru z `alternatives`), a nie
         # z głównego kandydata parsera. Wcześniej 6 aktywnych ofert miało
@@ -868,11 +880,20 @@ class SonarMieszkaniowy:
         # ulicy z zaśmieconej etykiety („PeowiakówZdjęcia są" → „Peowiaków").
         gained_coords = bool(new_addr.get('coords')) and not old_had_coords
 
+        # FIX 2026-08-07: sprzątnięcie etykiety („Parysa Wynajmę" → „Parysa").
+        # Nowa nazwa musi być początkiem starej i realną ulicą, a stara — nie;
+        # to gwarantuje, że tylko obcinamy doklejony ogon, nie zmieniamy adresu.
+        label_cleaned = (
+            new_full and old_full.startswith(new_full)
+            and is_known_street(new_full) and not is_known_street(old_full)
+        )
+
         new_looks_better = new_full and new_full != old_full and (
             (new_has_num and not old_has_num) or
             (old_looks_like_garbage and len(new_full) >= 5) or
             number_retracted or
-            gained_coords
+            gained_coords or
+            label_cleaned
         )
 
         if new_looks_better:
