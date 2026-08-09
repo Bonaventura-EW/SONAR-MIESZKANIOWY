@@ -10,6 +10,29 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Naprawione (2026-08-09) — skan tracił wyniki przy kolizji z drugim skanem
+Ręczny skan uruchomiony obok harmonogramu przepadł w całości: równoległy skan
+zdążył wcześniej wypchnąć swoje pliki, rebase dał konflikt w 13 plikach
+generowanych (`data/offers.json`, `docs/data.json`, `scan_history.json`…),
+a workflow po trzech próbach zameldował **„dane skanu zostały utracone"**
+(run 31332905163). Trzy próby były identyczne, więc dawały identyczny konflikt —
+~9 minut pracy do kosza.
+
+- **`scanner.yml` rozwiązuje teraz konflikty w plikach generowanych** na rzecz
+  świeższego skanu. `data/` i `docs/` to jeden spójny zestaw (`docs/data.json`
+  jest pochodną `data/offers.json` z tego samego przebiegu), więc wzięcie połowy
+  z jednego skanu, a połowy z drugiego dałoby stan wewnętrznie sprzeczny —
+  jedyne sensowne rozwiązanie to wziąć jedną stronę w całości.
+- **Konflikt poza `data/` i `docs/` przerywa push z błędem.** Kodu źródłowego
+  nie rozwiązujemy automatycznie.
+- **Pułapka, którą trzeba tu znać:** w trakcie `rebase` etykiety są odwrócone —
+  `--ours` to zdalny main, a `--theirs` to nasz przepisywany commit. Intuicyjne
+  `--ours` wyrzuciłoby dokładnie ten skan, który ratujemy. Zweryfikowane
+  doświadczalnie na sztucznym repo, nie z pamięci.
+- Logika przetestowana na trzech scenariuszach (konflikt w plikach generowanych →
+  wygrywa świeży skan; konflikt w `src/` → push pada i nie rusza kodu na remote;
+  brak konfliktu → ścieżka bez zmian).
+
 ### Dodane (2026-08-09) — jakość mapy jako metryka skanu
 Przez ostatnie rundy każdą zmianę parsera i geokodera trzeba było mierzyć doraźnym
 skryptem („ile pinezek dokładnych ubyło?"). Teraz liczba jedzie do historii skanów
