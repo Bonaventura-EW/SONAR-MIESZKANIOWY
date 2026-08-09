@@ -226,6 +226,21 @@ python price_parser.py     # parsowanie cen
     „Chodźki" → „Doktora Witolda Chodźki" wymaga dopasowania ścisłego, które psuje
     skróty, na których stoi parser (zmierzone 2026-08-08).
 
+20. **`reactivated_at` to JEDNA, nadpisywana data — nie buduj z niej szeregu
+    dziennego.** Oferta, która wracała trzy razy, pamięta tylko ostatni powrót,
+    więc „ile ofert wróciło dnia X" wypłukuje się wraz z wiekiem dnia (zmierzone
+    2026-08-09: 15/dzień w połowie lipca vs 85 w dniu pomiaru, przy niezmienionym
+    ruchu). Pełną historię trzyma `reactivation_dates` (moduł
+    `reactivation_log.py`) — każdy powrót osobno, z długością nieobecności
+    (`gap_h`) i źródłem. Dwa filtry, bez których liczby są bez sensu: przerwa
+    < 24 h to zgubienie oferty na jeden skan, a `reactivation_source ==
+    'verification'` oznacza, że **my** pomyliliśmy się przy dezaktywacji, bo
+    ogłoszenie cały czas żyło na OLX (~48 takich na skan wobec 0–9 realnych
+    powrotów). Filtruj po stronie generatora, nie przy zapisie — surowe wpisy
+    mają zostać nietknięte. Wykresy powrotów w `trend_generator` pokazują tylko
+    zmierzony zakres (`measured_from`), a dni-artefakty (`REACTIVATION_ARTIFACT_DAYS`)
+    lecą do serii jako `null`.
+
 ## Konwencja commitów
 
 Format `typ(zakres): opis` po polsku, np.:

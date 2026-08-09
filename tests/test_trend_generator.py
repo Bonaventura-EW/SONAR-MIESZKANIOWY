@@ -100,6 +100,131 @@ def test_outflow_moving_average_is_trailing_7d():
     assert avg[date(2026, 5, 17)] == 3.5              # (7+0)/2
 
 
+def _returned(first_seen, last_seen, days, active=True, gap_h=48.0, src='rescrape'):
+    """Oferta z zapisanymi powrotami na rynek (`days` = lista dat ISO)."""
+    offer = _offer(first_seen, last_seen, active)
+    offer['reactivation_dates'] = [
+        {'at': f'{d}T12:00:00+02:00', 'gap_h': gap_h, 'src': src} for d in days
+    ]
+    offer['reactivated_at'] = offer['reactivation_dates'][-1]['at']
+    return offer
+
+
+class TestInflow:
+    def test_new_counts_offers_by_first_seen(self):
+        offers = [
+            _offer('2026-05-16', '2026-05-18'),
+            _offer('2026-05-16', '2026-05-17'),
+            _offer('2026-05-18', '2026-05-18', True),
+        ]
+        new = _by_day(gen.build_inflow(offers)['new']['daily'])
+        assert new[date(2026, 5, 16)] == 2
+        assert new[date(2026, 5, 17)] == 0
+        assert new[date(2026, 5, 18)] == 1
+
+    def test_react_masked_until_returns_are_measured(self):
+        """Historia z nadpisywanego `reactivated_at` nie udaje pomiaru —
+        seria jest pusta (None), a nie wyzerowana."""
+        offers = [
+            _offer('2026-05-16', '2026-05-20', True),
+            {**_offer('2026-05-16', '2026-05-20'),
+             'reactivated_at': '2026-05-18T12:00:00+02:00'},
+        ]
+        inflow = gen.build_inflow(offers)
+        assert inflow['measured_from'] is None
+        assert all(v is None for _, v in inflow['react']['daily'])
+        assert inflow['react']['total'] == 0
+
+    def test_react_starts_day_after_first_measurement(self):
+        """Pierwszy dzień zapisu bywa urwany (skan rusza w środku dnia),
+        więc oś zaczyna się od następnego."""
+        offers = [
+            _returned('2026-05-16', '2026-05-25', ['2026-05-20', '2026-05-22']),
+            _returned('2026-05-16', '2026-05-25', ['2026-05-22']),
+        ]
+        inflow = gen.build_inflow(offers)
+        daily = _by_day(inflow['react']['daily'])
+        assert inflow['measured_from'] == '2026-05-21'
+        assert daily[date(2026, 5, 20)] is None      # dzień startu zapisu
+        assert daily[date(2026, 5, 21)] == 0
+        assert daily[date(2026, 5, 22)] == 2
+        assert inflow['react']['total'] == 2         # 20.05 nie wchodzi do sumy
+
+    def test_react_skips_pipeline_artifact_day(self):
+        day = sorted(gen.REACTIVATION_ARTIFACT_DAYS)[0].isoformat()
+        offers = [
+            _returned('2026-08-01', '2026-08-09', ['2026-08-02', day]),
+            _returned('2026-08-01', '2026-08-09', [day]),
+        ]
+        daily = _by_day(gen.build_inflow(offers)['react']['daily'])
+        assert daily[sorted(gen.REACTIVATION_ARTIFACT_DAYS)[0]] is None
+
+    def test_new_react_is_the_sum_where_measured(self):
+        offers = [
+            _offer('2026-05-16', '2026-05-25', True),
+            _returned('2026-05-16', '2026-05-25', ['2026-05-20', '2026-05-22']),
+        ]
+        inflow = gen.build_inflow(offers)
+        both = _by_day(inflow['new_react']['daily'])
+        new = _by_day(inflow['new']['daily'])
+        react = _by_day(inflow['react']['daily'])
+        assert both[date(2026, 5, 22)] == new[date(2026, 5, 22)] + react[date(2026, 5, 22)]
+        assert both[date(2026, 5, 16)] is None       # przed pomiarem powrotów
+
+    def test_moving_average_ignores_masked_days(self):
+        offers = [_returned('2026-05-16', '2026-05-25',
+                            ['2026-05-18', '2026-05-20', '2026-05-21'])]
+        avg = _by_day(gen.build_inflow(offers)['react']['avg'])
+        assert avg[date(2026, 5, 18)] is None        # dzień startu zapisu
+        assert avg[date(2026, 5, 19)] == 0.0
+        assert avg[date(2026, 5, 20)] == 0.5         # (0 + 1) / 2 dni
+
+    def test_empty_input(self):
+        assert gen.build_inflow([]) is None
+
+
+class TestBands:
+    def test_bands_sum_to_the_index(self):
+        offers = [
+            _offer('2026-05-16', '2026-05-25', True),
+            _returned('2026-05-16', '2026-05-25', ['2026-05-18', '2026-05-20']),
+            _offer('2026-05-19', '2026-05-22'),
+        ]
+        bands = gen.build_bands(offers)
+        series = {ms: v for ms, v in gen.build_series(offers)}
+        for (ms, fresh), (_, recycled) in zip(bands['new'], bands['react']):
+            assert fresh + recycled == series[ms]
+
+    def test_offer_moves_to_recycling_on_its_return_day(self):
+        offers = [
+            _returned('2026-05-16', '2026-05-25', ['2026-05-18']),   # ustawia start pomiaru
+            _returned('2026-05-16', '2026-05-25', ['2026-05-21']),   # bohater testu
+        ]
+        bands = gen.build_bands(offers)
+        fresh, recycled = _by_day(bands['new']), _by_day(bands['react'])
+        assert fresh[date(2026, 5, 20)] == 1 and recycled[date(2026, 5, 20)] == 1
+        assert fresh[date(2026, 5, 21)] == 0 and recycled[date(2026, 5, 21)] == 2
+        assert recycled[date(2026, 5, 25)] == 2      # zostaje do końca życia
+
+    def test_return_before_the_window_counts_from_its_first_day(self):
+        """Oferta, która wróciła przed startem wykresu, jest recyklingiem
+        od pierwszego dnia — nie „odmładza się" na krawędzi osi."""
+        offers = [
+            _returned('2026-05-16', '2026-05-25', ['2026-05-17']),
+            _returned('2026-05-16', '2026-05-25', ['2026-05-20']),
+        ]
+        recycled = _by_day(gen.build_bands(offers)['react'])
+        assert recycled[date(2026, 5, 18)] == 1
+
+    def test_bands_start_where_measurement_starts(self):
+        offers = [_returned('2026-05-16', '2026-05-25', ['2026-05-20', '2026-05-21'])]
+        assert min(_by_day(gen.build_bands(offers)['new'])) == date(2026, 5, 21)
+
+    def test_no_bands_without_measured_returns(self):
+        assert gen.build_bands([_offer('2026-05-16', '2026-05-20', True)]) is None
+        assert gen.build_bands([]) is None
+
+
 def test_deltas_none_when_history_too_short():
     series = [[gen._day_ms(date(2026, 5, 16)) + i * gen.DAY_MS, 100 + i] for i in range(5)]
     deltas = gen.compute_deltas(series)

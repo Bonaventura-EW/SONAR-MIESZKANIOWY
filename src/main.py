@@ -37,6 +37,7 @@ TITLE_STREET_PREFIX_RE = re.compile(
 from cid import extract_cid
 from offer_tagger import build_tags, title_from_url
 from atomic_json import atomic_write_json
+import reactivation_log
 import paths
 
 
@@ -909,7 +910,12 @@ class SonarMieszkaniowy:
     def _update_existing_offer(self, existing: Dict, new_data: Dict):
         """Aktualizuje istniejące ogłoszenie z inteligentnym zarządzaniem ceną."""
         now = datetime.now(self.tz).isoformat()
-        
+
+        # FIX 2026-08-09: zapamiętaj last_seen SPRZED nadpisania — to jedyny
+        # moment, w którym da się policzyć, jak długo oferty nie było na rynku
+        # (patrz reactivation_log: gap odsiewa szum listingu od realnych powrotów).
+        prev_last_seen = existing.get('last_seen')
+
         # Aktualizuj last_seen
         existing['last_seen'] = now
 
@@ -1160,8 +1166,8 @@ class SonarMieszkaniowy:
         
         if was_inactive:
             print(f"      🔄 REAKTYWOWANO ofertę: {existing['id']} (była nieaktywna)")
-            existing['reactivated_at'] = now
-            existing['reactivation_source'] = 'rescrape'  # oferta wróciła w listingu
+            # 'rescrape' = oferta wróciła w listingu
+            reactivation_log.record(existing, now, 'rescrape', prev_last_seen)
     
     def _update_days_active(self):
         """
@@ -1208,8 +1214,9 @@ class SonarMieszkaniowy:
                     if not offer.get('active', True):
                         # Reaktywacja oferty która była nieaktywna
                         offer['active'] = True
-                        offer['reactivated_at'] = now
-                        offer['reactivation_source'] = 'skipped'  # cena nie zmieniła się, scraper pominął detail
+                        # 'skipped' = cena się nie zmieniła, scraper pominął detail.
+                        # last_seen jest tu jeszcze sprzed skanu — stąd gap.
+                        reactivation_log.record(offer, now, 'skipped', offer.get('last_seen'))
                         reactivated_from_skipped += 1
                     # Aktualizuj last_seen dla skipped ofert
                     offer['last_seen'] = now
@@ -1395,9 +1402,9 @@ class SonarMieszkaniowy:
                 if is_active:
                     # Oferta AKTYWNA - reaktywuj!
                     offer['active'] = True
+                    prev_last_seen = offer.get('last_seen')
                     offer['last_seen'] = now
-                    offer['reactivated_at'] = now
-                    offer['reactivation_source'] = 'verification'
+                    reactivation_log.record(offer, now, 'verification', prev_last_seen)
                     offer.pop('verified_inactive_at', None)  # znacznik nieaktualny
                     stats['reactivated'] += 1
                     print(f"      ✅ Reaktywowano: {offer_id[:50]}...")

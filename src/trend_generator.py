@@ -25,6 +25,7 @@ from datetime import datetime, date, timedelta
 from pathlib import Path
 
 import paths
+import reactivation_log
 from atomic_json import atomic_write_json
 
 TITLE = "Lublin – mieszkania: wynajem"
@@ -34,6 +35,16 @@ DAY_MS = 86_400_000
 # Pierwszy wiarygodny dzień (po naprawach parsera adresów z 16.05.2026).
 # Wszystko wcześniej to artefakt zbierania danych, nie obraz rynku.
 RELIABLE_START = date(2026, 5, 16)
+
+# Dni, w których „reaktywacja" była awarią pipeline'u, nie powrotem na rynek.
+# 2026-08-05 06:31: częściowa blokada OLX zdjęła 409 ofert (aktywne 706 → 349),
+# a kolejne skany tego samego dnia przywróciły 308 z nich (patrz CHANGELOG,
+# „martwa strefa ochrony przed dezaktywacją"). Te ogłoszenia nigdy nie zniknęły
+# z rynku — policzone jako powroty dałyby dzienny pik 10× ponad normę i wrzuciły
+# 232 wciąż aktywne oferty do pasma „recykling".
+# Świeże wpisy bronią się same (nieobecność < 24 h → nie liczy się jako powrót);
+# ta lista łata historię sprzed 2026-08-09, gdzie długości przerw nie znamy.
+REACTIVATION_ARTIFACT_DAYS = frozenset({date(2026, 8, 5)})
 
 
 def _day_ms(d: date) -> int:
@@ -45,6 +56,37 @@ def _d(iso_string: str) -> date:
     return datetime.fromisoformat(iso_string).date()
 
 
+def _safe_day(iso_string):
+    """ISO → date; None zamiast wyjątku (w bazie trafiają się śmieciowe daty)."""
+    try:
+        return _d(iso_string)
+    except (ValueError, TypeError):
+        return None
+
+
+def _offer_spans(offers):
+    """[(oferta, start, end), ...] — okres życia oferty razem z samą ofertą.
+
+    Wersja z ofertą jest potrzebna pasmom (`build_bands`), które muszą zajrzeć
+    do historii reaktywacji; `build_spans` zwraca z tego same okresy.
+    """
+    today = max(
+        (d for d in (_safe_day(o.get('last_seen')) for o in offers) if d),
+        default=date.today(),
+    )
+    spans = []
+    for o in offers:
+        start = _safe_day(o.get('first_seen'))
+        last = _safe_day(o.get('last_seen'))
+        if start is None or last is None:
+            continue
+        end = today if o.get('active') else last
+        if end < start:
+            end = start
+        spans.append((o, start, end))
+    return spans, today
+
+
 def build_spans(offers):
     """[(start_date, end_date), ...] — okres życia każdej oferty.
 
@@ -52,23 +94,19 @@ def build_spans(offers):
     może być nieco w tyle przez inteligentne pomijanie szczegółów),
     inaczej `last_seen`.
     """
-    today = max(
-        (_d(o['last_seen']) for o in offers if o.get('last_seen')),
-        default=date.today(),
-    )
-    spans = []
-    for o in offers:
-        if not o.get('first_seen') or not o.get('last_seen'):
-            continue
-        try:
-            start = _d(o['first_seen'])
-            end = today if o.get('active') else _d(o['last_seen'])
-        except (ValueError, TypeError):
-            continue
-        if end < start:
-            end = start
-        spans.append((start, end))
-    return spans, today
+    spans, today = _offer_spans(offers)
+    return [(start, end) for _, start, end in spans], today
+
+
+def _days_window(spans, today):
+    """Lista dni wykresu: od pierwszego wiarygodnego dnia do ostatniego skanu."""
+    start = max(RELIABLE_START, min(s for s, _ in spans))
+    days = []
+    day = start
+    while day <= today:
+        days.append(day)
+        day += timedelta(days=1)
+    return days
 
 
 def build_series(offers):
@@ -86,6 +124,44 @@ def build_series(offers):
     return series
 
 
+def _flow_metric(counts, days, skip_days=frozenset()):
+    """Wspólny kształt wykresu przepływu: seria dzienna + średnia 7 dni + statystyki.
+
+    `counts` to {dzień: liczba}, `days` to oś czasu wykresu. Dni z `skip_days`
+    trafiają do serii jako `None` (ApexCharts rysuje w tym miejscu przerwę)
+    i nie wchodzą ani do średniej kroczącej, ani do statystyk — inaczej jeden
+    dzień-artefakt zawyżyłby średnią i „rekord" na wiele miesięcy.
+    """
+    daily, avg, counted = [], [], []
+    for i, day in enumerate(days):
+        ms = _day_ms(day)
+        if day in skip_days:
+            daily.append([ms, None])
+            avg.append([ms, None])
+            continue
+        value = counts.get(day, 0)
+        daily.append([ms, value])
+        counted.append((day, value))
+        window = [counts.get(d, 0) for d in days[max(0, i - 6):i + 1] if d not in skip_days]
+        avg.append([ms, round(sum(window) / len(window), 1) if window else 0])
+
+    total = sum(v for _, v in counted)
+    mx = max((v for _, v in counted), default=0)
+    # dzień rekordu: ostatnie (najświeższe) wystąpienie maksimum
+    record_day = next((d for d, v in reversed(counted) if v == mx),
+                      days[0] if days else RELIABLE_START)
+
+    return {
+        'daily': daily,
+        'avg': avg,
+        'total': total,
+        'rate': round(total / len(counted), 1) if counted else 0,
+        'max_day': mx,
+        'max_ts': _day_ms(record_day),
+        'max_label': record_day.strftime('%d.%m'),
+    }
+
+
 def build_outflow(offers):
     """Dzienny odpływ ofert (ile zniknęło danego dnia) + średnia krocząca 7 dni.
 
@@ -97,48 +173,132 @@ def build_outflow(offers):
     spans, today = build_spans(offers)
     if not spans:
         return None
-    start = max(RELIABLE_START, min(s for s, _ in spans))
+    days = _days_window(spans, today)
+    start = days[0]
 
     dep = {}
     for o in offers:
-        if o.get('active') or not o.get('last_seen'):
+        if o.get('active'):
             continue
-        try:
-            d = _d(o['last_seen'])
-        except (ValueError, TypeError):
-            continue
-        if d >= start:
+        d = _safe_day(o.get('last_seen'))
+        if d and d >= start:
             dep[d] = dep.get(d, 0) + 1
 
-    days = []
-    day = start
-    while day <= today:
-        days.append(day)
-        day += timedelta(days=1)
+    return _flow_metric(dep, days)
 
-    vals = [dep.get(d, 0) for d in days]
-    daily = [[_day_ms(d), v] for d, v in zip(days, vals)]
 
-    avg = []
-    for i, d in enumerate(days):
-        window = vals[max(0, i - 6):i + 1]
-        avg.append([_day_ms(d), round(sum(window) / len(window), 1)])
+def measured_from(offers):
+    """Pierwszy dzień, dla którego powroty ofert są zmierzone, a nie odtworzone.
 
-    total = sum(vals)
-    ndays = len(days)
-    mx = max(vals) if vals else 0
-    # dzień rekordu: ostatnie (najświeższe) wystąpienie maksimum
-    max_idx = max((i for i, v in enumerate(vals) if v == mx), default=0)
-    max_day_date = days[max_idx] if days else start
+    Do 2026-08-09 baza trzymała jedną, nadpisywaną datę reaktywacji na ofertę,
+    więc dnia „ile ofert wróciło" nie da się z niej odtworzyć — im starszy
+    dzień, tym więcej powrotów wyparowało (zmierzone: 15/dzień w połowie lipca
+    vs 85 w dniu pomiaru, przy niezmienionym ruchu). Od kiedy `reactivation_log`
+    zapisuje każdy powrót z długością nieobecności, liczby są prawdziwe —
+    i tylko ten zakres pokazujemy.
+
+    Pierwszy dzień zapisu jest urwany (skany chodzą 3×/dzień, a zapis rusza od
+    najbliższego), więc oś zaczynamy od następnego — inaczej seria startowałaby
+    sztucznym dołkiem.
+    """
+    starts = [days[0] for days in
+              (reactivation_log.measured_days(o) for o in offers) if days]
+    return min(starts) + timedelta(days=1) if starts else None
+
+
+def build_inflow(offers):
+    """Napływ ofert: nowe / reaktywacje / suma — dziennie + średnia 7 dni.
+
+    - `new`   — ogłoszenia widziane pierwszy raz (`first_seen` = ten dzień),
+    - `react` — powroty na rynek po realnej nieobecności (`reactivation_log`),
+    - `new_react` — suma jednego i drugiego, czyli cały dopływ ofert.
+
+    Dni bez pomiaru powrotów (przed `measured_from`) i dni-artefakty
+    (`REACTIVATION_ARTIFACT_DAYS`) idą do serii jako `None` — na wykresie widać
+    w tym miejscu przerwę zamiast liczby, której nie umiemy obronić. Suma
+    dziedziczy tę maskę: „cały dopływ" bez powrotów byłby po prostu wykresem
+    nowych ofert pod cudzą etykietą.
+    """
+    spans, today = build_spans(offers)
+    if not spans:
+        return None
+    days = _days_window(spans, today)
+    window = set(days)
+
+    new_counts, react_counts = {}, {}
+    for o in offers:
+        first = _safe_day(o.get('first_seen'))
+        if first in window:
+            new_counts[first] = new_counts.get(first, 0) + 1
+        for day in reactivation_log.return_days(
+                o, skip_days=REACTIVATION_ARTIFACT_DAYS):
+            if day in window:
+                react_counts[day] = react_counts.get(day, 0) + 1
+
+    both = {d: new_counts.get(d, 0) + react_counts.get(d, 0)
+            for d in set(new_counts) | set(react_counts)}
+
+    since = measured_from(offers)
+    unmeasured = {d for d in days if since is None or d < since}
+    react_skip = REACTIVATION_ARTIFACT_DAYS | unmeasured
 
     return {
-        'daily': daily,
-        'avg': avg,
-        'total': total,
-        'rate': round(total / ndays, 1) if ndays else 0,
-        'max_day': mx,
-        'max_ts': _day_ms(max_day_date),
-        'max_label': max_day_date.strftime('%d.%m'),
+        'new': _flow_metric(new_counts, days),
+        'react': _flow_metric(react_counts, days, react_skip),
+        'new_react': _flow_metric(both, days, react_skip),
+        'measured_from': since.isoformat() if since else None,
+    }
+
+
+def build_bands(offers):
+    """Rozbicie indeksu na pasma: oferty świeże vs wracające z martwych.
+
+    Oferta siedzi w paśmie „świeże" od pierwszego dnia życia, a do „recyklingu"
+    przechodzi w dniu swojego pierwszego realnego powrotu na rynek i zostaje
+    tam do końca. Suma pasm dzień po dniu = linia Indeksu (te same okresy
+    życia), więc przełącznik na wykresie pokazuje rozbicie tej samej liczby,
+    a nie inną metrykę.
+
+    Pasma zaczynają się dopiero od `measured_from`: wcześniej nie wiadomo,
+    które oferty już wróciły z martwych, więc wykres pokazywałby rosnące pasmo
+    recyklingu tylko dlatego, że baza pamięta ostatni powrót każdej oferty.
+    Oferty, które wróciły przed startem pomiaru, siedzą w paśmie „świeże"
+    do swojego kolejnego powrotu — udział recyklingu jest więc zaniżony
+    i dochodzi do prawdy w miarę wymiany ofert na rynku (~30 dni życia).
+    """
+    spans, today = _offer_spans(offers)
+    if not spans:
+        return None
+    since = measured_from(offers)
+    if since is None:
+        return None
+    days = [d for d in _days_window([(s, e) for _, s, e in spans], today)
+            if d >= since]
+    if not days:
+        return None
+    index = {day: i for i, day in enumerate(days)}
+    fresh = [0] * len(days)
+    recycled = [0] * len(days)
+
+    for offer, start, end in spans:
+        low, high = max(start, days[0]), min(end, days[-1])
+        if high < low:
+            continue
+        first, last = index[low], index[high]
+        back = reactivation_log.first_return_day(
+            offer, skip_days=REACTIVATION_ARTIFACT_DAYS)
+        # Powrót sprzed okna wykresu liczy się od jego pierwszego dnia;
+        # powrót po `high` (oferta wróciła i znów zniknęła) — wcale.
+        split = index[max(back, low)] if back is not None and back <= high else None
+        for i in range(first, last + 1):
+            if split is not None and i >= split:
+                recycled[i] += 1
+            else:
+                fresh[i] += 1
+
+    return {
+        'new': [[_day_ms(d), v] for d, v in zip(days, fresh)],
+        'react': [[_day_ms(d), v] for d, v in zip(days, recycled)],
     }
 
 
@@ -209,14 +369,28 @@ def generate_trend_data(input_file=None, output_file=None) -> bool:
         'deltas': compute_deltas(series),
         'series': series,
         'outflow': build_outflow(offers),
+        'inflow': build_inflow(offers),
+        'bands': build_bands(offers),
     }
 
     atomic_write_json(output_file, out)
     of = out['outflow'] or {}
+    inf = out['inflow'] or {}
+    bands = out['bands'] or {}
     print(f"✅ trend_data.json: {len(series)} dni od {RELIABLE_START}, "
           f"teraz={current}, max={mx}, min={mn}; "
           f"odpływ: łącznie={of.get('total')}, śr={of.get('rate')}/dzień, "
           f"rekord={of.get('max_day')} ({of.get('max_label')})")
+    if inf:
+        print(f"   napływ: nowe {inf['new']['rate']}/dzień, "
+              f"powroty {inf['react']['rate']}/dzień, "
+              f"razem {inf['new_react']['rate']}/dzień")
+    if bands:
+        fresh, recycled = bands['new'][-1][1], bands['react'][-1][1]
+        total = fresh + recycled
+        share = round(100 * recycled / total) if total else 0
+        print(f"   pasma dziś: świeże {fresh} + recykling {recycled} "
+              f"= {total} ({share}% recyklingu)")
     return True
 
 
