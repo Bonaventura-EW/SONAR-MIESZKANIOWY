@@ -24,7 +24,8 @@ from street_whitelist import (is_district_name, is_known_place, is_known_street,
                               is_street_name, name_variants)
 from address_migration import (ADDRESS_PARSER_VERSION, retract_fake_numbers,
                                upgrade_junk_streets)
-from clean_geocoding_cache import find_junk_keys, street_forms
+from clean_geocoding_cache import (find_junk_keys, find_street_level_number_keys,
+                                   street_forms)
 
 # Jawny prefiks ulicy w tytule — wraz z whitelistą OSM decyduje, czy adres
 # z tytułu jest na tyle pewny, żeby wyprzedzić adres z treści ogłoszenia.
@@ -358,6 +359,40 @@ class SonarMieszkaniowy:
         self.geocoder._save_cache()
         print(f"   🗑️  Usunięto {len(junk)} śmieciowych kluczy z cache geokodera")
 
+    def _downgrade_street_level_pins(self):
+        """Adres z numerem, który stoi na punkcie SAMEJ ulicy, przestaje udawać
+        adres dokładny (FIX 2026-08-08).
+
+        Nominatim na numer, którego nie ma w OSM, potrafi oddać punkt
+        reprezentatywny ulicy i zaraportować to jako trafienie — „Lubomelskiej 9"
+        lądowało tak 142 m od celu, na ul. Bocznej Lubomelskiej, z kroplą „adres
+        dokładny". Świeże geokodowania łapie teraz `Geocoder._number_confirmed`;
+        tutaj domykamy to, co już siedzi w bazie i w cache.
+
+        Pinezka NIE znika i się nie przesuwa — zmienia się wyłącznie `precision`
+        ('exact' → 'street'), czyli kształt markera: kwadrat „przybliżony" zamiast
+        kropli. Klucz z numerem znika z cache, żeby kolejne geokodowanie przeszło
+        już przez walidację (i mogło trafić w budynek, gdy OSM się uzupełni).
+        Bez sieci, idempotentne.
+        """
+        pairs = find_street_level_number_keys(self.geocoder.cache)
+        if not pairs:
+            return
+        street_level = {key for key, _ in pairs}
+        downgraded = 0
+        for offer in self.database['offers']:
+            addr = offer.get('address')
+            if not isinstance(addr, dict) or not addr.get('coords'):
+                continue
+            if addr.get('precision') == 'exact' and (addr.get('full') or '').strip() in street_level:
+                addr['precision'] = 'street'
+                downgraded += 1
+        for key in street_level:
+            self.geocoder.cache.pop(key, None)
+        self.geocoder._save_cache()
+        print(f"   📐 Adres z numerem na punkcie ulicy: {len(pairs)} kluczy cache usuniętych, "
+              f"{downgraded} ofert z 'exact' → 'street'")
+
     def _backfill_address_precision(self):
         """Uzupełnia `precision` w ofertach sprzed FIX-a 2026-08-06 — bez sieci.
 
@@ -680,6 +715,14 @@ class SonarMieszkaniowy:
                 final_street = address_data.get('street', '')
                 final_number = address_data.get('number')
                 final_full = address_data['full']
+                # FIX 2026-08-08: skoro reużywamy punktu, to geokoder NIE ruszał —
+                # nie mamy więc żadnej nowej wiedzy o tym, czy trafia w budynek.
+                # Bez tego `_address_precision` liczyło precyzję od zera i każda
+                # reużyta oferta z numerem wracała jako 'exact', kasując uczciwe
+                # 'street' ustawione wcześniej (fallback „sama ulica").
+                previous_precision = (existing.get('address') or {}).get('precision')
+                if previous_precision in ('street', 'none'):
+                    geocode_meta = {'number_fallback': True}
             else:
                 # MIESZKANIOWY 2026-05-15: geocode_with_alternatives próbuje główny + alternatywy
                 # (parser może zwrócić "Mieszkanie 3" jako main i "Narutowicza 38" w alternatives;
@@ -1594,6 +1637,7 @@ class SonarMieszkaniowy:
             self._demote_non_street_pins()
             self._backfill_address_precision()
             self._clean_geocoding_cache()
+            self._downgrade_street_level_pins()
             
             print(f"   Nowe oferty: {new_offers_count}")
             print(f"   Zaktualizowane: {updated_offers_count}")

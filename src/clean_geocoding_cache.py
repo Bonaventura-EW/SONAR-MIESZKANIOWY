@@ -63,6 +63,36 @@ def street_forms(whitelist_path: str = None) -> set:
     return forms
 
 
+def find_street_level_number_keys(cache: dict) -> list:
+    """Klucze „ULICA numer", pod którymi siedzi punkt SAMEJ ulicy (FIX 2026-08-08).
+
+    Nominatim na numer, którego nie ma w OSM, potrafi oddać punkt reprezentatywny
+    ulicy i zaraportować to jako trafienie. Taki wpis wygląda w cache jak adres
+    budynku, więc oferta dostawała `precision='exact'` i kroplę „adres dokładny"
+    — a w rzeczywistości stała na środku ulicy, czasem >100 m od celu.
+
+    Rozpoznajemy je po tym, że punkt jest **co do bitu** równy punktowi samej
+    ulicy, która też jest w cache. Zwracamy [(klucz_z_numerem, klucz_ulicy)].
+    Usunięcie takiego klucza jest bezpieczne: oferta zachowuje współrzędne
+    w `offers.json`, a kolejne geokodowanie przejdzie już przez walidację
+    `Geocoder._number_confirmed` i wróci z uczciwym `number_fallback=True`.
+    """
+    found = []
+    for key, value in cache.items():
+        if key == '__null_timestamps__' or not isinstance(value, dict):
+            continue
+        if not NUMBER_SUFFIX_RE.search(key):
+            continue
+        street = NUMBER_SUFFIX_RE.sub('', key).strip()
+        street_value = cache.get(street)
+        if not isinstance(street_value, dict):
+            continue
+        if (value.get('lat') == street_value.get('lat')
+                and value.get('lon') == street_value.get('lon')):
+            found.append((key, street))
+    return found
+
+
 def find_junk_keys(cache: dict, offers: list, street_forms: set) -> list:
     """Klucze nieużywane przez żadną ofertę i nieodpowiadające realnej ulicy."""
     used = _used_addresses(offers)
