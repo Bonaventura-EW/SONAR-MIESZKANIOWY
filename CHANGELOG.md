@@ -10,6 +10,50 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Naprawione (2026-08-08) — Nominatim oddaje punkt ULICY na zapytanie o numer domu
+Analiza grupy „nieprecyzyjnych" pokazała, że **jest ona w większości uczciwa**: z 352
+aktywnych ofert z `precision='street'` aż **340 nie podaje numeru domu w treści** —
+nie ma tam czego naprawiać. Prawdziwa wada siedziała w geokoderze.
+
+- **`Geocoder._number_confirmed`** — zapytanie o „Lubomelskiej 9" wraca z Nominatim
+  jako trafienie, ale odpowiedź nie ma `house_number` i jest przypięta do **innej
+  ulicy** (`road='Boczna Lubomelskiej'`). Braliśmy to za adres budynku: pinezka
+  142 m od celu i kropla „adres dokładny". Zapytania idą teraz z `addressdetails=1`,
+  a odpowiedź na adres z numerem musi ten numer potwierdzić (bez wielkości liter,
+  bez części po „/", bo „22B"↔„22b" i „33/40"↔„33" to ten sam budynek).
+  **Odrzucenie nie gubi oferty** — sterowanie leci do istniejącego fallbacku „sama
+  ulica", który zwraca ten sam punkt z `number_fallback=True`, czyli mapa rysuje
+  kwadrat „przybliżony" zamiast udawać precyzję.
+- **36 zatrutych kluczy cache** (`find_street_level_number_keys`,
+  `_downgrade_street_level_pins`) — wpisy „ULICA numer" z punktem **co do bitu**
+  równym punktowi samej ulicy. Bez sprzątania każda nowa oferta pod takim adresem
+  dostawała z cache fałszywe `precision='exact'`, omijając nową walidację.
+  Pinezka się nie rusza ani nie znika — zmienia się tylko kształt markera.
+- **Reużyty punkt zachowuje precyzję.** ~70% ofert w skanie nie dotyka geokodera
+  (`reused_coords`), a `_address_precision` liczyło wtedy precyzję od zera — więc
+  oferta z numerem wracała jako 'exact', kasując uczciwe 'street'. Brak geokodera
+  = brak nowej wiedzy, więc przenosimy poprzednią precyzję.
+
+Zmierzony efekt **dziś: 0 ofert zmienia stan** — historyczne przypadki złapał już
+`_backfill_address_precision`. To poprawka **u źródła**: zamyka dopływ nowych
+fałszywych „adresów dokładnych", którego backfill nie łapie (pomija oferty, które
+`precision` już mają).
+- 27 nowych testów (`tests/test_number_confirmed.py`); suite 293 → 320.
+
+#### Zmierzone i świadomie NIEzrobione
+- **Sprawdzanie nazwy ulicy w odpowiedzi Nominatim** — „Lubomelskiej" trafia
+  w „Boczna Lubomelskiej", ale odróżnienie tego od legalnego skrótu („Chodźki" →
+  „Doktora Witolda Chodźki") wymaga dopasowania ścisłego, które psuje skróty,
+  na których stoi cały parser.
+- **Rozwijanie skróconej nazwy do pełnej z OSM** („Gabriela Narutowicza" →
+  „Prezydenta Gabriela Narutowicza") — z 220 nulli w cache jednoznacznie rozwijalne
+  jest 5, w tym **1 aktywna oferta**. Nie warto maszynerii.
+- **Szukanie ulicy wymienionej w treści** dla 81 ofert ze śmieciową etykietą —
+  pomiar dał niemal same fałszywe trafienia, bo nazwy ulic Lublina to zwykłe
+  przymiotniki: „Dobra", „Cicha", „Ciepła", „Widok", „Spokojna", „Przytulna",
+  a „Mieszka I" trafia w słowo *mieszka*. To jest dokładnie powód, dla którego
+  parser wymaga prefiksu „ul." albo numeru — i granica tej metody.
+
 ### Naprawione (2026-08-08) — „ulice", których nie ma w Lublinie
 Audyt po poprzedniej zmianie pokazał **21 aktywnych ofert stojących na nazwie, która
 nie jest żadną ulicą Lublina** — „Netia 30", „King Size 180x", „Duże łóżko 120",

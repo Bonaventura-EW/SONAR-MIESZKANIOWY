@@ -622,6 +622,43 @@ class Geocoder:
         
         return result
     
+    # Numer domu na końcu adresu: „9", „22B", „33/40", „7d".
+    HOUSE_NUMBER_RE = re.compile(r'\s(\d+[a-zA-Z]?(?:/\w+)?)$')
+
+    @classmethod
+    def _house_number(cls, address: str) -> Optional[str]:
+        """Numer domu z końca adresu albo None (gdy adres to sama ulica)."""
+        match = cls.HOUSE_NUMBER_RE.search((address or '').strip())
+        return match.group(1) if match else None
+
+    @staticmethod
+    def _number_confirmed(location, wanted: str) -> bool:
+        """Czy Nominatim potwierdził KONKRETNY numer domu, czy oddał samą ulicę.
+
+        FIX 2026-08-08: Nominatim na zapytanie z numerem, którego nie ma w OSM,
+        potrafi zwrócić punkt reprezentatywny ulicy i zaraportować to jako
+        trafienie. Braliśmy to za adres dokładny — stąd pinezki 84–142 m od
+        celu („Lubomelskiej 9" lądowało na ul. Bocznej Lubomelskiej) i kropla
+        „adres dokładny" tam, gdzie w rzeczywistości znamy tylko ulicę.
+
+        Odrzucenie NIE gubi oferty: `_geocode_with_meta` leci wtedy dalej do
+        fallbacku „sama ulica" (KROK 4), który zwraca ten sam punkt, ale
+        z `number_fallback=True` — czyli mapa rysuje kwadrat „przybliżony"
+        zamiast udawać, że wiemy, o który budynek chodzi.
+
+        Porównanie jest tolerancyjne: bez wielkości liter i bez części po „/"
+        (numer lokalu), bo „22B" ↔ „22b" i „33/40" ↔ „33" to ten sam budynek.
+        """
+        raw = getattr(location, 'raw', None) or {}
+        got = (raw.get('address') or {}).get('house_number')
+        if not got:
+            return False
+
+        def norm(value):
+            return str(value).split('/')[0].strip().lower()
+
+        return norm(got) == norm(wanted)
+
     def _try_nominatim(self, address: str, max_retries: int = 3) -> Optional[Dict[str, float]]:
         """
         Pojedyncza próba zapytania do Nominatim (bez logiki retry mianownikiem).
@@ -640,31 +677,43 @@ class Geocoder:
 
         # Pełny adres z miastem
         full_address = f"{address}, Lublin, Poland"
+        wanted_number = self._house_number(address)
 
         for attempt in range(max_retries):
             try:
                 location = self.geolocator.geocode(
                     full_address,
                     timeout=10,
-                    language='pl'
+                    language='pl',
+                    # FIX 2026-08-08: bez `addressdetails` odpowiedź to same
+                    # współrzędne i nie da się odróżnić trafienia w BUDYNEK od
+                    # zwróconej „w zastępstwie" ulicy — patrz `_number_confirmed`.
+                    addressdetails=True,
                 )
-                
+
                 if location:
                     coords = {
                         'lat': location.latitude,
                         'lon': location.longitude
                     }
-                    
+
                     # WALIDACJA: Sprawdź czy adres jest w Lublinie
                     if not self.is_in_lublin(coords):
                         print(f"      ⚠️ Odrzucono {address} - poza Lublinem (lat={coords['lat']:.4f}, lon={coords['lon']:.4f})")
                         return None
-                    
+
+                    # WALIDACJA 2: pytaliśmy o numer domu — czy dostaliśmy budynek?
+                    if wanted_number and not self._number_confirmed(location, wanted_number):
+                        got = (getattr(location, 'raw', None) or {}).get('address', {}).get('house_number')
+                        print(f"      🏢 '{address}': Nominatim zwrócił punkt bez numeru "
+                              f"(house_number={got!r}) — to poziom ULICY, nie budynku")
+                        return None
+
                     return coords
                 else:
                     # Nie znaleziono - prawdziwy negatywny wynik
                     return None
-                    
+
             except GeocoderTimedOut:
                 if attempt < max_retries - 1:
                     time.sleep(2 ** attempt)  # Exponential backoff

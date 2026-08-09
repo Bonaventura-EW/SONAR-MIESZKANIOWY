@@ -216,6 +216,16 @@ python price_parser.py     # parsowanie cen
     również tam** — i pamiętaj, że tylko ten fallback zwraca `has_number=True`, czyli
     jego błąd od razu daje na mapie „adres dokładny".
 
+19. **Trafienie Nominatim ≠ trafienie w budynek.** Na adres z numerem, którego nie ma
+    w OSM, Nominatim potrafi oddać punkt reprezentatywny ulicy (czasem *innej* —
+    „Lubomelskiej 9" → ul. Boczna Lubomelskiej, 142 m od celu) i zaraportować to
+    jako sukces. Dlatego zapytania idą z `addressdetails=1`, a `_number_confirmed`
+    wymaga zgodnego `house_number`. Odrzucenie **nie gubi oferty** — leci do
+    fallbacku „sama ulica" (KROK 4) i wraca z `number_fallback=True`. Nie dodawaj
+    tu walidacji nazwy ulicy: odróżnienie „Boczna Lubomelskiej" od legalnego skrótu
+    „Chodźki" → „Doktora Witolda Chodźki" wymaga dopasowania ścisłego, które psuje
+    skróty, na których stoi parser (zmierzone 2026-08-08).
+
 ## Konwencja commitów
 
 Format `typ(zakres): opis` po polsku, np.:
