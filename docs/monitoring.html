@@ -254,6 +254,14 @@
                     <div class="stat-label">Success Rate</div>
                     <div class="stat-value success" id="success-rate">-</div>
                 </div>
+                <div class="stat-card">
+                    <div class="stat-label">Pinezki dokładne</div>
+                    <div class="stat-value" id="exact-share">-</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Bez pinezki</div>
+                    <div class="stat-value" id="off-map-share">-</div>
+                </div>
             </div>
             
             <!-- Wykresy -->
@@ -281,6 +289,16 @@
             <div class="chart-container">
                 <h2>🌍 Wydajność geokodowania</h2>
                 <canvas id="geocodingChart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h2>📍 Jakość mapy</h2>
+                <p style="margin: -8px 0 12px; font-size: 13px; color: #64748b;">
+                    Ile ofert stoi pod konkretnym budynkiem („dokładne"), ile na środku ulicy
+                    („przybliżone"), a ile w ogóle nie trafiło na mapę. Spadek udziału dokładnych
+                    albo skok „bez pinezki" oznacza regresję parsera adresów lub geokodera.
+                </p>
+                <canvas id="mapQualityChart"></canvas>
             </div>
             
             <!-- Tabela ostatnich skanów -->
@@ -331,7 +349,24 @@
                 document.getElementById('avg-duration').textContent = stats.avg_duration + 's';
                 document.getElementById('avg-offers').textContent = Math.round(stats.avg_offers_found);
                 document.getElementById('success-rate').textContent = stats.success_rate.toFixed(1) + '%';
-                
+
+                // Jakość mapy — z ostatniego skanu, który tę metrykę zapisał.
+                // Starsze skany jej nie mają, więc karty zostają z „—".
+                const quality = (data.charts?.map_quality || []).slice(-1)[0];
+                if (quality) {
+                    const exactEl = document.getElementById('exact-share');
+                    exactEl.textContent = quality.exact_pct.toFixed(1) + '%';
+                    exactEl.title = `${quality.exact} z ${quality.active} aktywnych ofert stoi pod konkretnym budynkiem`;
+                    exactEl.classList.add(quality.exact_pct >= 30 ? 'success' : 'error');
+                    const offEl = document.getElementById('off-map-share');
+                    offEl.textContent = quality.off_map_pct.toFixed(1) + '%';
+                    offEl.title = `${quality.off_map} z ${quality.active} aktywnych ofert nie ma pinezki`;
+                    offEl.classList.add(quality.off_map_pct <= 20 ? 'success' : 'error');
+                } else {
+                    document.getElementById('exact-share').textContent = '—';
+                    document.getElementById('off-map-share').textContent = '—';
+                }
+
                 // Wypełnij tabelę
                 const tbody = document.getElementById('scans-tbody');
                 data.recent_scans.forEach(scan => {
@@ -710,8 +745,71 @@
                     }
                 }
             });
+
+            // Wykres jakości mapy — słupki skumulowane (podział ofert) + linia z udziałem
+            // pinezek dokładnych. Rysowany tylko gdy są dane; historia sprzed 2026-08-09
+            // tej metryki nie ma i nie ma sensu udawać, że jest.
+            const mapQualityCanvas = document.getElementById('mapQualityChart');
+            const quality = chartData.map_quality || [];
+            if (mapQualityCanvas && quality.length) {
+                new Chart(mapQualityCanvas.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: quality.map(d => {
+                            const date = new Date(d.timestamp);
+                            return date.toLocaleDateString('pl-PL') + ' ' + date.toLocaleTimeString('pl-PL', {hour: '2-digit', minute: '2-digit'});
+                        }),
+                        datasets: [{
+                            label: 'Dokładne (budynek)',
+                            data: quality.map(d => d.exact),
+                            backgroundColor: 'rgba(16, 185, 129, 0.75)',
+                            stack: 'oferty', yAxisID: 'y'
+                        }, {
+                            label: 'Przybliżone (ulica)',
+                            data: quality.map(d => d.street),
+                            backgroundColor: 'rgba(245, 158, 11, 0.75)',
+                            stack: 'oferty', yAxisID: 'y'
+                        }, {
+                            label: 'Bez pinezki',
+                            data: quality.map(d => d.none),
+                            backgroundColor: 'rgba(148, 163, 184, 0.75)',
+                            stack: 'oferty', yAxisID: 'y'
+                        }, {
+                            type: 'line',
+                            label: '% dokładnych',
+                            data: quality.map(d => d.exact_pct),
+                            borderColor: '#059669',
+                            backgroundColor: 'rgba(5, 150, 105, 0.1)',
+                            borderWidth: 2, tension: 0.3, pointRadius: 2,
+                            yAxisID: 'y1'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { mode: 'index', intersect: false },
+                        scales: {
+                            y: {
+                                stacked: true, beginAtZero: true, position: 'left',
+                                title: { display: true, text: 'Oferty aktywne' }
+                            },
+                            y1: {
+                                position: 'right', beginAtZero: true, max: 100,
+                                title: { display: true, text: '% pinezek dokładnych' },
+                                grid: { drawOnChartArea: false },
+                                ticks: { callback: v => v + '%' }
+                            },
+                            x: { stacked: true }
+                        }
+                    }
+                });
+            } else if (mapQualityCanvas) {
+                mapQualityCanvas.parentElement.insertAdjacentHTML('beforeend',
+                    '<p style="color:#64748b;font-size:13px">Brak danych — metryka zbierana od skanu 2026-08-09.</p>');
+                mapQualityCanvas.style.display = 'none';
+            }
         }
-        
+
         // Załaduj dane przy starcie
         loadMonitoringData();
     </script>

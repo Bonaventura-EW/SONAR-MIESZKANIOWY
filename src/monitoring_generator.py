@@ -22,7 +22,11 @@ def generate_monitoring_data():
     chart_data = {
         'duration_over_time': [],
         'offers_over_time': [],
-        'success_rate': []
+        'success_rate': [],
+        # FIX 2026-08-09: jakość mapy w czasie — udział pinezek dokładnych oraz
+        # ofert, które w ogóle nie trafiły na mapę. Regresja parsera adresów albo
+        # geokodera widać tu od razu, bez ręcznego liczenia po każdym skanie.
+        'map_quality': [],
     }
     
     for scan in reversed(recent_scans):  # Odwróć na chronologiczną kolejność
@@ -51,6 +55,24 @@ def generate_monitoring_data():
                 'confirmed_inactive': (scan['stats'].get('verification') or {}).get('confirmed_inactive')
             })
         
+        # Wykres jakości mapy — tylko skany, które tę metrykę zapisały
+        # (starsze wpisy w historii jej nie mają i celowo ich nie zmyślamy).
+        quality = (scan.get('stats') or {}).get('map_quality')
+        if quality:
+            active = quality.get('active') or 0
+            precision = quality.get('precision') or {}
+            chart_data['map_quality'].append({
+                'timestamp': timestamp,
+                'active': active,
+                'on_map': quality.get('on_map', 0),
+                'off_map': quality.get('off_map', 0),
+                'exact': precision.get('exact', 0),
+                'street': precision.get('street', 0),
+                'none': precision.get('none', 0),
+                'exact_pct': round(precision.get('exact', 0) / active * 100, 1) if active else 0,
+                'off_map_pct': round(quality.get('off_map', 0) / active * 100, 1) if active else 0,
+            })
+
         # Wykres success rate
         status = scan.get('status', 'unknown')
         success_value = 100 if status == 'completed' else 0
