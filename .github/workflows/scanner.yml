@@ -117,20 +117,72 @@ jobs:
           
           git commit -m "🤖 Automatyczny scan: $(TZ='Europe/Warsaw' date +'%Y-%m-%d %H:%M')" || true
           
+          # FIX 2026-08-09: rozwiązywanie konfliktów w plikach GENEROWANYCH.
+          # Dotąd przy kolizji z równoległym skanem robiliśmy `rebase --abort`
+          # i próbowaliśmy dokładnie tak samo — trzy identyczne próby dawały trzy
+          # identyczne konflikty i ~9 minut pracy szło do kosza
+          # („dane skanu zostały utracone", run 31332905163).
+          #
+          # Wybieramy wersję ŚWIEŻEGO SKANU, bo pliki w data/ i docs/ są jednym
+          # spójnym zestawem: docs/data.json jest pochodną data/offers.json z tego
+          # samego przebiegu. Wzięcie połowy z jednego skanu, a połowy z drugiego
+          # dałoby stan wewnętrznie sprzeczny. Tracimy wpis tamtego skanu
+          # w historii — ale nasz i tak przeskanował całe listingi od nowa.
+          #
+          # UWAGA NA ODWRÓCONE ETYKIETY: w trakcie rebase `--ours` to zdalny main,
+          # a `--theirs` to NASZ przepisywany commit. Zweryfikowane doświadczalnie —
+          # intuicyjne `--ours` wyrzuciłoby dokładnie ten skan, który ratujemy.
+          resolve_generated_conflicts() {
+            local conflicted
+            conflicted=$(git diff --name-only --diff-filter=U)
+            if [ -z "$conflicted" ]; then
+              return 1
+            fi
+            # Konflikt poza plikami generowanymi = kod źródłowy. Tu nie zgadujemy.
+            if echo "$conflicted" | grep -qvE '^(data/|docs/)'; then
+              echo "::error::Konflikt poza data/ i docs/ — nie rozwiązuję automatycznie:"
+              echo "$conflicted"
+              return 1
+            fi
+            local f
+            for f in $conflicted; do
+              git checkout --theirs -- "$f" 2>/dev/null && git add -- "$f" && continue
+              # Plik skasowany po jednej ze stron — usuń go z indeksu i jedź dalej.
+              git rm -q -- "$f" 2>/dev/null || true
+            done
+            echo "🔀 Rozwiązano konflikt na rzecz świeżego skanu: $(echo "$conflicted" | tr '\n' ' ')"
+            return 0
+          }
+
           # FIX 2026-05: pull --rebase + retry przed push, bo długie skany kolidują
           # z manualnymi commitami do main (push fast-forward fail).
           for attempt in 1 2 3; do
             echo "📤 Push attempt #$attempt..."
-            
+
             # Pobierz najnowszy main i przepisz nasz commit na jego szczycie
             if ! git pull --rebase origin main; then
-              echo "::warning::Rebase #$attempt nie powiódł się (konflikt?). Próbuję mimo to."
-              # Jeśli rebase popsuł stan, anuluj i pomiń tę próbę
-              git rebase --abort 2>/dev/null || true
-              sleep 5
-              continue
+              # Rebase mógł się zatrzymać na kilku commitach po kolei — powtarzamy,
+              # aż skończy albo aż trafimy na konflikt, którego nie wolno tknąć.
+              rebase_ok=true
+              while [ -d .git/rebase-merge ] || [ -d .git/rebase-apply ]; do
+                if ! resolve_generated_conflicts; then
+                  rebase_ok=false
+                  break
+                fi
+                if ! GIT_EDITOR=true git rebase --continue; then
+                  rebase_ok=false
+                  break
+                fi
+              done
+
+              if [ "$rebase_ok" != true ]; then
+                echo "::warning::Rebase #$attempt nie powiódł się. Próbuję od nowa."
+                git rebase --abort 2>/dev/null || true
+                sleep 5
+                continue
+              fi
             fi
-            
+
             if git push origin main; then
               echo "✅ Push successful (attempt #$attempt)"
               exit 0
@@ -139,6 +191,6 @@ jobs:
               sleep 10
             fi
           done
-          
+
           echo "::error::Push failed po 3 próbach - dane skanu zostały utracone (nie zostały zapisane do repo)"
           exit 1
