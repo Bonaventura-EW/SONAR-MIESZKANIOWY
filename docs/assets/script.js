@@ -418,11 +418,18 @@ function domSafeId(value) {
 }
 
 function createPopupContent(address, offers) {
-    let html = `<div class="offer-popup"><h3>📍 ${escapeHtml(address)}</h3>`;
+    // Układ jak w SONAR-POKOJOWY: adres, pod nim tytuł ogłoszenia, a fioletowa
+    // linia oddzielająca nagłówek schodzi wtedy pod tytuł (klasa `with-title`).
+    // Przy kilku ofertach pod jednym adresem tytuł wędruje do karty oferty.
+    const singleTitle = offers.length === 1 ? offers[0].title : null;
+    let html = `<div class="offer-popup${singleTitle ? ' with-title' : ''}"><h3>📍 ${escapeHtml(address)}</h3>`;
+    if (singleTitle) html += `<div class="popup-title">${escapeHtml(singleTitle)}</div>`;
+
     offers.forEach(offer => {
         const isActive = offer.active;
         const isApprox = !isExactLocation(offer);
         html += `<div class="offer-item${isActive ? '' : ' inactive'}" data-offer-id="${escapeHtml(offer.id)}">`;
+        if (!singleTitle && offer.title) html += `<div class="offer-item-title">${escapeHtml(offer.title)}</div>`;
         if (!isActive) html += `<div class="inactive-badge">❌ Nieaktywne</div>`;
         if (isApprox)  html += `<div class="approx-notice">⬜ <strong>Lokalizacja przybliżona</strong> — nie znamy numeru budynku (nie ma go w ogłoszeniu albo nie ma go w bazie adresowej).<br>Marker umieszczony na środku ulicy.</div>`;
 
@@ -441,17 +448,18 @@ function createPopupContent(address, offers) {
             html += `<div class="price-history">📊 Historia: ${offer.price_history.map(p => p + ' zł').join(' → ')}</div>`;
         }
 
-        html += `<div class="media-info">Skład: ${escapeHtml(offer.media_info)}</div>`;
-
+        // Skład mediów i tag obok siebie w jednym wierszu (jak w POKOJOWYM)
+        html += `<div class="offer-pills"><span class="media-info">Skład: ${escapeHtml(offer.media_info)}</span>`;
         if (offer.tags?.primary) {
             const tI = { pokoj:'🛏️', kawalerka:'🏠', mieszkanie:'🏢' };
             const tL = { pokoj:'Pokój', kawalerka:'Kawalerka', mieszkanie:'Mieszkanie' };
             const tC = { pokoj:'#3b82f6', kawalerka:'#10b981', mieszkanie:'#8b5cf6' };
             const p  = offer.tags.primary;
-            html += `<div class="offer-tag" style="background:${tC[p]}22;border:1px solid ${tC[p]};color:${tC[p]}">${tI[p]||''} ${escapeHtml(tL[p]||p)}${offer.tags.secondary?.length ? ` <span style="opacity:.7">+ ${escapeHtml(offer.tags.secondary.map(t=>tL[t]||t).join(', '))}</span>` : ''}</div>`;
+            html += `<span class="offer-tag" style="background:${tC[p]}22;border:1px solid ${tC[p]};color:${tC[p]}">${tI[p]||''} ${escapeHtml(tL[p]||p)}${offer.tags.secondary?.length ? ` <span style="opacity:.7">+ ${escapeHtml(offer.tags.secondary.map(t=>tL[t]||t).join(', '))}</span>` : ''}</span>`;
         }
+        html += `</div>`;
 
-        html += `<a href="${escapeHtml(safeUrl(offer.url))}" target="_blank" rel="noopener" class="offer-link">🔗 Otwórz ogłoszenie</a>`;
+        html += `<div class="offer-actions"><a href="${escapeHtml(safeUrl(offer.url))}" target="_blank" rel="noopener" class="offer-link">🔗 Otwórz ogłoszenie</a></div>`;
 
         // Opis: data.json zawiera tylko podgląd. Pełna treść (gdy desc_truncated)
         // jest doczytywana z descriptions.json dopiero po kliknięciu "Pokaż całość".
@@ -465,11 +473,17 @@ function createPopupContent(address, offers) {
             html += `<div class="offer-description">📝 ${escapeHtml(offer.description)}</div>`;
         }
 
+        // Daty zawijane obok siebie zamiast jedna pod drugą — popup jest przez to
+        // wyraźnie niższy przy tej samej treści (kompresja pionowa z POKOJOWEGO).
         html += `<div class="offer-dates">`;
         if (isActive) {
-            html += `📅 Dodano: ${offer.first_seen}<br>📅 Ostatnio widziane: ${offer.last_seen}<br>⏱️ Dni aktywności: ${offer.days_active}`;
+            html += `<span>📅 Dodano: ${escapeHtml(offer.first_seen)}</span>`
+                 +  `<span>📅 Ostatnio widziane: ${escapeHtml(offer.last_seen)}</span>`
+                 +  `<span>⏱️ Dni aktywności: ${offer.days_active}</span>`;
         } else {
-            html += `📅 Aktywna przez: ${offer.days_active} dni<br>📅 Nieaktywna od: ${offer.last_seen}<br>💰 Ostatnia cena: ${offer.price} zł`;
+            html += `<span>📅 Aktywna przez: ${offer.days_active} dni</span>`
+                 +  `<span>📅 Nieaktywna od: ${escapeHtml(offer.last_seen)}</span>`
+                 +  `<span>💰 Ostatnia cena: ${offer.price} zł</span>`;
         }
         html += `</div>`;
         html += `</div>`;

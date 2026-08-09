@@ -5,6 +5,7 @@ Przekształca data.json → map_data.json z formatem wymaganym przez frontend
 """
 
 import json
+import re
 from datetime import datetime
 from collections import defaultdict
 from pathlib import Path
@@ -130,6 +131,22 @@ def split_description(full_text):
     if len(full_text) <= DESC_PREVIEW_LEN:
         return full_text, False
     return full_text[:DESC_PREVIEW_LEN].rstrip() + '…', True
+
+
+def display_title(offer):
+    """Tytuł ogłoszenia do popupu mapy.
+
+    FIX 2026-08-09: oferty sprzed tej zmiany nie mają w bazie pola `title` —
+    dla nich odtwarzamy nazwę ze slugu URL. Ucinamy końcówkę „CID3-IDxxxx"
+    (identyfikator, nie treść) i podnosimy pierwszą literę, żeby nie wyglądało
+    jak fragment adresu URL. `title_from_url` zostaje nietknięte — karmi tagger,
+    a zmiana wejścia zmieniłaby wyliczone tagi.
+    """
+    real = (offer.get('title') or '').strip()
+    if real:
+        return real
+    slug = re.sub(r'\s*CID3[\s-]ID\w+$', '', title_from_url(offer.get('url', '') or '')).strip()
+    return slug[:1].upper() + slug[1:] if slug else ''
 
 
 def get_price_range(price):
@@ -265,6 +282,7 @@ def generate_map_data(input_file, output_file):
             unlocalised_offers.append({
                 'id': offer.get('id'),
                 'url': offer.get('url'),
+                'title': display_title(offer),
                 'address': address_label,
                 'address_raw': address_raw,
                 'price': current_price,
@@ -321,6 +339,10 @@ def generate_map_data(input_file, output_file):
         offer_data = {
             'id': offer.get('id'),
             'url': offer.get('url'),
+            # FIX 2026-08-09: tytuł ogłoszenia w popupie mapy. Oferty sprzed tej
+            # zmiany nie mają go w bazie — dla nich odtwarzamy nazwę ze slugu URL,
+            # brzydszą (bez polskich znaków), ale zawsze jakąś.
+            'title': display_title(offer),
             'price': current_price,
             'price_range': offer_price_range,  # ✅ Zakres cenowy dla tej konkretnej oferty
             'price_history': price_data.get('history', []),  # Historia cen

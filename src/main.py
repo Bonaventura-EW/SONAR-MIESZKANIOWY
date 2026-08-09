@@ -425,10 +425,12 @@ class SonarMieszkaniowy:
         active = [o for o in self.database['offers'] if o.get('active')]
         counts = {'no_address': 0, 'not_a_street': 0, 'area_only': 0, 'no_coords': 0}
         samples = {key: [] for key in counts}
+        precision = {'exact': 0, 'street': 0, 'none': 0}
         on_map = 0
 
         for offer in active:
             address = offer.get('address') if isinstance(offer.get('address'), dict) else {}
+            precision[address.get('precision') if address.get('precision') in precision else 'none'] += 1
             if address.get('coords'):
                 on_map += 1
                 continue
@@ -449,8 +451,13 @@ class SonarMieszkaniowy:
             'on_map': on_map,
             'off_map': len(active) - on_map,
             'counts': counts,
+            'precision': precision,
             'samples': samples,
         }
+        # FIX 2026-08-09: ta sama liczba idzie do monitoringu (`log_stats` →
+        # `map_quality`), żeby jakość mapy dało się śledzić w czasie zamiast
+        # liczyć ją doraźnym skryptem po każdej zmianie parsera czy geokodera.
+        self.map_quality_stats = {k: v for k, v in payload.items() if k != 'samples'}
 
         samples_path = self.data_file.parent / 'skipped_offers_sample.json'
         try:
@@ -874,6 +881,10 @@ class SonarMieszkaniowy:
         return {
             'id': offer_id,
             'url': raw_offer['url'],
+            # FIX 2026-08-09: tytuł ogłoszenia w bazie — popup mapy pokazuje go pod
+            # adresem (jak w SONAR-POKOJOWY). Wcześniej jedynym źródłem nazwy był
+            # slug URL, czyli tekst bez polskich znaków i wielkich liter.
+            'title': (raw_offer.get('title') or '').strip(),
             'address': address_dict,
             'price': {
                 'current': price,
@@ -901,7 +912,13 @@ class SonarMieszkaniowy:
         
         # Aktualizuj last_seen
         existing['last_seen'] = now
-        
+
+        # FIX 2026-08-09: tytuł doklejamy też ofertom już w bazie (i odświeżamy,
+        # gdy sprzedawca go zmienił) — inaczej popup pokazywałby prawdziwą nazwę
+        # tylko dla ogłoszeń dodanych po tej zmianie.
+        if new_data.get('title'):
+            existing['title'] = new_data['title']
+
         # FIX 2026-05-24: jeśli slug w URL się zmienił (sprzedawca edytował tytuł),
         # zaktualizuj id i url na świeżą wersję, ale tylko gdy CID3 się zgadza.
         if new_data.get('id') and extract_cid(existing.get('id','')) == extract_cid(new_data['id']):
@@ -1769,7 +1786,11 @@ class SonarMieszkaniowy:
                 'skipped_duplicate': skipped_duplicate,
                 'skipped_removed': skipped_removed,
                 'disappeared': deactivated_count,
-                'verification': verification_stats
+                'verification': verification_stats,
+                # FIX 2026-08-09: jakość mapy jako metryka skanu — udział pinezek
+                # dokładnych i podział ofert bez pinezki. Bez tego każdą zmianę
+                # parsera/geokodera trzeba było mierzyć ręcznym skryptem.
+                'map_quality': getattr(self, 'map_quality_stats', None),
             })
             
             self.scan_logger.end_scan('completed', total_duration)

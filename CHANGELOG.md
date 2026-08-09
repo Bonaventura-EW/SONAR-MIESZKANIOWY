@@ -10,6 +10,44 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Dodane (2026-08-09) — jakość mapy jako metryka skanu
+Przez ostatnie rundy każdą zmianę parsera i geokodera trzeba było mierzyć doraźnym
+skryptem („ile pinezek dokładnych ubyło?"). Teraz liczba jedzie do historii skanów
+i na wykres, więc regresja zgłasza się sama.
+
+- **`main`** dopisuje do `log_stats` blok `map_quality`: podział ofert aktywnych na
+  `exact` / `street` / `none` oraz `on_map` / `off_map` z podziałem na przyczyny.
+  Liczone przy okazji bilansu mapy, czyli z końcowego stanu bazy.
+- **`monitoring_generator`** wystawia serię `charts.map_quality` z gotowymi udziałami
+  procentowymi. Skany sprzed tej zmiany metryki nie mają i są **pomijane** — na
+  wykresie nie pojawiają się jako zera.
+- **`docs/monitoring.html`** — dwie nowe karty („Pinezki dokładne", „Bez pinezki",
+  z liczbami bezwzględnymi w tooltipie i kolorem wg progu) oraz wykres „📍 Jakość
+  mapy": słupki skumulowane z podziałem ofert plus linia z udziałem dokładnych.
+  Na starcie: **34,5% dokładnych, 15,8% bez pinezki** z 715 ofert aktywnych.
+
+### Zmienione (2026-08-09) — popup mapy bliżej SONAR-POKOJOWY
+- **Tytuł ogłoszenia w popupie.** Dotąd był tam wyłącznie adres, więc przy jednym
+  adresie z kilkoma ofertami nie dało się ich od siebie odróżnić. Tytuł jest teraz
+  zapisywany w bazie przy skanie (`main._process_offer` i `_update_existing_offer` —
+  ten drugi, żeby prawdziwą nazwę dostały też oferty już w bazie). Dla ogłoszeń
+  sprzed tej zmiany `map_generator.display_title` odtwarza nazwę ze slugu URL,
+  ucinając końcówkę „CID3-IDxxxx". Przy jednej ofercie tytuł idzie do nagłówka
+  (fioletowa linia schodzi pod niego), przy kilku — do karty każdej oferty.
+- **Metryki wyrównane do projektu bliźniaczego** (`style.css?v=4`, `script.js?v=18`):
+  mniejsze odstępy i czcionki nagłówka, cena 22 → 18 px, karta oferty 16 → 8/9 px
+  paddingu, „Skład: …" i tag oferty w jednym wierszu, daty zawijane obok siebie
+  zamiast jedna pod drugą, „Pokaż całość" jako zwykły link zamiast przycisku
+  (rozbijał wiersz opisu na dwa). Popup jest przez to wyraźnie niższy przy tej
+  samej treści.
+- **Nie przeniesione świadomie**: gwiazdka „Do ulubionych" i wiersz profilu
+  firmowego z POKOJOWEGO — w MIESZKANIOWYM nie ma ani strony ulubionych, ani
+  śledzenia profili, więc byłyby to przyciski donikąd, a nie zmiana wyglądu.
+  Zostaje za to nasz własny blok „Lokalizacja przybliżona", którego POKOJOWY
+  nie ma — tłumaczy kwadratowe markery.
+- 15 nowych testów (`tests/test_popup_title.py`, `tests/test_map_quality_metric.py`);
+  suite 341 → 356.
+
 ### Naprawione (2026-08-09) — zakładka debug pokazywała 28 ze 111 ofert bez pinezki
 Strona obiecywała „oferty, które scraper pobrał, ale nie trafiły na mapę", a liczyła
 tylko te, którym parser nie znalazł ULICY. Pozostałe **83 oferty nie były policzone
