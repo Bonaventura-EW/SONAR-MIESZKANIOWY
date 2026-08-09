@@ -1709,7 +1709,6 @@ class SonarMieszkaniowy:
             self._backfill_address_precision()
             self._clean_geocoding_cache()
             self._downgrade_street_level_pins()
-            self._write_map_gap_breakdown()
             
             print(f"   Nowe oferty: {new_offers_count}")
             print(f"   Zaktualizowane: {updated_offers_count}")
@@ -1738,6 +1737,13 @@ class SonarMieszkaniowy:
             self.database['last_scan'] = now.isoformat()
             self.database['next_scan'] = self._calculate_next_scan_time()
             
+            # FIX 2026-08-09: bilans mapy liczymy DOPIERO TU — po weryfikacji
+            # nieaktywnych (Krok 4) i czyszczeniu (Krok 5). Liczony wcześniej
+            # opisywał stan sprzed reaktywacji: pokazywał 665 aktywnych zamiast
+            # 713, a że sam w sobie się domykał, zielony pasek „bilans OK"
+            # uwiarygadniał liczby rozjechane z mapą.
+            self._write_map_gap_breakdown()
+
             # 7. Zapisz bazę
             print("\n💾 Krok 6: Zapisywanie bazy danych...")
             self._save_database()

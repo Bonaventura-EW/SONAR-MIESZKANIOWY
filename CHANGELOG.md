@@ -33,8 +33,17 @@ nigdzie** — bo współrzędne zdejmują im kroki uruchamiane PO pętli skanu
 - Rozdzielone komunikatem dwie różne rzeczy, które wcześniej stały obok siebie bez
   wyjaśnienia: cztery pierwsze kategorie to oferty **obecne na stronie** (warstwa
   „bez lokacji"), a duplikaty i brak ceny to ogłoszenia **pominięte w skanie**.
-- 17 nowych testów (`tests/test_map_gap.py`), w tym test pilnujący samego równania
-  bilansu i wstecznej zgodności ze starym plikiem próbek; suite 320 → 337.
+- **Kontrola krzyżowa z mapą** (`_map_reality`) — sam domknięty bilans okazał się
+  niewystarczający. Pierwsza wersja liczyła go przed Krokiem 4 (weryfikacja ofert
+  nieaktywnych), więc opisywała stan **sprzed reaktywacji**: 665 aktywnych zamiast
+  713, 561 na mapie zamiast 600. Wewnętrznie się zgadzał (104 = 25+70+5+4), więc
+  zielony pasek „bilans OK" uwiarygadniał liczby rozjechane z mapą o 48 ofert.
+  Bilans liczy się teraz tuż przed zapisem bazy, a strona dodatkowo konfrontuje go
+  ze `stats` z `docs/data.json` — rozjazd któregokolwiek z dwóch rachunków zapala
+  czerwony pasek z konkretną różnicą. Brak `data.json` = brak kontroli, nie alarm.
+- 21 nowych testów (`tests/test_map_gap.py`), w tym testy obu kontroli (równanie
+  bilansu i zgodność z mapą) oraz wstecznej zgodności ze starym plikiem próbek;
+  suite 320 → 341.
 
 ### Naprawione (2026-08-08) — Nominatim oddaje punkt ULICY na zapytanie o numer domu
 Analiza grupy „nieprecyzyjnych" pokazała, że **jest ona w większości uczciwa**: z 352

@@ -117,10 +117,17 @@ class TestBilans:
 class TestStronaDebug:
     def _page(self, tmp_path, agent):
         agent._write_map_gap_breakdown()
+        gap = json.loads((agent.data_file.parent / 'skipped_offers_sample.json')
+                         .read_text(encoding='utf-8'))['map_gap']
+        # Kontrola krzyżowa czyta docs/data.json — w teście podstawiamy zgodny.
+        map_data = tmp_path / 'data.json'
+        map_data.write_text(json.dumps({'stats': {'active_count': gap['on_map'],
+                                                  'unlocalised_count': gap['off_map']}}),
+                            encoding='utf-8')
         out = tmp_path / 'debug.html'
         assert generate_skipped_debug_page(
             sample_path=str(agent.data_file.parent / 'skipped_offers_sample.json'),
-            output_path=str(out)) is True
+            output_path=str(out), map_data_path=str(map_data)) is True
         return out.read_text(encoding='utf-8')
 
     def test_pokazuje_wszystkie_szesc_kategorii(self, tmp_path, agent):
@@ -149,3 +156,66 @@ class TestStronaDebug:
         assert generate_skipped_debug_page(sample_path=str(sample), output_path=str(out)) is True
         # Sam blok CSS zostaje; chodzi o to, żeby nie renderować rachunku z pustych danych.
         assert '<p class="reconciliation' not in out.read_text(encoding='utf-8')
+
+
+class TestKontrolaKrzyzowaZMapa:
+    """Domknięty bilans to za mało — musi opisywać TEN stan, który poszedł na mapę.
+
+    Regresja 2026-08-09 (własna): bilans liczony przed weryfikacją nieaktywnych
+    ofert pokazywał 665 aktywnych zamiast 713. Sam w sobie się domykał
+    (104 = 25+70+5+4), więc zielony pasek „bilans OK" uwiarygadniał liczby
+    rozjechane z mapą o 48 ofert.
+    """
+
+    def _files(self, tmp_path, gap, map_stats):
+        sample = tmp_path / 's.json'
+        sample.write_text(json.dumps({'scan_timestamp': '2026-08-09T10:00:00+02:00',
+                                      'counts': {}, 'samples': {}, 'map_gap': gap}),
+                          encoding='utf-8')
+        map_data = tmp_path / 'data.json'
+        map_data.write_text(json.dumps({'markers': [], 'unlocalised_offers': [],
+                                        'stats': map_stats}), encoding='utf-8')
+        out = tmp_path / 'debug.html'
+        assert generate_skipped_debug_page(sample_path=str(sample), output_path=str(out),
+                                           map_data_path=str(map_data)) is True
+        return out.read_text(encoding='utf-8')
+
+    def _gap(self, active, on_map, off_map, counts):
+        return {'active': active, 'on_map': on_map, 'off_map': off_map,
+                'counts': counts, 'samples': {}}
+
+    def test_zgodny_z_mapa_jest_zielony(self, tmp_path):
+        page = self._files(tmp_path,
+                           self._gap(713, 600, 113, {'no_address': 25, 'not_a_street': 84,
+                                                     'area_only': 0, 'no_coords': 4}),
+                           {'active_count': 600, 'unlocalised_count': 113})
+        assert 'reconciliation ok' in page
+
+    def test_rozjazd_z_mapa_jest_czerwony(self, tmp_path):
+        """Bilans domknięty wewnętrznie, ale policzony na innym stanie bazy."""
+        page = self._files(tmp_path,
+                           self._gap(665, 561, 104, {'no_address': 25, 'not_a_street': 70,
+                                                     'area_only': 5, 'no_coords': 4}),
+                           {'active_count': 600, 'unlocalised_count': 113})
+        assert 'reconciliation broken' in page
+        assert 'policzono na innym stanie bazy' in page
+
+    def test_niedomkniety_bilans_jest_czerwony(self, tmp_path):
+        page = self._files(tmp_path,
+                           self._gap(713, 600, 113, {'no_address': 25, 'not_a_street': 10,
+                                                     'area_only': 0, 'no_coords': 4}),
+                           {'active_count': 600, 'unlocalised_count': 113})
+        assert 'reconciliation broken' in page
+        assert 'suma kategorii to 39' in page
+
+    def test_brak_data_json_nie_robi_falszywego_alarmu(self, tmp_path):
+        sample = tmp_path / 's.json'
+        sample.write_text(json.dumps({
+            'scan_timestamp': '2026-08-09T10:00:00+02:00', 'counts': {}, 'samples': {},
+            'map_gap': self._gap(713, 600, 113, {'no_address': 25, 'not_a_street': 84,
+                                                 'area_only': 0, 'no_coords': 4})}),
+            encoding='utf-8')
+        out = tmp_path / 'debug.html'
+        assert generate_skipped_debug_page(sample_path=str(sample), output_path=str(out),
+                                           map_data_path=str(tmp_path / 'nie-ma.json')) is True
+        assert 'reconciliation ok' in out.read_text(encoding='utf-8')
