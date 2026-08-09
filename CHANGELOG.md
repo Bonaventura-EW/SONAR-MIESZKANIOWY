@@ -10,6 +10,46 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Podsumowanie rundy „jakość pinezek" (2026-08-06 → 2026-08-09)
+Punktem wyjścia był audyt umieszczenia pinezek na mapie. Poniższe wpisy opisują
+kolejne poprawki osobno; tu jest całość w jednym miejscu, razem z liczbami przed
+i po (wszystkie zmierzone na produkcji, nie szacowane).
+
+| | start (2026-08-06) | teraz (2026-08-09) |
+|---|---|---|
+| pinezka pod właściwym budynkiem | 78,3% | **87,3%** |
+| mediana odległości od budynku z OSM | — | **2,1 m** |
+| fałszywa precyzja (numer dorobiony z innego zdania) | 51 | **10** |
+| adresy widmo („ulica", której nie ma w Lublinie) | 41 | **18** |
+| pinezka = geokod samej ulicy, udająca dokładny adres | 21 | **8** |
+| niespójne `has_number` | 4 | **0** |
+| pinezki stojące na nazwie, która nie jest ulicą | 22 | **1** (świadomie zostawiona) |
+| oferty tracone przez parser przy każdym skanie | ~34 | **0** |
+| oferty aktywne | 703 | **711** |
+| testy | 135 | **356** |
+
+Wątek przewijający się przez całą rundę: **pojedyncza reguła prawie zawsze cofała
+którąś z wcześniejszych poprawek.** Stąd trzy zasady zapisane w `CLAUDE.md`
+(pkt 17–19) i konsekwentny tryb pracy — każda zmiana mierzona na całej bazie
+(~2900 ofert) przed wdrożeniem, z dozwolonymi tylko jednokierunkowymi przejściami
+(śmieć → ulica, nigdy odwrotnie).
+
+**Zmierzone i świadomie NIEzrobione** (szczegóły w odpowiednich wpisach niżej) —
+zapisane, żeby nikt nie próbował ich drugi raz:
+- walidacja nazwy ulicy w odpowiedzi Nominatim — wymaga dopasowania ścisłego,
+  które psuje skróty, na których stoi parser,
+- rozwijanie skróconej nazwy do pełnej z OSM — 1 aktywna oferta zysku,
+- szukanie ulicy wymienionej w treści dla ofert ze śmieciową etykietą — niemal
+  same fałszywe trafienia, bo nazwy ulic Lublina to zwykłe przymiotniki
+  („Dobra", „Cicha", „Widok"), a „Mieszka I" trafia w słowo *mieszka*,
+- zaostrzenie `is_known_place` dla ostatniej pinezki na nie-ulicy — kosztowałoby
+  etykietę sześciu realnych ulic.
+
+Co zostaje otwarte: 4 pinezki przesunięte mimo potwierdzonego numeru i 2 źle
+wybrane ulice — to rozjazd danych między Nominatim a Overpass, nie błąd parsera.
+Ich naprawa wymagałaby własnego indeksu punktów adresowych z Overpass
+(`audit_map_placement.py` już te dane pobiera i cache'uje).
+
 ### Naprawione (2026-08-09) — skan tracił wyniki przy kolizji z drugim skanem
 Ręczny skan uruchomiony obok harmonogramu przepadł w całości: równoległy skan
 zdążył wcześniej wypchnąć swoje pliki, rebase dał konflikt w 13 plikach
@@ -238,35 +278,6 @@ a `_demote_non_street_pins` i tak przelicza całą bazę przy każdym skanie.
 - 30 nowych testów (`tests/test_street_whitelist.py` + rozszerzony
   `test_area_not_address.py`); suite 245 → 275.
 
-### Dodane (2026-08-07) — sprzątanie warstwy „bez lokacji"
-- **Odzysk ulicy z zaśmieconej etykiety** (`main._salvage_street_label`). Gdy
-  geokoder nie umie umiejscowić adresu, obcinamy człony z końca nazwy, aż zostanie
-  ulica z whitelisty OSM: „PeowiakówZdjęcia są" → „Peowiaków", „Piłsudskiego Okna"
-  → „Piłsudskiego", „Obywatelska piętro 10" → „Obywatelska". Na obecnej bazie
-  **7 ofert wraca z listy „bez lokacji" na mapę**. Uruchamiane wyłącznie dla ofert
-  bez współrzędnych, więc nie może przesunąć żadnej istniejącej pinezki.
-  Zabezpieczenia (każde z realnego przypadku): nie skracamy nazwy, która **w całości**
-  jest poprawna („Osiedle Klemensa Junoszy" nie może stać się „Osiedle Klemensa"),
-  odrzucamy krótkie jednoczłonowe trafienia whitelisty („Residence" ⊂ „Wikana
-  Residence") i wymagamy wielkiej litery na początku.
-- **`_update_existing_offer`: zdobycie współrzędnych zawsze jest poprawą.** Bez tego
-  odzysk nie dotarłby do ofert już w bazie — dotychczasowe warunki „lepszości"
-  wymagały dodania numeru albo śmieciowego starego adresu.
-- **Warstwa „bez lokacji" nie udaje adresu tam, gdzie go nie ma.** Etykiety typu
-  „Umowa", „DOSTĘPNE", „Nowoczesne" (39 z 73 kart) to resztki po parserze — karta
-  pokazuje teraz „Adres nieznany", a surowy odczyt ląduje pod spodem jako szara
-  wskazówka diagnostyczna („parser odczytał: …"), żeby nie tracić informacji.
-  Bump `script.js?v=16` → `v=17`.
-- **Naprawiona niespójność wprowadzona przez ten odzysk** (złapana przy weryfikacji
-  na produkcji): blok „uzupełnij brakujące coords" wstawiał punkt do STAREGO adresu,
-  przez co warunek „zdobyto współrzędne" już nie działał — 8 ofert wylądowało na
-  mapie z etykietą „Piłsudskiego Okna" i `precision='none'`, więc frontend nie
-  wiedział, jakim markerem je narysować. Stan „miał coords" jest teraz zapamiętywany
-  przed kopiowaniem, precyzja idzie w parze ze współrzędnymi, a
-  `_backfill_address_precision` traktuje `none` przy istniejących coords jako
-  niespójność do przeliczenia (rekordy z bazy naprawią się przy kolejnym skanie).
-- 13 nowych testów; suite 201 → 217.
-
 ### Zmienione (2026-08-08) — na mapie stoją tylko adresy uliczne
 - **Adres opisujący OBSZAR nie dostaje pinezki** (`main._is_area_not_address`,
   `_demote_non_street_pins`). Nazwy osiedli („Botanik", „Piastowskie", „Skarpa",
@@ -309,6 +320,35 @@ a `_demote_non_street_pins` i tak przelicza całą bazę przy każdym skanie.
   do „Lipowa", bo obcinanie nie odróżnia numeru domu od śmiecia (złapane testem).
 - 4 nowe testy; suite 217 → 221.
 
+### Dodane (2026-08-07) — sprzątanie warstwy „bez lokacji"
+- **Odzysk ulicy z zaśmieconej etykiety** (`main._salvage_street_label`). Gdy
+  geokoder nie umie umiejscowić adresu, obcinamy człony z końca nazwy, aż zostanie
+  ulica z whitelisty OSM: „PeowiakówZdjęcia są" → „Peowiaków", „Piłsudskiego Okna"
+  → „Piłsudskiego", „Obywatelska piętro 10" → „Obywatelska". Na obecnej bazie
+  **7 ofert wraca z listy „bez lokacji" na mapę**. Uruchamiane wyłącznie dla ofert
+  bez współrzędnych, więc nie może przesunąć żadnej istniejącej pinezki.
+  Zabezpieczenia (każde z realnego przypadku): nie skracamy nazwy, która **w całości**
+  jest poprawna („Osiedle Klemensa Junoszy" nie może stać się „Osiedle Klemensa"),
+  odrzucamy krótkie jednoczłonowe trafienia whitelisty („Residence" ⊂ „Wikana
+  Residence") i wymagamy wielkiej litery na początku.
+- **`_update_existing_offer`: zdobycie współrzędnych zawsze jest poprawą.** Bez tego
+  odzysk nie dotarłby do ofert już w bazie — dotychczasowe warunki „lepszości"
+  wymagały dodania numeru albo śmieciowego starego adresu.
+- **Warstwa „bez lokacji" nie udaje adresu tam, gdzie go nie ma.** Etykiety typu
+  „Umowa", „DOSTĘPNE", „Nowoczesne" (39 z 73 kart) to resztki po parserze — karta
+  pokazuje teraz „Adres nieznany", a surowy odczyt ląduje pod spodem jako szara
+  wskazówka diagnostyczna („parser odczytał: …"), żeby nie tracić informacji.
+  Bump `script.js?v=16` → `v=17`.
+- **Naprawiona niespójność wprowadzona przez ten odzysk** (złapana przy weryfikacji
+  na produkcji): blok „uzupełnij brakujące coords" wstawiał punkt do STAREGO adresu,
+  przez co warunek „zdobyto współrzędne" już nie działał — 8 ofert wylądowało na
+  mapie z etykietą „Piłsudskiego Okna" i `precision='none'`, więc frontend nie
+  wiedział, jakim markerem je narysować. Stan „miał coords" jest teraz zapamiętywany
+  przed kopiowaniem, precyzja idzie w parze ze współrzędnymi, a
+  `_backfill_address_precision` traktuje `none` przy istniejących coords jako
+  niespójność do przeliczenia (rekordy z bazy naprawią się przy kolejnym skanie).
+- 13 nowych testów; suite 201 → 217.
+
 ### Zmienione (2026-08-07) — oferty bez adresu zostają na stronie
 - **`main._process_offer` nie kasuje już oferty, gdy parser nie znajdzie ulicy.**
   Dotąd `return None` sprawiał, że **~34 ogłoszenia na skan znikały ze strony bez
@@ -331,7 +371,7 @@ a `_demote_non_street_pins` i tak przelicza całą bazę przy każdym skanie.
   zmieniło się z „ile ofert straciliśmy" na „ile ofert nie ma lokalizacji".
 - 4 nowe testy (`tests/test_offer_without_address.py`); suite 197 → 201.
 
-### Dodane (2026-08-07)
+### Dodane (2026-08-07) — whitelist ulic i migracja adresów
 - **`src/clean_geocoding_cache.py` — sprzątanie cache geokodera ze śmieciowych
   kluczy**, wpięte w skan (`main._clean_geocoding_cache`, idempotentne). Powód:
   `AddressParser` buduje whitelistę `_known_streets` **z kluczy cache'u**, więc
@@ -343,7 +383,7 @@ a `_demote_non_street_pins` i tak przelicza całą bazę przy każdym skanie.
   klucze z 2022; zero osieroconych adresów, parser zwraca identyczne wyniki.
   Ręcznie: `cd src && python clean_geocoding_cache.py [--apply]`.
 
-### Zmienione (2026-08-07)
+### Zmienione (2026-08-07) — kształt markera z `precision`
 - **Udokumentowany wynik negatywny: przecinek między ulicą a numerem.**
   Dopuszczenie „ul. Skibińskiej, 20" w `ADDRESS_PATTERN` wygląda na oczywistą
   poprawkę, ale w polskich ogłoszeniach przecinek kończy człon zdania — pomiar na
@@ -385,7 +425,7 @@ a `_demote_non_street_pins` i tak przelicza całą bazę przy każdym skanie.
   6 aktywnych ofert miało `has_number=True` przy `number=None` — i kroplę „adres
   dokładny" na mapie.
 
-### Dodane
+### Dodane (2026-08-06) — adres najpierw z tytułu
 - **Adres brany NAJPIERW z tytułu, dopiero potem z treści ogłoszenia**
   (`main._address_from_title`). Wcześniej tytuł był po prostu doklejany do opisu
   (`full_text = title + " " + description`), więc nie miał żadnego pierwszeństwa —
@@ -504,7 +544,7 @@ a `_demote_non_street_pins` i tak przelicza całą bazę przy każdym skanie.
   skanów, wpięcie nowego generatora w `scanner.yml`). GitHub wypełnia nim
   automatycznie opis każdego nowego PR-a.
 
-### Naprawione
+### Naprawione (2026-08-05) — martwa strefa ochrony przed dezaktywacją
 - **Domknięcie „martwej strefy" ochrony przed masową dezaktywacją** — próg
   `MIN_DEACTIVATION_RATIO` podniesiony **0.3 → 0.6**. Zdrowy skan zwraca ~770 ofert
   przy ~710 aktywnych (ratio ~1.08), więc próg 0.3 (≈212) łapał tylko drastyczne
@@ -517,7 +557,7 @@ a `_demote_non_street_pins` i tak przelicza całą bazę przy każdym skanie.
   (wyżej). Zaktualizowano `CLAUDE.md` pkt 3, checklistę w szablonie PR (30% → 60%)
   i testy (`tests/test_main_scan.py`). Łączna suite z auto-retry: 130 → 135.
 
-### Zmienione
+### Zmienione (2026-07-26) — changelog czytany na starcie sesji
 - **`CLAUDE.md`: changelog czytany na starcie sesji, nie tylko dopisywany na
   końcu.** Nagłówek pliku i pkt 8 „Pułapek" wymagają teraz przeczytania sekcji
   `## [Niewydane]` przed pracą (kontekst ostatnich zmian) oraz dopisania wpisu
