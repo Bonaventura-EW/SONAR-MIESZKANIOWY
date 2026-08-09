@@ -177,9 +177,29 @@ def _build_offer_card(category: str, sample: dict) -> str:
     '''
 
 
+def _map_reality(map_data_path: str):
+    """Ile ofert NAPRAWDĘ jest na mapie — czytane z `docs/data.json`.
+
+    FIX 2026-08-09: sam domknięty bilans nie wystarcza. Liczony w złym miejscu
+    skanu potrafi się zgadzać wewnętrznie („104 = 25+70+5+4"), a mimo to opisywać
+    stan sprzed reaktywacji ofert — pokazywał 665 aktywnych zamiast 713, i to
+    z zielonym paskiem „bilans OK". Dlatego konfrontujemy go z tym, co poszło
+    na mapę. Brak pliku = brak kontroli (None), nie fałszywy alarm.
+    """
+    try:
+        stats = json.loads(Path(map_data_path).read_text(encoding='utf-8')).get('stats') or {}
+    except (OSError, json.JSONDecodeError):
+        return None
+    on_map, off_map = stats.get('active_count'), stats.get('unlocalised_count')
+    if on_map is None or off_map is None:
+        return None
+    return {'on_map': on_map, 'off_map': off_map}
+
+
 def generate_skipped_debug_page(
     sample_path: str = paths.SKIPPED_SAMPLE_JSON,
-    output_path: str = paths.DOCS_SKIPPED_DEBUG_HTML
+    output_path: str = paths.DOCS_SKIPPED_DEBUG_HTML,
+    map_data_path: str = paths.DOCS_DATA_JSON
 ) -> bool:
     """
     Generuje docs/skipped_debug.html z aktualnymi próbkami pominiętych ofert.
@@ -245,13 +265,24 @@ def generate_skipped_debug_page(
             f'{_esc(CATEGORY_LABELS[k]["short"])} {gap_counts.get(k, 0)}'
             for k in OFF_MAP_CATEGORIES if gap_counts.get(k)
         )
-        balanced = gap_sum == off_map
+        problems = []
+        if gap_sum != off_map:
+            problems.append(f'suma kategorii to {gap_sum}, a ofert bez pinezki jest {off_map}')
+        # Druga, niezależna kontrola: czy bilans opisuje TEN stan, który poszedł na mapę.
+        reality = _map_reality(map_data_path)
+        if reality and (reality['on_map'] != map_gap.get('on_map')
+                        or reality['off_map'] != off_map):
+            problems.append(
+                f'mapa pokazuje {reality["on_map"]} ofert i {reality["off_map"]} bez lokacji '
+                f'— bilans policzono na innym stanie bazy'
+            )
+        balanced = not problems
         reconciliation_html = f'''
   <p class="reconciliation {'ok' if balanced else 'broken'}">
     {'✅' if balanced else '⚠️'} <strong>{map_gap.get("active", 0)}</strong> ofert aktywnych =
     <strong>{map_gap.get("on_map", 0)}</strong> na mapie +
     <strong>{off_map}</strong> bez pinezki{f' ({parts})' if parts else ''}
-    {'' if balanced else f' — suma kategorii to {gap_sum}, bilans się NIE domyka'}
+    {'' if balanced else ' — ' + _esc('; '.join(problems))}
   </p>'''
 
     # Renderuj listę ofert (duplikaty pierwsze - najbardziej diagnostyczne)
