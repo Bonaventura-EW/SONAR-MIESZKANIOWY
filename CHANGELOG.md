@@ -10,6 +10,32 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Naprawione (2026-08-09) — zakładka debug pokazywała 28 ze 111 ofert bez pinezki
+Strona obiecywała „oferty, które scraper pobrał, ale nie trafiły na mapę", a liczyła
+tylko te, którym parser nie znalazł ULICY. Pozostałe **83 oferty nie były policzone
+nigdzie** — bo współrzędne zdejmują im kroki uruchamiane PO pętli skanu
+(`_demote_non_street_pins`), więc liczniki z tej pętli fizycznie nie mogły ich zobaczyć.
+
+- **Bilans liczony z KOŃCOWEGO stanu bazy** (`main._write_map_gap_breakdown`,
+  `_classify_map_gap`) zamiast z liczników pętli. Tylko wtedy rachunek się domyka.
+- **Trzy nowe kategorie** obok istniejącej „bez adresu":
+  - `not_a_street` — parser coś odczytał, ale to nie nazwa ulicy („King Size 180x",
+    „Duże łóżko 120", „Wolne") — **75 ofert**,
+  - `area_only` — osiedle albo dzielnica: znamy okolicę, nie budynek („Wrotków",
+    „Osiedle Prestige") — **6 ofert**,
+  - `no_coords` — realna ulica, ale geokoder nie dał punktu („Brzeska",
+    „Osiedle Klemensa Junoszy") — **4 oferty**. Ten licznik pokazywał 0, mimo że
+    takie oferty istniały.
+- **Rachunek do sprawdzenia gołym okiem** na górze strony: „711 ofert aktywnych =
+  600 na mapie + 111 bez pinezki (bez adresu 26 + nie ulica 75 + obszar 6 + brak
+  współrzędnych 4)". Gdy suma się nie zgadza, pasek robi się czerwony i mówi o ile —
+  czyli pojawienie się piątej, nienazwanej przyczyny od razu widać.
+- Rozdzielone komunikatem dwie różne rzeczy, które wcześniej stały obok siebie bez
+  wyjaśnienia: cztery pierwsze kategorie to oferty **obecne na stronie** (warstwa
+  „bez lokacji"), a duplikaty i brak ceny to ogłoszenia **pominięte w skanie**.
+- 17 nowych testów (`tests/test_map_gap.py`), w tym test pilnujący samego równania
+  bilansu i wstecznej zgodności ze starym plikiem próbek; suite 320 → 337.
+
 ### Naprawione (2026-08-08) — Nominatim oddaje punkt ULICY na zapytanie o numer domu
 Analiza grupy „nieprecyzyjnych" pokazała, że **jest ona w większości uczciwa**: z 352
 aktywnych ofert z `precision='street'` aż **340 nie podaje numeru domu w treści** —

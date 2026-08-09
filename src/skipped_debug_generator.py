@@ -31,11 +31,25 @@ CATEGORY_LABELS = {
         'color': '#ef4444',
         'sub': 'parser nie znalazł ulicy — oferta trafia do warstwy „bez lokacji”',
     },
+    # FIX 2026-08-09: trzy kategorie, których strona wcześniej nie miała — a bez nich
+    # bilans się nie domykał (111 ofert bez pinezki, pokazanych 28).
+    'not_a_street': {
+        'label': 'Etykieta nie jest ulicą',
+        'short': 'nie ulica',
+        'color': '#db2777',
+        'sub': 'parser coś odczytał, ale to nie nazwa ulicy',
+    },
+    'area_only': {
+        'label': 'Obszar zamiast punktu',
+        'short': 'obszar',
+        'color': '#0891b2',
+        'sub': 'osiedle lub dzielnica — znamy okolicę, nie budynek',
+    },
     'no_coords': {
         'label': 'Brak współrzędnych',
         'short': 'brak współrzędnych',
         'color': '#8b5cf6',
-        'sub': 'parser znalazł adres, geokoder nie',
+        'sub': 'realna ulica, ale geokoder nie dał punktu',
     },
     'duplicate': {
         'label': 'Duplikaty',
@@ -50,6 +64,12 @@ CATEGORY_LABELS = {
         'sub': 'parser nie wyciągnął ceny',
     },
 }
+
+# Kategorie „jest na stronie, ale bez pinezki" — ich suma musi się zgadzać
+# z liczbą ofert poza mapą (main._write_map_gap_breakdown).
+OFF_MAP_CATEGORIES = ('no_address', 'not_a_street', 'area_only', 'no_coords')
+# Kategorie „pominięte w skanie" — tych ofert na stronie nie ma wcale.
+SKIPPED_CATEGORIES = ('duplicate', 'no_price')
 
 
 def _esc(text) -> str:
@@ -175,9 +195,20 @@ def generate_skipped_debug_page(
     with open(sample_file, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
-    counts = data.get('counts', {})
-    samples = data.get('samples', {})
+    counts = dict(data.get('counts', {}))
+    samples = dict(data.get('samples', {}))
     scan_ts_raw = data.get('scan_timestamp', '')
+
+    # FIX 2026-08-09: bilans „dlaczego nie na mapie" liczony z KOŃCOWEGO stanu bazy
+    # (patrz main._write_map_gap_breakdown). Liczniki z pętli skanu nie mogły go
+    # oddać, bo część ofert traci współrzędne dopiero w krokach porządkowych.
+    map_gap = data.get('map_gap') or {}
+    gap_counts = map_gap.get('counts') or {}
+    for cat_key, value in gap_counts.items():
+        counts[cat_key] = value
+        gap_samples = (map_gap.get('samples') or {}).get(cat_key) or []
+        if gap_samples:
+            samples[cat_key] = gap_samples
 
     # Sformatuj timestamp do czytelnej postaci
     scan_ts_display = scan_ts_raw
@@ -192,7 +223,7 @@ def generate_skipped_debug_page(
 
     # Renderuj karty statystyk
     cards_html_parts = []
-    for cat_key in ('no_address', 'no_coords', 'duplicate', 'no_price'):
+    for cat_key in OFF_MAP_CATEGORIES + SKIPPED_CATEGORIES:
         meta = CATEGORY_LABELS[cat_key]
         count = counts.get(cat_key, 0)
         cards_html_parts.append(f'''
@@ -204,9 +235,28 @@ def generate_skipped_debug_page(
         ''')
     cards_html = ''.join(cards_html_parts)
 
+    # Rachunek do sprawdzenia gołym okiem: aktywne = na mapie + suma kategorii.
+    # Gdy się nie domyka, to znaczy że doszła piąta przyczyna, której nie nazwaliśmy.
+    reconciliation_html = ''
+    if map_gap:
+        gap_sum = sum(gap_counts.get(k, 0) for k in OFF_MAP_CATEGORIES)
+        off_map = map_gap.get('off_map', 0)
+        parts = ' + '.join(
+            f'{_esc(CATEGORY_LABELS[k]["short"])} {gap_counts.get(k, 0)}'
+            for k in OFF_MAP_CATEGORIES if gap_counts.get(k)
+        )
+        balanced = gap_sum == off_map
+        reconciliation_html = f'''
+  <p class="reconciliation {'ok' if balanced else 'broken'}">
+    {'✅' if balanced else '⚠️'} <strong>{map_gap.get("active", 0)}</strong> ofert aktywnych =
+    <strong>{map_gap.get("on_map", 0)}</strong> na mapie +
+    <strong>{off_map}</strong> bez pinezki{f' ({parts})' if parts else ''}
+    {'' if balanced else f' — suma kategorii to {gap_sum}, bilans się NIE domyka'}
+  </p>'''
+
     # Renderuj listę ofert (duplikaty pierwsze - najbardziej diagnostyczne)
     offers_html_parts = []
-    for cat_key in ('duplicate', 'no_address', 'no_coords', 'no_price'):
+    for cat_key in ('duplicate',) + OFF_MAP_CATEGORIES + ('no_price',):
         cat_samples = samples.get(cat_key, [])
         for s in cat_samples:
             offers_html_parts.append(_build_offer_card(cat_key, s))
@@ -217,7 +267,7 @@ def generate_skipped_debug_page(
 
     # Opcje filtra kategorii
     filter_options = [f'<option value="all">Wszystkie ({total_samples} próbek)</option>']
-    for cat_key in ('no_address', 'no_coords', 'duplicate', 'no_price'):
+    for cat_key in OFF_MAP_CATEGORIES + SKIPPED_CATEGORIES:
         meta = CATEGORY_LABELS[cat_key]
         cnt = len(samples.get(cat_key, []))
         filter_options.append(
@@ -246,6 +296,13 @@ header .nav-links a.tmp {{ background: rgba(255,200,0,0.4); border: 1px dashed w
 .container {{ max-width: 1400px; margin: 24px auto; padding: 0 24px; }}
 .stats-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }}
 .stat-card {{ background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border-left: 4px solid; }}
+.reconciliation {{ margin: 0 0 16px; padding: 10px 14px; border-radius: 4px; font-size: 14px; }}
+.reconciliation.ok {{ background: #ecfdf5; border-left: 3px solid #10b981; color: #065f46; }}
+.reconciliation.broken {{ background: #fef2f2; border-left: 3px solid #ef4444; color: #991b1b; }}
+.stat-card.not_a_street {{ border-color: #db2777; }}
+.stat-card.area_only {{ border-color: #0891b2; }}
+.badge.not_a_street {{ background: #fce7f3; color: #9d174d; }}
+.badge.area_only {{ background: #cffafe; color: #155e75; }}
 .stat-card.no_address {{ border-color: #ef4444; }}
 .stat-card.no_price {{ border-color: #f59e0b; }}
 .stat-card.no_coords {{ border-color: #8b5cf6; }}
@@ -375,9 +432,12 @@ header .nav-links a.tmp {{ background: rgba(255,200,0,0.4); border: 1px dashed w
     {cards_html}
   </div>
 
+  {reconciliation_html}
+
   <p style="margin: 0 0 16px; padding: 10px 14px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px; color: #1e3a8a;">
-    ℹ️ <strong>Bez adresu</strong> = parser nie znalazł ulicy, ale oferta <strong>jest na stronie</strong> —
-    trafia do warstwy „bez lokacji" pod mapą. Pozostałe kategorie oznaczają ogłoszenia pominięte w skanie.
+    ℹ️ Pierwsze cztery kategorie to oferty, które <strong>są na stronie</strong>, ale bez pinezki —
+    trafiają do warstwy „bez lokacji" pod mapą. <strong>Duplikaty</strong> i <strong>brak ceny</strong>
+    oznaczają ogłoszenia pominięte w skanie, których na stronie nie ma wcale.
   </p>
 
   <div class="filter-bar">

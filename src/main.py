@@ -35,7 +35,7 @@ TITLE_STREET_PREFIX_RE = re.compile(
 
 # Stabilny identyfikator oferty (CID3-IDxxxx). Współdzielony z scraper.py.
 from cid import extract_cid
-from offer_tagger import build_tags
+from offer_tagger import build_tags, title_from_url
 from atomic_json import atomic_write_json
 import paths
 
@@ -392,6 +392,77 @@ class SonarMieszkaniowy:
         self.geocoder._save_cache()
         print(f"   📐 Adres z numerem na punkcie ulicy: {len(pairs)} kluczy cache usuniętych, "
               f"{downgraded} ofert z 'exact' → 'street'")
+
+    # Ile przykładów per kategoria trafia do zakładki debugowej.
+    MAP_GAP_SAMPLE_LIMIT = 25
+
+    def _classify_map_gap(self, address: dict) -> str:
+        """Dlaczego ta oferta nie ma pinezki — jedna z czterech przyczyn.
+
+        FIX 2026-08-09: zakładka debugowa obiecywała „oferty, które nie trafiły
+        na mapę", a pokazywała wyłącznie te, którym parser nie znalazł ULICY
+        (28 z 111). Reszta — etykieta nie do odczytania, nazwa obszaru zamiast
+        punktu, brak geokodu — nie była nigdzie policzona, bo współrzędne
+        zdejmują im kroki uruchamiane PO pętli skanu (`_demote_non_street_pins`).
+        """
+        label = (address.get('street') or address.get('full') or '').strip()
+        if not label:
+            return 'no_address'
+        if is_street_name(label):
+            return 'no_coords'
+        if is_district_name(label) or is_known_place(label):
+            return 'area_only'
+        return 'not_a_street'
+
+    def _write_map_gap_breakdown(self):
+        """Dopisuje do `skipped_offers_sample.json` bilans „dlaczego nie na mapie".
+
+        Liczone z KOŃCOWEGO stanu bazy, nie z liczników pętli — tylko wtedy suma
+        się domyka, bo część ofert traci współrzędne dopiero w krokach
+        porządkowych po skanie. Dzięki temu na stronie da się sprawdzić
+        rachunek: aktywne = na mapie + suma kategorii.
+        """
+        active = [o for o in self.database['offers'] if o.get('active')]
+        counts = {'no_address': 0, 'not_a_street': 0, 'area_only': 0, 'no_coords': 0}
+        samples = {key: [] for key in counts}
+        on_map = 0
+
+        for offer in active:
+            address = offer.get('address') if isinstance(offer.get('address'), dict) else {}
+            if address.get('coords'):
+                on_map += 1
+                continue
+            category = self._classify_map_gap(address)
+            counts[category] += 1
+            if len(samples[category]) < self.MAP_GAP_SAMPLE_LIMIT:
+                samples[category].append({
+                    'url': offer.get('url', ''),
+                    # Oferty w bazie nie mają pola `title` — czytelną nazwę
+                    # odtwarzamy ze slugu URL, tak samo jak `map_generator`.
+                    'title': title_from_url(offer.get('url', '')),
+                    'description_preview': (offer.get('description') or '')[:500],
+                    'address_parsed': address.get('full') or None,
+                })
+
+        payload = {
+            'active': len(active),
+            'on_map': on_map,
+            'off_map': len(active) - on_map,
+            'counts': counts,
+            'samples': samples,
+        }
+
+        samples_path = self.data_file.parent / 'skipped_offers_sample.json'
+        try:
+            existing = json.loads(samples_path.read_text(encoding='utf-8'))
+        except (OSError, json.JSONDecodeError):
+            existing = {'scan_timestamp': datetime.now(self.tz).isoformat(),
+                        'counts': {}, 'samples': {}}
+        existing['map_gap'] = payload
+        atomic_write_json(str(samples_path), existing)
+        print(f"   📊 Bilans mapy: aktywnych {payload['active']} = na mapie {on_map} "
+              f"+ bez pinezki {payload['off_map']} "
+              f"({', '.join(f'{k}: {v}' for k, v in counts.items() if v)})")
 
     def _backfill_address_precision(self):
         """Uzupełnia `precision` w ofertach sprzed FIX-a 2026-08-06 — bez sieci.
@@ -1638,6 +1709,7 @@ class SonarMieszkaniowy:
             self._backfill_address_precision()
             self._clean_geocoding_cache()
             self._downgrade_street_level_pins()
+            self._write_map_gap_breakdown()
             
             print(f"   Nowe oferty: {new_offers_count}")
             print(f"   Zaktualizowane: {updated_offers_count}")
