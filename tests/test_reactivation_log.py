@@ -53,6 +53,16 @@ class TestRecord:
         log.record(offer, _at(5, 21), 'rescrape', _at(5, 3))
         assert offer['reactivation_dates'][0]['src'] == 'rescrape'
 
+    def test_does_not_merge_into_legacy_seed_from_the_same_day(self):
+        """FIX 2026-08-10: zalążek przepisany z `reactivated_at` opisuje inny
+        powrót i nie niesie pomiaru — scalenie z nim dawało rekord-hybrydę
+        (czas jednego zdarzenia, gap drugiego, puste źródło)."""
+        offer = {'reactivated_at': _at(10, 16), 'last_seen': _at(10, 16)}
+        log.record(offer, _at(10, 21), 'verification', offer['last_seen'])
+        seed, fresh = offer['reactivation_dates']
+        assert seed == {'at': _at(10, 16)}            # zalążek nietknięty
+        assert fresh['src'] == 'verification' and fresh['gap_h'] == 5.0
+
     def test_seeds_history_from_legacy_field(self):
         offer = {'reactivated_at': '2026-06-01T10:00:00+02:00'}
         log.record(offer, _at(5), 'rescrape', _at(1))
@@ -97,6 +107,12 @@ class TestReturnDays:
         odtworzyć dnia po dniu, więc nie udajemy, że da się."""
         assert log.return_days({'reactivated_at': _at(3)}) == []
         assert log.measured_days({'reactivated_at': _at(3)}) == []
+
+    def test_ignores_entry_with_unknown_source(self):
+        """Bez źródła nie wiadomo, czy to powrót w listingu, czy nasza pomyłka
+        przy dezaktywacji — więc nie jest to pomiar."""
+        offer = {'reactivation_dates': [{'at': _at(5), 'gap_h': 96.0}]}
+        assert log.return_days(offer) == []
 
     def test_skip_days_removes_artifact_day(self):
         offer = {'last_seen': _at(1)}

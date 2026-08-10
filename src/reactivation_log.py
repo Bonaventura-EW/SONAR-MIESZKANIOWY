@@ -93,7 +93,13 @@ def record(offer, now_iso, source, prev_last_seen=None):
 
     today = _day(now_iso)
     last = log[-1] if log else None
-    if last and today and _day(last.get('at')) == today:
+    # FIX 2026-08-10: scalamy tylko z wpisem, który sam jest pomiarem. Zalążek
+    # z czasów sprzed tej listy (goła data przepisana z `reactivated_at`) opisuje
+    # INNY powrót i nie zna ani przerwy, ani źródła — doklejenie do niego
+    # dzisiejszego pomiaru robiło rekord-hybrydę: czas jednego zdarzenia, gap
+    # drugiego i puste źródło (48 takich wpisów w pierwszym skanie po wdrożeniu).
+    measured_last = bool(last) and ('src' in last or 'gap_h' in last)
+    if last and measured_last and today and _day(last.get('at')) == today:
         # Kilka powrotów tego samego dnia = ta sama nieobecność widziana przez
         # kolejne skany. Zostawiamy pierwszy wpis (to on niesie prawdziwą
         # długość przerwy), podnosząc gap do najdłuższego znanego. Źródło
@@ -145,10 +151,14 @@ def return_days(offer, min_gap_hours=MIN_REAL_GAP_HOURS, skip_days=()):
     days = set()
     for item in entries(offer):
         day = _day(item.get('at'))
-        gap = item.get('gap_h')
+        gap, src = item.get('gap_h'), item.get('src')
         if day is None or day in skip_days or gap is None:
             continue
-        if gap < min_gap_hours or item.get('src') in NOISE_SOURCES:
+        # Nieznane źródło traktujemy jak szum: skoro nie wiadomo, czy oferta
+        # wróciła w listingu, czy tylko my pomyliliśmy się przy dezaktywacji,
+        # to nie jest pomiar. Wpisy z nową nazwą źródła liczą się normalnie —
+        # blokujemy tylko brak informacji i to, co jawnie uznaliśmy za szum.
+        if src is None or src in NOISE_SOURCES or gap < min_gap_hours:
             continue
         days.add(day)
     return sorted(days)
