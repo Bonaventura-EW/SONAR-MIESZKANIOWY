@@ -50,6 +50,48 @@ wybrane ulice — to rozjazd danych między Nominatim a Overpass, nie błąd par
 Ich naprawa wymagałaby własnego indeksu punktów adresowych z Overpass
 (`audit_map_placement.py` już te dane pobiera i cache'uje).
 
+### Dodane (2026-08-09) — Indeks rozbity na nowe i wracające oferty
+Port widoku z SONAR POKOJOWY: na stronie `trend.html` doszedł przełącznik
+**„Suma aktywnych" / „Rozbij — nowe / reaktywacje"** (Indeks jako dwa pasma:
+ogłoszenia świeże na dole, wracające z martwych na górze — suma pasm to
+dokładnie linia Indeksu) oraz trzy wykresy napływu: **nowe oferty**,
+**napływ całkowity** (nowe + powroty) i **reaktywacje**.
+
+Przy porcie wyszło, że tej samej metryki co w POKOJOWYM nie da się tu policzyć:
+- **`reactivated_at` jest nadpisywane przy każdym powrocie.** Dzień „ile ofert
+  wróciło" pokazywał więc tylko te, które później już nigdy nie wróciły — im
+  starszy dzień, tym więcej powrotów z niego wyparowało. Zmierzone na bazie:
+  15/dzień w połowie lipca wobec 85 w dniu pomiaru, przy niezmienionym ruchu.
+  Wykres z tych liczb rysowałby stromą rampę przy prawej krawędzi i pasmo
+  recyklingu rosnące 143 → 250 w dwa dni — czysty artefakt pomiaru.
+- **Większość „reaktywacji" to szum pipeline'u.** Zmierzone 09.08: ~48 na skan
+  ze źródła `verification` (sami oznaczyliśmy ofertę jako nieaktywną, a jej
+  strona na OLX cały czas była żywa) wobec 0–9 realnych powrotów z listingu.
+- **Dodatkowo 2026-08-05:** blokada OLX zdjęła 409 ofert, a kolejne skany tego
+  samego dnia przywróciły 308 z nich — 232 z nich to wciąż aktywne oferty, które
+  nigdy nie zniknęły z rynku, a które wpadłyby do pasma „recykling".
+
+Dlatego zamiast rysować te liczby jako trend:
+- **Nowy `src/reactivation_log.py`** zapisuje **każdy** powrót osobno
+  (`reactivation_dates`), razem z długością nieobecności i źródłem. Skan dopisuje
+  wpis we wszystkich trzech miejscach reaktywacji (listing, „skipped",
+  weryfikacja); `reactivated_at` zostaje bez zmian dla kompatybilności.
+- **Powrót liczy się, gdy oferty nie było ≥24 h i wróciła w listingu** — krótsza
+  przerwa to zgubienie oferty na jeden skan, a `verification` z definicji nie
+  jest powrotem na rynek. Surowe wpisy zostają nietknięte, filtr jest po stronie
+  generatora, więc zmiana progu nie wymaga zbierania historii od nowa.
+- **Wykresy powrotów pokazują tylko zmierzony zakres.** Dni sprzed zapisu
+  (i dzień-artefakt 2026-08-05) idą do serii jako `null` — na wykresie widać
+  przerwę, a nie liczbę, której nie umiemy obronić. Pasma i przełącznik ruszają
+  od pierwszego pełnego dnia pomiaru; do tego czasu przycisk „Rozbij" jest
+  widoczny, ale nieaktywny, z wyjaśnieniem obok.
+- `trend_data.json` dostał klucze `inflow` (`new` / `react` / `new_react`
+  + `measured_from`) i `bands` (`new` / `react`). Wspólny `_flow_metric` obsługuje
+  teraz wszystkie cztery wykresy przepływu — istniejąca seria odpływu wychodzi
+  z refaktoru bajt w bajt identyczna.
+- Testy: +31 (`test_reactivation_log.py`, `TestInflow`, `TestBands`, dwa w
+  `test_main_scan.py` na zapis gapu przy reaktywacji) — łącznie 387.
+
 ### Naprawione (2026-08-09) — skan tracił wyniki przy kolizji z drugim skanem
 Ręczny skan uruchomiony obok harmonogramu przepadł w całości: równoległy skan
 zdążył wcześniej wypchnąć swoje pliki, rebase dał konflikt w 13 plikach

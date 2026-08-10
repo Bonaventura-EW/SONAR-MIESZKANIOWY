@@ -89,6 +89,33 @@ class TestDeactivationProtection:
         assert offer['active'] is True
         assert offer['reactivation_source'] == 'skipped'
 
+    def test_reactivation_lands_in_history_with_gap(self, agent):
+        """FIX 2026-08-09: sam `reactivated_at` jest nadpisywany, więc każdy
+        powrót dopisujemy osobno — z długością nieobecności, bo bez niej nie da
+        się odróżnić powrotu na rynek od zgubienia oferty na jeden skan."""
+        gone_since = (datetime.now(TZ) - timedelta(days=3)).isoformat()
+        agent.database['offers'] = [_offer('ddd4', active=False, last_seen=gone_since)]
+        agent._mark_inactive_offers(
+            current_offer_ids=[], skipped_offer_ids=['oferta-ddd4-CID3-IDddd4']
+        )
+        history = agent.database['offers'][0]['reactivation_dates']
+        assert len(history) == 1
+        assert history[0]['src'] == 'skipped'
+        assert 71 <= history[0]['gap_h'] <= 73          # ~3 doby nieobecności
+
+    def test_reactivation_from_listing_records_gap(self, agent):
+        """Ta sama historia dla powrotu w listingu (`_update_existing_offer`):
+        gap liczy się od last_seen SPRZED aktualizacji, nie od „teraz"."""
+        gone_since = (datetime.now(TZ) - timedelta(days=2)).isoformat()
+        existing = _offer('eee5', active=False, last_seen=gone_since)
+        scraped = _offer('eee5', active=True)
+        scraped['price'] = {'current': 2000, 'history': [2000], 'media_info': None}
+        agent._update_existing_offer(existing, scraped)
+        history = existing['reactivation_dates']
+        assert existing['active'] is True
+        assert history[-1]['src'] == 'rescrape'
+        assert 47 <= history[-1]['gap_h'] <= 49
+
 
 class TestRetryOnBlock:
     """FIX 2026-08-05: przy wykrytej blokadzie OLX (run_scan zwraca True)
