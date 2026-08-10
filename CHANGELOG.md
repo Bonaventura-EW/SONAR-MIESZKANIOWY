@@ -50,6 +50,67 @@ wybrane ulice — to rozjazd danych między Nominatim a Overpass, nie błąd par
 Ich naprawa wymagałaby własnego indeksu punktów adresowych z Overpass
 (`audit_map_placement.py` już te dane pobiera i cache'uje).
 
+### Naprawione (2026-08-10) — koniec pinezek na przymiotnikach
+Ogłoszenie „**Przytulna** kawalerka 38 m², centrum" dostawało pinezkę pod
+ul. Przytulną. Winna jest czwarta, ratunkowa ścieżka parsera
+(`extract_from_whitelist`): gdy trzy wcześniejsze nic nie znajdą, bierze dowolną
+nazwę z kluczy `geocoding_cache.json`, która pada gdziekolwiek w tekście —
+a cache uczy się wszystkiego, co raz udało się zgeokodować, łącznie z naszymi
+własnymi błędami (pętla sprzężenia zwrotnego opisana w `clean_geocoding_cache.py`).
+Nazwy ulic Lublina to w dużej części zwykłe przymiotniki, więc opis wnętrza
+wystarczał za adres.
+
+Skala przed poprawką: **87 z 694 aktywnych ofert** (12,5%) miało adres z tej
+ścieżki — 27 etykiet w ogóle nie było ulicą („Wolne", „Miejsca", „Piętro",
+„Stokrotka", „Botanik"), 19 było przymiotnikiem („Przytulna", „Spokojnej",
+„Cicha", „Słoneczne").
+
+- **Kandydat musi być realną ulicą Lublina z OSM** (`street_whitelist`), nie tylko
+  kluczem cache'u. Filtrujemy kandydatów, nie zwycięzcę, więc śmieć przestaje też
+  *wygrywać* z realną ulicą wymienioną obok („Uniwersytetu Medycznego" nie bije
+  już „Chodźki").
+- **Nazwa użyta przymiotnikowo nie jest adresem** — odrzucamy ją, gdy stoi przed
+  rzeczownikiem mieszkaniowym („przytulna kawalerka", „w cichej i spokojnej
+  okolicy"), o ile nigdzie w treści nie ma jej z prefiksem „ul./al./os.".
+  Reguła działa tylko dla nazw z listy `_ADJECTIVE_STREETS`: dla nazwisk
+  w dopełniaczu sąsiedztwo rzeczownika nic nie znaczy, a kasowałoby realne
+  adresy („… | Narutowicza. Mieszkanie do wynajęcia" — 12 takich ofert).
+- **Granice zdań mają znaczenie.** Reguła przymiotnikowa czyta tekst, w którym
+  interpunkcja zostawia ślad („¶"). W wariancie ze spacjami sklejka tytułu
+  z opisem wygląda jak przymiotnik przed rzeczownikiem.
+- **Migracja `drop_rejected_labels`** zdejmuje etykietę ofertom już w bazie:
+  `_update_existing_offer` umie adres tylko poprawić, nigdy skasować, a ofert
+  nieaktywnych scraper nie odwiedza. Warunki wąskie (świeże parsowanie opisu nie
+  daje adresu + stara etykieta jest śmieciem albo przymiotnikiem), bezpiecznik
+  `MAX_RETRACTION_RATIO` jak w pozostałych migracjach.
+  `ADDRESS_PARSER_VERSION` → `2026-08-10`.
+
+**Pomiar na całej bazie** (3026 ofert, wymagany przez CLAUDE.md pkt 14/17):
+
+| przejście | ofert | w tym aktywnych |
+|---|---|---|
+| KEEP (bez zmian) | 2882 | — |
+| CLEAN (etykieta → brak adresu) | 82 | 23 |
+| CHANGE (etykieta → inna etykieta z treści) | 62 | 16 |
+| GAIN / utrata realnej ulicy | **0** | **0** |
+
+Wszystkie 28 usunięć, w których etykieta była realną nazwą ulicy, sprawdzono
+pojedynczo w kontekście — każde to przymiotnik („spokojna okolica", „cicha
+okolica", „przytulnego miejsca"), żadne nie miało obok prefiksu ulicy ani numeru
+domu. Migracja na produkcyjnej bazie: 81 ofert (22 aktywne). Korpus regresyjny
+zaktualizowany w 6 przypadkach. Testy: 406 (+19).
+
+**Zmierzone i świadomie NIEzrobione — wymóg wielkiej litery.** Ulice pisze się
+w ogłoszeniach wielką literą, a to, co ścieżka ratunkowa zgaduje ze zdania, jest
+małą („wolne od lipca" → ul. Lipca, „nowe AGD" → ul. Nowe, „widok na miasto" →
+ul. Widok). Reguła kasuje 37 z 62 podmian śmieć→śmieć, ale **zabiera pinezkę
+realnym adresom pisanym małą literą** („mieszkanie na wynajem unicka", „wynajmę
+mieszkanie wędrowna", „miasteczko akademickie weteranów 19") — ~9 ofert, a wyjątki
+na prefiks i numer łatały to tylko częściowo. Kod został wyłączony
+(`_capitalization_ok`), bo pkt 17 nie dopuszcza utraty pinezki przez realną ulicę.
+Do zrobienia inaczej: odróżniać pospolite słowo od nazwy ulicy częstością zapisu
+małą literą w całym korpusie ogłoszeń, nie wielkością liter w jednym tekście.
+
 ### Dodane (2026-08-09) — Indeks rozbity na nowe i wracające oferty
 Port widoku z SONAR POKOJOWY: na stronie `trend.html` doszedł przełącznik
 **„Suma aktywnych" / „Rozbij — nowe / reaktywacje"** (Indeks jako dwa pasma:
