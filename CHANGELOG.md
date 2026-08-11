@@ -50,6 +50,55 @@ wybrane ulice — to rozjazd danych między Nominatim a Overpass, nie błąd par
 Ich naprawa wymagałaby własnego indeksu punktów adresowych z Overpass
 (`audit_map_placement.py` już te dane pobiera i cache'uje).
 
+### Naprawione (2026-08-11) — zablokowany skan nie udaje „Sukces" w monitoringu
+Od ~13:00 dnia 2026-08-11 OLX (przez CloudFront) zaczął zwracać `403 Request
+blocked` na requesty scrapera — kolejne skany (16:32/16:34/16:36 i
+22:05/22:07/22:10, po trzy próby `run_scan_with_retry`) pobierały **0 ofert**.
+Bezpiecznik przed masową dezaktywacją zadziałał poprawnie (nic nie
+zdezaktywowano, błąd trafił do `scan_history`), ale dashboard monitoringu i tak
+świecił się na zielono: kolumna „Status" czytała surowe `scan.status`
+(`completed`), a nie fakt, że skan ma wpis w `errors`. Kafelek „Sukces" i
+„Success Rate" liczyły blokadę jako sukces (100%).
+
+Teraz status jest **efektywny** — łączy `status` z obecnością błędów, spójnie z
+`uiStatus` w API mobilnym:
+- `docs/monitoring.html`: skan `completed` z błędem pokazuje **⚠️ Ostrzeżenie**
+  (amber), skan przerwany — **❌ Błąd** (czerwony); zielony „Sukces" tylko gdy
+  zero błędów. Tooltip błędów czyta `error.message` zamiast `[object Object]`.
+- `scan_logger.get_statistics`: `successful` = `completed` **i** zero błędów;
+  doszedł osobny licznik `warnings`. Success Rate spadł ze zmyślonych 100% na
+  realne 89% (11 zablokowanych skanów w historii).
+- `monitoring_generator`: punkt wykresu „success rate" liczy 100% tylko dla
+  skanu bez błędów.
+
+Diagnoza samej blokady (403 CloudFront) i obejście — patrz wpis niżej
+(impersonacja TLS `curl_cffi`).
+
+### Zmienione (2026-08-11) — impersonacja TLS Chrome'a zamiast gołego requests
+Obejście blokady 403 z wpisu wyżej. `requests` wysyła charakterystyczny pythonowy
+fingerprint TLS (JA3), który WAF (CloudFront/AWS) potrafi odsiać przy IP
+datacenter — a tak właśnie egresuje GitHub Actions. Scraper i weryfikacja
+nieaktywnych ofert chodzą teraz przez `curl_cffi` z `impersonate="chrome"`
+(ClientHello nieodróżnialny od prawdziwego Chrome'a).
+
+- Nowy `src/http_client.py`: `ImpersonatedSession` — API zgodne z
+  `requests.Session` (`.headers`, `.get`, `.close`), pod spodem `curl_cffi`.
+  **Fallback**: brak `curl_cffi` (import) albo błąd na poziomie transportu →
+  spadamy na `requests`. Odpowiedź 403 to normalny wynik `.get()`, więc blokada
+  jest nadal wykrywana jako 0 ofert (bezpiecznik dezaktywacji bez zmian).
+- **Wątki**: Session `curl_cffi` nie jest thread-safe (jeden uchwyt curl), więc
+  każdy wątek puli scrapera dostaje własną sesję (`threading.local`).
+- `scraper.py` i `main._verify_inactive_offers` przełączone na `ImpersonatedSession`;
+  `except requests.RequestException` → `except http_client.RequestError` (krotka
+  wyjątków obu backendów). `curl_cffi==0.16.0` w `requirements.txt`.
+- Testy: `tests/test_http_client.py` (fallback, per-wątkowość, nagłówki);
+  dwa testy weryfikacji patchują teraz `ImpersonatedSession.get`.
+
+Weryfikacja skuteczności musi iść na produkcji (ręczny `workflow_dispatch`):
+egress tego środowiska deweloperskiego re-terminuje TLS, przez co impersowany
+handshake i tak pada i wpada w fallback — sprawdzianem jest `offers_found > 0`
+w skanie z Actions.
+
 ### Naprawione (2026-08-11) — wielkość liter rozstrzyga przy nazwach-przymiotnikach
 Audyt po skanie: „Przytulna" zeszła z mapy, ale zostało 13 aktywnych ofert
 z etykietą typu „Spokojna"/„Nowe" wziętą z **„nowe wyposażenie"**, **„przy
