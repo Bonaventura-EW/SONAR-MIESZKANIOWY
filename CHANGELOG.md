@@ -50,6 +50,30 @@ wybrane ulice — to rozjazd danych między Nominatim a Overpass, nie błąd par
 Ich naprawa wymagałaby własnego indeksu punktów adresowych z Overpass
 (`audit_map_placement.py` już te dane pobiera i cache'uje).
 
+### Naprawione (2026-08-11) — wielkość liter rozstrzyga przy nazwach-przymiotnikach
+Audyt po skanie: „Przytulna" zeszła z mapy, ale zostało 13 aktywnych ofert
+z etykietą typu „Spokojna"/„Nowe" wziętą z **„nowe wyposażenie"**, **„przy
+spokojnej ulicy"**, **„mile widziana spokojna, pracująca para"**. Reguła
+przymiotnikowa ich nie łapała, bo rzeczownik („wyposażenie", „ulica", „para")
+nie mieści się w żadnej sensownej liście — takich słów są setki.
+
+- **Dla nazw z `_ADJECTIVE_STREETS` decyduje teraz także wielkość liter**: jeśli
+  nazwa w całym ogłoszeniu pisana jest małą literą, to zwykły przymiotnik, nie
+  ulica. „ulica Spokojna" i „ul. Cicha" zostają adresem, „spokojnej okolicy"
+  nie. Wymóg **nie** obowiązuje pozostałych nazw — tam ten sam pomysł zmierzono
+  wcześniej i odrzucono, bo zabierał pinezkę realnym adresom pisanym małą literą
+  („mieszkanie na wynajem unicka", „miasteczko akademickie weteranów 19").
+
+Pomiar wobec wdrożonej wersji (3047 ofert): **KEEP 3019, CLEAN 22 (8 aktywnych),
+CHANGE 6 (0 aktywnych), GAIN 0**. Wszystkie 22 sprawdzone w kontekście — każde to
+przymiotnik, żadne nie miało obok prefiksu ulicy ani numeru domu. Korpus
+regresyjny bez zmian. Testy: 418 (+6).
+
+**Do zrobienia osobno:** 63 aktywne oferty mają w bazie etykietę inną niż to, co
+mówi dziś parser (np. zapisane „Spokojna", parser widzi „Chodźki"). Migracja ich
+nie rusza, bo mają współrzędne, a przesuwanie pinezki to ryzykowniejsza operacja
+niż jej zdjęcie — wymaga własnego pomiaru jakości starej i nowej etykiety.
+
 ### Naprawione (2026-08-11) — filtr przymiotnikowy objął wszystkie ścieżki parsera
 Skan po wdrożeniu poprzedniej poprawki pokazał, że ogłoszenie „**Przytulna**
 kawalerka 38 m²" — to samo, od którego wszystko się zaczęło — **dalej** ma pinezkę

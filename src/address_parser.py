@@ -506,12 +506,12 @@ class AddressParser:
            „ul./al./os.". Prefiks gdziekolwiek w treści broni realny adres
            („ul. Cicha, mieszkanie z ogródkiem" zostaje).
 
-        3. **Nazwa musi być w ogłoszeniu napisana z wielkiej litery** (`capitalized`).
-           Ulice ogłoszeniodawcy piszą wielką literą („Chodźki", „Agatowa",
-           „Rubinowa"), a to, co route 4 zgaduje ze zdania, jest małą literą:
-           „wolne od lipca" → ul. Lipca, „nowe AGD" → ul. Nowe, „widok na miasto"
-           → ul. Widok. Bez tej reguły odsianie jednego śmiecia tylko przesuwało
-           pinezkę na następny (zmierzone: 37 z 62 podmian).
+           Do reguły należy też wielkość liter: nazwa-przymiotnik pisana w całym
+           ogłoszeniu małą literą to zwykłe słowo („nowe wyposażenie", „przy
+           spokojnej ulicy"), bo rzeczowników opisujących mieszkanie żadna lista
+           nie obejmie w całości. Wymóg dotyczy TYLKO `_ADJECTIVE_STREETS` —
+           rozszerzony na wszystkie nazwy zabierał pinezkę realnym adresom
+           pisanym małą literą (patrz `_capitalization_ok`).
 
         `text` musi być wersją z ZACHOWANYMI granicami zdań (interpunkcja jako
         „¶"): w tekście z interpunkcją zamienioną na spacje sklejka tytułu
@@ -526,9 +526,7 @@ class AddressParser:
             name = candidate[0]
             if not self._is_whitelisted_street(name):
                 continue
-            if capitalized is not None and not self._capitalization_ok(name, text, capitalized):
-                continue
-            if self._is_adjective_use(name, text):
+            if self._is_adjective_use(name, text, capitalized):
                 continue
             kept.append(candidate)
         return kept
@@ -552,8 +550,13 @@ class AddressParser:
         """
         return True
 
+    @staticmethod
+    def _capitalized_words(text: str) -> set:
+        """Słowa zapisane w ogłoszeniu wielką literą (lowercase, do porównań)."""
+        return {w.lower() for w in re.findall(r'\w+', text) if w[:1].isupper()}
+
     @classmethod
-    def _is_adjective_use(cls, name: str, text: str) -> bool:
+    def _is_adjective_use(cls, name: str, text: str, capitalized: set = None) -> bool:
         """Czy nazwa pełni w tekście rolę przymiotnika, a nie nazwy ulicy."""
         if name.lower() not in cls._ADJECTIVE_STREETS:
             return False
@@ -564,6 +567,16 @@ class AddressParser:
             + re.escape(name), text, re.IGNORECASE)
         if prefixed:
             return False                      # jawny adres gdziekolwiek w treści
+
+        # FIX 2026-08-11: nazwa-przymiotnik pisana w całym ogłoszeniu małą literą
+        # to zwykłe słowo, nie ulica („nowe wyposażenie", „przy spokojnej ulicy",
+        # „mile widziana spokojna, pracująca para" — rzeczowniki, których żadna
+        # lista nie obejmie). Wymóg dotyczy WYŁĄCZNIE nazw z `_ADJECTIVE_STREETS`:
+        # dla pozostałych zmierzono, że zabiera pinezkę realnym adresom pisanym
+        # małą literą („mieszkanie na wynajem unicka") — patrz `_capitalization_ok`.
+        if capitalized is not None and name.split()[0] not in capitalized:
+            return True
+
         for match in re.finditer(re.escape(name) + r'\w*(?=\s|$)', text, re.IGNORECASE):
             before = text[max(0, match.start() - 14):match.start()]
             if cls._STREET_PREFIX_BEFORE.search(before):
@@ -609,7 +622,8 @@ class AddressParser:
         result = self._extract_address_routes(text)
         if result and not result.get('number'):
             street = (result.get('street') or result.get('full') or '').lower()
-            if street and self._is_adjective_use(street, self._boundary_text(text)):
+            if street and self._is_adjective_use(
+                    street, self._boundary_text(text), self._capitalized_words(text)):
                 return None
         return result
 

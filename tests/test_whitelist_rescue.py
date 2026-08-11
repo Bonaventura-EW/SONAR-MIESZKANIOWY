@@ -121,3 +121,33 @@ class TestGraniceZdan:
         text = 'Kawalerka | Śródmieście | Narutowicza. Mieszkanie do wynajęcia'
         result = parser.extract_address(text)
         assert result and result['full'] == 'Narutowicza'
+
+
+class TestWielkoscLiter:
+    """Nazwa-przymiotnik pisana małą literą to zwykłe słowo, nie ulica.
+
+    Rzeczowników opisujących mieszkanie nie da się wyliczyć w całości („nowe
+    **wyposażenie**", „przy spokojnej **ulicy**", „spokojna, pracująca **para**"),
+    więc dla nazw z `_ADJECTIVE_STREETS` decyduje też wielkość liter. Wymóg NIE
+    obowiązuje pozostałych nazw — zmierzono, że zabiera pinezkę realnym adresom
+    pisanym małą literą („mieszkanie na wynajem unicka").
+    """
+
+    @pytest.mark.parametrize("text", [
+        'W kuchni znajduje się nowe wyposażenie, mieszkanie po remoncie',
+        'Lokal znajduje się przy spokojnej ulicy, w pobliżu kawiarnie',
+        'Mile widziana spokojna, pracująca para bądź studenci',
+        'Mieszkanie w spokojnej części Lublina, cena najmu 3700 zł',
+    ])
+    def test_mala_litera_to_zwykle_slowo(self, parser, text):
+        assert parser.extract_address(text) is None
+
+    def test_wielka_litera_zostaje_adresem(self, parser):
+        """Ten sam wyraz zapisany jak nazwa własna nadal jest ulicą."""
+        text = 'Mieszkanie w kamienicy, ścisłe centrum, ulica Spokojna, budynek z kamerami'
+        result = parser.extract_address(text)
+        assert result and result['full'] == 'Spokojna'
+
+    def test_nazwa_spoza_listy_przymiotnikow_przezywa_mala_litere(self, parser):
+        """„unicka" nie jest przymiotnikiem — wielkość liter jej nie dotyczy."""
+        assert _rescue(parser, 'Mieszkanie na wynajem unicka', {'unicka'}) == 'Unicka'
