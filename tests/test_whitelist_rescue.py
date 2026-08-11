@@ -83,3 +83,41 @@ class TestRegulaPrzymiotnikowa:
         """„w cichej i zielonej okolicy" — rzeczownik nie stoi tuż obok."""
         assert _rescue(parser, 'Mieszkanie w cichej i zielonej okolicy',
                        {'cicha', 'cichej'}) is None
+
+
+class TestFiltrWeWszystkichSciezkach:
+    """CLAUDE.md pkt 18: filtr musi obowiązywać we wszystkich czterech ścieżkach
+    `extract_address`. Pierwsza wersja poprawki siedziała tylko w ratunkowej —
+    i „Przytulna kawalerka 38 m²" dalej dostawała pinezkę, bo tę samą nazwę
+    wyciągała ścieżka główna (zmierzone na produkcji 2026-08-11)."""
+
+    def test_przymiotnik_odpada_takze_ze_sciezki_glownej(self, parser):
+        text = 'Przytulna kawalerka 38m2, centrum Lublina, blisko KUL i UMCS'
+        assert parser.extract_address(text) is None
+
+    def test_adres_z_numerem_jest_zwolniony(self, parser):
+        """„Przytulna 5" to adres, nie opis wnętrza — numer domu przebija regułę."""
+        result = parser.extract_address('Mieszkanie ul. Przytulna 5, 2 pokoje')
+        assert result and result['full'].startswith('Przytulna')
+
+    def test_prefiks_broni_adresu_w_sciezce_glownej(self, parser):
+        result = parser.extract_address('Mieszkanie przy ul. Cicha, cicha okolica')
+        assert result and result['full'] == 'Cicha'
+
+
+class TestGraniceZdan:
+    """Przecinek rozdziela wyliczankę przymiotników, kropka i kreska — zdania."""
+
+    def test_przecinek_nie_przerywa_wyliczanki(self, parser):
+        """„cicha, bezpieczna i monitorowana okolica" — rzeczownik jest czwarty."""
+        text = 'Mieszkanie w centrum, I piętro, cicha, bezpieczna i monitorowana okolica'
+        assert parser.extract_address(text) is None
+
+    def test_rzeczownik_tuz_za_przecinkiem(self, parser):
+        assert parser.extract_address('Okolica bardzo spokojna, mieszkanie ciepłe') is None
+
+    def test_kropka_przerywa_sasiedztwo(self, parser):
+        """Sklejka tytułu z opisem zostaje adresem — to nie przymiotnik."""
+        text = 'Kawalerka | Śródmieście | Narutowicza. Mieszkanie do wynajęcia'
+        result = parser.extract_address(text)
+        assert result and result['full'] == 'Narutowicza'

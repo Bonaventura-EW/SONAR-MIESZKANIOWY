@@ -362,11 +362,11 @@ class AddressParser:
         words_raw = normalized_raw.split()
         words_set_raw = set(words_raw)
 
-        # FIX 2026-08-10: druga wersja tekstu, w której interpunkcja zostawia ślad
-        # („¶"). Reguła przymiotnikowa musi widzieć granice zdań — w wariancie ze
-        # spacjami sklejka tytułu z opisem („… | Narutowicza. Mieszkanie 2 pokoje")
-        # udaje przymiotnik przed rzeczownikiem i kasuje realny adres.
-        boundary_raw = re.sub(r'[^\w\sśćłąęóżźńŚĆŁĄĘÓŻŹŃ]', ' ¶ ', text).lower()
+        # FIX 2026-08-10: druga wersja tekstu, w której twarda interpunkcja
+        # zostawia ślad („¶"). Reguła przymiotnikowa musi widzieć granice zdań —
+        # w wariancie ze spacjami sklejka tytułu z opisem („… | Narutowicza.
+        # Mieszkanie 2 pokoje") udaje przymiotnik przed rzeczownikiem.
+        boundary_raw = self._boundary_text(text)
 
         # Słowa zapisane w ogłoszeniu wielką literą — tylko one mogą być nazwą
         # ulicy na tej ścieżce (patrz `_filter_candidates`, reguła 3).
@@ -568,12 +568,13 @@ class AddressParser:
             before = text[max(0, match.start() - 14):match.start()]
             if cls._STREET_PREFIX_BEFORE.search(before):
                 continue
-            # Rzeczownik nie musi stać tuż obok: „w cichej i spokojnej okolicy"
-            # to nadal opis wnętrza, a nie adres. Przeskakujemy spójniki i kolejne
-            # przymiotniki (do trzech tokenów), ale zatrzymujemy się na „¶", czyli
-            # na kropce, kresce czy pionowej krysce — za granicą zdania stoi już
-            # inne zdanie, nie rzeczownik opisywany przez tę nazwę.
-            for token in text[match.end():].split()[:3]:
+            # Rzeczownik nie musi stać tuż obok: „cicha, bezpieczna
+            # i monitorowana okolica" to nadal opis wnętrza, a nie adres.
+            # Przeskakujemy spójniki i kolejne przymiotniki (do pięciu tokenów —
+            # tyle mieści najdłuższa wyliczanka zmierzona w bazie), ale
+            # zatrzymujemy się na „¶", czyli na twardej interpunkcji: za granicą
+            # zdania stoi już inna myśl, nie rzeczownik opisywany tą nazwą.
+            for token in text[match.end():].split()[:5]:
                 if cls._ADJECTIVE_NOUN.match(token):
                     return True
                 if token != 'i' and token != 'oraz' and not cls._ADJECTIVE_TAIL.search(token):
@@ -596,12 +597,42 @@ class AddressParser:
         return is_known_street(name)
 
     def extract_address(self, text: str) -> Optional[Dict[str, str]]:
+        """Wyciąga adres z tekstu (cztery ścieżki + wspólny filtr przymiotnikowy).
+
+        FIX 2026-08-10: filtr przymiotnikowy siedział najpierw tylko w ścieżce
+        ratunkowej (route 4) — i ogłoszenie „Przytulna kawalerka 38 m²" dalej
+        dostawało pinezkę, bo tę samą nazwę wyciągała ścieżka główna (route 1).
+        CLAUDE.md pkt 18: każdy filtr musi obowiązywać we WSZYSTKICH ścieżkach,
+        więc stoi tu, na wspólnym wyjściu. Adres z numerem domu jest zwolniony —
+        „Przytulna 5" to adres, nie opis wnętrza.
+        """
+        result = self._extract_address_routes(text)
+        if result and not result.get('number'):
+            street = (result.get('street') or result.get('full') or '').lower()
+            if street and self._is_adjective_use(street, self._boundary_text(text)):
+                return None
+        return result
+
+    @staticmethod
+    def _boundary_text(text: str) -> str:
+        """Tekst z zachowanymi granicami zdań: twarda interpunkcja → „¶".
+
+        Przecinek jest MIĘKKI (idzie na spację), bo rozdziela wyliczankę
+        przymiotników — „cicha, bezpieczna i monitorowana okolica" to nadal opis
+        wnętrza. Kropka, kreska czy pionowa kreska rozdzielają zdania: za nimi
+        stoi już inna myśl, więc rzeczownik zza takiej granicy nie opisuje
+        nazwy sprzed niej („… | Narutowicza. Mieszkanie do wynajęcia").
+        """
+        soft = text.replace(',', ' ')
+        return re.sub(r'[^\w\sśćłąęóżźńŚĆŁĄĘÓŻŹŃ]', ' ¶ ', soft).lower()
+
+    def _extract_address_routes(self, text: str) -> Optional[Dict[str, str]]:
         """
         Wyciąga adres z tekstu.
-        
+
         Args:
             text: Tekst do przeszukania (tytuł + opis)
-            
+
         Returns:
             Dict z kluczami: street, number, full lub None jeśli nie znaleziono
         """
