@@ -1,49 +1,80 @@
 {
   "system": "sonar",
   "version": "1.0.0",
-  "generatedAt": "2026-08-11T12:48:25.494557+02:00",
+  "generatedAt": "2026-08-11T16:36:36.879949+02:00",
   "status": {
-    "current": "operational",
+    "current": "degraded",
     "isHealthy": true,
-    "hasErrors": false,
-    "errorMessages": []
+    "hasErrors": true,
+    "errorMessages": [
+      "Scraper zwrócił 0 ofert (baza: 705 aktywnych) — prawdopodobna blokada OLX/Cloudflare. Dezaktywacja pominięta."
+    ]
   },
   "notification": {
-    "title": "✅ Skan 12:45 — brak zmian",
-    "body": "Skan zakończony, żadnych zmian w ofertach"
+    "title": "⚠️ Skan 16:36 — zakończony z ostrzeżeniami",
+    "body": "Scraper zwrócił 0 ofert (baza: 705 aktywnych) — prawdopodobna blokada OLX/Cloudflare. Dezaktywacja pominięta."
   },
   "lastScan": {
-    "id": "2026-08-11T12-45-10",
-    "timestamp": "2026-08-11T12:45:10.631523+02:00",
-    "endTimestamp": "2026-08-11T12:48:23.702437+02:00",
-    "durationSeconds": 193.07,
-    "durationFormatted": "3m 13s",
-    "uiStatus": "success",
+    "id": "2026-08-11T16-36-32",
+    "timestamp": "2026-08-11T16:36:32.087759+02:00",
+    "endTimestamp": "2026-08-11T16:36:34.956628+02:00",
+    "durationSeconds": 2.87,
+    "durationFormatted": "2s",
+    "uiStatus": "warning",
     "rawStatus": "completed",
-    "scanTimeFormatted": "12:45",
-    "failureReason": null,
+    "scanTimeFormatted": "16:36",
+    "failureReason": "Scraper zwrócił 0 ofert (baza: 705 aktywnych) — prawdopodobna blokada OLX/Cloudflare. Dezaktywacja pominięta.",
     "notification": {
-      "title": "✅ Skan 12:45 — brak zmian",
-      "body": "Skan zakończony, żadnych zmian w ofertach"
+      "title": "⚠️ Skan 16:36 — zakończony z ostrzeżeniami",
+      "body": "Scraper zwrócił 0 ofert (baza: 705 aktywnych) — prawdopodobna blokada OLX/Cloudflare. Dezaktywacja pominięta."
     },
     "offers": {
-      "found": 717,
-      "processed": 652,
+      "found": 0,
+      "processed": 0,
       "new": 0,
       "disappeared": 0,
-      "updated": 652,
+      "updated": 0,
       "active": 705,
       "inactive": 2342
     },
     "skipped": {
       "noAddress": 0,
       "noCoords": 0,
-      "duplicates": 65
+      "duplicates": 0
     },
-    "errors": [],
-    "hasErrors": false
+    "errors": [
+      {
+        "message": "Scraper zwrócił 0 ofert (baza: 705 aktywnych) — prawdopodobna blokada OLX/Cloudflare. Dezaktywacja pominięta.",
+        "timestamp": "2026-08-11T16:36:32.095218+02:00"
+      }
+    ],
+    "hasErrors": true
   },
   "recentScans": [
+    {
+      "id": "2026-08-11T16-36-32",
+      "scanTimeFormatted": "16:36",
+      "uiStatus": "warning",
+      "newOffers": 0,
+      "disappearedOffers": 0,
+      "hasErrors": true
+    },
+    {
+      "id": "2026-08-11T16-34-29",
+      "scanTimeFormatted": "16:34",
+      "uiStatus": "warning",
+      "newOffers": 0,
+      "disappearedOffers": 0,
+      "hasErrors": true
+    },
+    {
+      "id": "2026-08-11T16-32-26",
+      "scanTimeFormatted": "16:32",
+      "uiStatus": "warning",
+      "newOffers": 0,
+      "disappearedOffers": 0,
+      "hasErrors": true
+    },
     {
       "id": "2026-08-11T12-45-10",
       "scanTimeFormatted": "12:45",
@@ -67,30 +98,6 @@
       "newOffers": 0,
       "disappearedOffers": 1,
       "hasErrors": false
-    },
-    {
-      "id": "2026-08-11T12-00-13",
-      "scanTimeFormatted": "12:00",
-      "uiStatus": "warning",
-      "newOffers": 7,
-      "disappearedOffers": 0,
-      "hasErrors": true
-    },
-    {
-      "id": "2026-08-11T10-15-49",
-      "scanTimeFormatted": "10:15",
-      "uiStatus": "success",
-      "newOffers": 7,
-      "disappearedOffers": 4,
-      "hasErrors": false
-    },
-    {
-      "id": "2026-08-11T06-42-52",
-      "scanTimeFormatted": "06:42",
-      "uiStatus": "success",
-      "newOffers": 4,
-      "disappearedOffers": 4,
-      "hasErrors": false
     }
   ],
   "schedule": {
@@ -100,12 +107,12 @@
       "21:17"
     ],
     "timezone": "Europe/Warsaw",
-    "nextScanAt": "2026-08-11T15:17:00+02:00"
+    "nextScanAt": "2026-08-11T21:17:00+02:00"
   },
   "statistics": {
     "totalScans": 100,
     "successRate": 100.0,
-    "avgDurationSeconds": 142.45,
-    "avgOffersFound": 724.9
+    "avgDurationSeconds": 138.99,
+    "avgOffersFound": 701.5
   }
 }
