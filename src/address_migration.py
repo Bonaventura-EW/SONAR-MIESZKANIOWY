@@ -37,7 +37,7 @@ from address_parser import AddressParser
 from atomic_json import atomic_write_json
 
 # Wersja kontraktu parsera adresów. Bump = migracja przeliczy bazę raz jeszcze.
-ADDRESS_PARSER_VERSION = '2026-08-10'
+ADDRESS_PARSER_VERSION = '2026-08-11'
 
 # Ile ofert może maksymalnie zmienić adres, zanim uznamy to za awarię parsera.
 # (Na 2026-08-06: 127 z 1219 ofert z numerem, czyli 10,4% — próg ma spory zapas.)
