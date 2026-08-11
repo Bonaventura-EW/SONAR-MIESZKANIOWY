@@ -206,8 +206,21 @@ class ScanLogger:
                 'avg_offers_found': 0
             }
         
+        # FIX 2026-08-11: skan „completed" z błędem (np. blokada OLX — scraper
+        # zwrócił 0 ofert, dezaktywacja pominięta) NIE jest sukcesem. Wcześniej
+        # `status == 'completed'` liczyło takie skany jako udane, więc podczas
+        # blokady dashboard pokazywał „Sukces 100%" mimo serii zablokowanych
+        # skanów. Sukces = doszedł do końca I zero błędów.
+        def _is_success(scan):
+            return scan.get('status') == 'completed' and not scan.get('errors')
+
         total = len(history)
-        successful = sum(1 for s in history if s['status'] == 'completed')
+        successful = sum(1 for s in history if _is_success(s))
+        # „completed" z błędem — skan się nie wywalił, ale ma problem (ostrzeżenie).
+        warnings = sum(
+            1 for s in history
+            if s.get('status') == 'completed' and s.get('errors')
+        )
         failed = total - successful
         
         # Średni czas (tylko dla zakończonych)
@@ -221,6 +234,7 @@ class ScanLogger:
         return {
             'total_scans': total,
             'successful': successful,
+            'warnings': warnings,
             'failed': failed,
             'success_rate': (successful / total * 100) if total > 0 else 0,
             'avg_duration': round(avg_duration, 2),

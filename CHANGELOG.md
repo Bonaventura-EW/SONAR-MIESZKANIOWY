@@ -50,6 +50,30 @@ wybrane ulice — to rozjazd danych między Nominatim a Overpass, nie błąd par
 Ich naprawa wymagałaby własnego indeksu punktów adresowych z Overpass
 (`audit_map_placement.py` już te dane pobiera i cache'uje).
 
+### Naprawione (2026-08-11) — zablokowany skan nie udaje „Sukces" w monitoringu
+Od ~13:00 dnia 2026-08-11 OLX (przez CloudFront) zaczął zwracać `403 Request
+blocked` na requesty scrapera — kolejne skany (16:32/16:34/16:36 i
+22:05/22:07/22:10, po trzy próby `run_scan_with_retry`) pobierały **0 ofert**.
+Bezpiecznik przed masową dezaktywacją zadziałał poprawnie (nic nie
+zdezaktywowano, błąd trafił do `scan_history`), ale dashboard monitoringu i tak
+świecił się na zielono: kolumna „Status" czytała surowe `scan.status`
+(`completed`), a nie fakt, że skan ma wpis w `errors`. Kafelek „Sukces" i
+„Success Rate" liczyły blokadę jako sukces (100%).
+
+Teraz status jest **efektywny** — łączy `status` z obecnością błędów, spójnie z
+`uiStatus` w API mobilnym:
+- `docs/monitoring.html`: skan `completed` z błędem pokazuje **⚠️ Ostrzeżenie**
+  (amber), skan przerwany — **❌ Błąd** (czerwony); zielony „Sukces" tylko gdy
+  zero błędów. Tooltip błędów czyta `error.message` zamiast `[object Object]`.
+- `scan_logger.get_statistics`: `successful` = `completed` **i** zero błędów;
+  doszedł osobny licznik `warnings`. Success Rate spadł ze zmyślonych 100% na
+  realne 89% (11 zablokowanych skanów w historii).
+- `monitoring_generator`: punkt wykresu „success rate" liczy 100% tylko dla
+  skanu bez błędów.
+
+Diagnoza samej blokady (403 CloudFront) — osobny wątek: impersonacja TLS
+(`curl_cffi`) rozważana jako obejście fingerprintu, decyzja pending.
+
 ### Naprawione (2026-08-11) — wielkość liter rozstrzyga przy nazwach-przymiotnikach
 Audyt po skanie: „Przytulna" zeszła z mapy, ale zostało 13 aktywnych ofert
 z etykietą typu „Spokojna"/„Nowe" wziętą z **„nowe wyposażenie"**, **„przy

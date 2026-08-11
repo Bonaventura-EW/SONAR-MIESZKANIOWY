@@ -74,12 +74,16 @@ def generate_monitoring_data():
             })
 
         # Wykres success rate
+        # FIX 2026-08-11: „completed" z błędem (blokada OLX) to nie sukces —
+        # inaczej wykres świecił 100% podczas serii zablokowanych skanów.
         status = scan.get('status', 'unknown')
-        success_value = 100 if status == 'completed' else 0
+        has_errors = bool(scan.get('errors'))
+        success_value = 100 if (status == 'completed' and not has_errors) else 0
         chart_data['success_rate'].append({
             'timestamp': timestamp,
             'success': success_value,
-            'status': status
+            'status': status,
+            'hasErrors': has_errors,
         })
     
     # Posortuj wszystkie wykresy chronologicznie po timestamp
