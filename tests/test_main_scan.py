@@ -7,6 +7,7 @@ import pytest
 import pytz
 import requests
 
+import http_client
 from main import SonarMieszkaniowy
 
 TZ = pytz.timezone('Europe/Warsaw')
@@ -231,7 +232,9 @@ class TestVerifyCooldown:
             attempted.append(url)
             raise requests.RequestException('sieć zablokowana w teście')
 
-        monkeypatch.setattr(requests.Session, 'get', fake_get)
+        # Weryfikacja używa ImpersonatedSession (impersonacja TLS) — patchujemy ją,
+        # nie requests.Session. requests.RequestException nadal wpada w RequestError.
+        monkeypatch.setattr(http_client.ImpersonatedSession, 'get', fake_get)
         stats = agent._verify_inactive_offers(max_to_verify=50)
 
         assert stats['skipped_recently_verified'] == 1
@@ -245,7 +248,7 @@ class TestVerifyCooldown:
             status_code = 404
             text = ''
 
-        monkeypatch.setattr(requests.Session, 'get', lambda self, url, **kw: FakeResp())
+        monkeypatch.setattr(http_client.ImpersonatedSession, 'get', lambda self, url, **kw: FakeResp())
         stats = agent._verify_inactive_offers(max_to_verify=50)
 
         assert stats['confirmed_inactive'] == 1

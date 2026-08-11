@@ -4,7 +4,6 @@ Obsługuje paginację (wszystkie strony), opóźnienia anti-block
 WERSJA 2.0: Równoległe pobieranie szczegółów (ThreadPoolExecutor)
 """
 
-import requests
 from bs4 import BeautifulSoup
 import time
 import random
@@ -18,6 +17,10 @@ import threading
 
 # Stabilny identyfikator oferty (CID3-IDxxxx). Współdzielony z main.py.
 from cid import extract_cid
+
+# Impersonacja TLS (curl_cffi) z fallbackiem na requests — OLX/CloudFront
+# blokuje pythonowy fingerprint JA3 (403). Patrz http_client.py.
+import http_client
 
 
 class OLXScraper:
@@ -42,8 +45,10 @@ class OLXScraper:
         """
         self.delay_min, self.delay_max = delay_range
         self.max_workers = max_workers
-        self.session = requests.Session()
-        self.session.headers.update(self.HEADERS)
+        # FIX 2026-08-11: impersonacja TLS Chrome'a zamiast gołego requests —
+        # OLX/CloudFront zwracał 403 na pythonowy fingerprint JA3. Sesja jest
+        # per-wątek (curl_cffi nie jest thread-safe), więc bezpieczna w puli.
+        self.session = http_client.ImpersonatedSession(headers=self.HEADERS)
         
         # Per-thread rate limiter (Etap 3 z SONAR-POKOJOWY, 2026-05-15)
         # Wcześniej globalny self._lock + self._last_request_time powodował, że
@@ -130,7 +135,7 @@ class OLXScraper:
             response.raise_for_status()
             # Użyj response.text (automatycznie zdekodowany) zamiast response.content
             return BeautifulSoup(response.text, 'lxml')
-        except requests.RequestException as e:
+        except http_client.RequestError as e:
             print(f"❌ Błąd pobierania {url}: {e}")
             return None
     
@@ -379,7 +384,7 @@ class OLXScraper:
 
                             progress = (completed / total) * 100
                             print(f"\r   Postęp: [{completed}/{total}] {progress:.1f}%", end='', flush=True)
-                        except (requests.RequestException, AttributeError, TypeError) as e:
+                        except (*http_client.RequestError, AttributeError, TypeError) as e:
                             print(f"\n   ⚠️ Błąd pobierania: {e}")
                 
                 elapsed = time.time() - start_time

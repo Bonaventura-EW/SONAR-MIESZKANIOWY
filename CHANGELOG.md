@@ -71,8 +71,33 @@ Teraz status jest **efektywny** — łączy `status` z obecnością błędów, s
 - `monitoring_generator`: punkt wykresu „success rate" liczy 100% tylko dla
   skanu bez błędów.
 
-Diagnoza samej blokady (403 CloudFront) — osobny wątek: impersonacja TLS
-(`curl_cffi`) rozważana jako obejście fingerprintu, decyzja pending.
+Diagnoza samej blokady (403 CloudFront) i obejście — patrz wpis niżej
+(impersonacja TLS `curl_cffi`).
+
+### Zmienione (2026-08-11) — impersonacja TLS Chrome'a zamiast gołego requests
+Obejście blokady 403 z wpisu wyżej. `requests` wysyła charakterystyczny pythonowy
+fingerprint TLS (JA3), który WAF (CloudFront/AWS) potrafi odsiać przy IP
+datacenter — a tak właśnie egresuje GitHub Actions. Scraper i weryfikacja
+nieaktywnych ofert chodzą teraz przez `curl_cffi` z `impersonate="chrome"`
+(ClientHello nieodróżnialny od prawdziwego Chrome'a).
+
+- Nowy `src/http_client.py`: `ImpersonatedSession` — API zgodne z
+  `requests.Session` (`.headers`, `.get`, `.close`), pod spodem `curl_cffi`.
+  **Fallback**: brak `curl_cffi` (import) albo błąd na poziomie transportu →
+  spadamy na `requests`. Odpowiedź 403 to normalny wynik `.get()`, więc blokada
+  jest nadal wykrywana jako 0 ofert (bezpiecznik dezaktywacji bez zmian).
+- **Wątki**: Session `curl_cffi` nie jest thread-safe (jeden uchwyt curl), więc
+  każdy wątek puli scrapera dostaje własną sesję (`threading.local`).
+- `scraper.py` i `main._verify_inactive_offers` przełączone na `ImpersonatedSession`;
+  `except requests.RequestException` → `except http_client.RequestError` (krotka
+  wyjątków obu backendów). `curl_cffi==0.16.0` w `requirements.txt`.
+- Testy: `tests/test_http_client.py` (fallback, per-wątkowość, nagłówki);
+  dwa testy weryfikacji patchują teraz `ImpersonatedSession.get`.
+
+Weryfikacja skuteczności musi iść na produkcji (ręczny `workflow_dispatch`):
+egress tego środowiska deweloperskiego re-terminuje TLS, przez co impersowany
+handshake i tak pada i wpada w fallback — sprawdzianem jest `offers_found > 0`
+w skanie z Actions.
 
 ### Naprawione (2026-08-11) — wielkość liter rozstrzyga przy nazwach-przymiotnikach
 Audyt po skanie: „Przytulna" zeszła z mapy, ale zostało 13 aktywnych ofert

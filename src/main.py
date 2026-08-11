@@ -1298,9 +1298,9 @@ class SonarMieszkaniowy:
         Returns:
             Dict ze statystykami: {'verified': N, 'reactivated': N, 'confirmed_inactive': N, 'errors': N}
         """
-        import requests
+        import http_client
         from bs4 import BeautifulSoup
-        
+
         stats = {
             'verified': 0,
             'reactivated': 0,
@@ -1349,9 +1349,9 @@ class SonarMieszkaniowy:
         
         print(f"   🔍 Weryfikuję {len(to_verify)} nieaktywnych ofert (z {len(inactive_offers)} łącznie)...")
         
-        # Użyj sesji scrapera z odpowiednimi headerami
-        session = requests.Session()
-        session.headers.update({
+        # FIX 2026-08-11: ta sama impersonacja TLS co w scraperze — weryfikacja
+        # też uderza w OLX/CloudFront, więc goły requests dostawałby 403.
+        session = http_client.ImpersonatedSession(headers={
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language': 'pl-PL,pl;q=0.9,en;q=0.8'
@@ -1427,7 +1427,7 @@ class SonarMieszkaniowy:
                     stats['confirmed_inactive'] += 1
                     offer['verified_inactive_at'] = now
                     
-            except requests.RequestException as e:
+            except http_client.RequestError as e:
                 stats['errors'] += 1
             except Exception as e:
                 stats['errors'] += 1
