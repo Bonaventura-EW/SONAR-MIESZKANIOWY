@@ -37,7 +37,7 @@ from address_parser import AddressParser
 from atomic_json import atomic_write_json
 
 # Wersja kontraktu parsera adresów. Bump = migracja przeliczy bazę raz jeszcze.
-ADDRESS_PARSER_VERSION = '2026-08-11b'
+ADDRESS_PARSER_VERSION = '2026-08-11c'
 
 # Ile ofert może maksymalnie zmienić adres, zanim uznamy to za awarię parsera.
 # (Na 2026-08-06: 127 z 1219 ofert z numerem, czyli 10,4% — próg ma spory zapas.)
@@ -234,8 +234,14 @@ def drop_rejected_labels(offers: list, parser: AddressParser = None) -> dict:
         if parser.extract_address(description):
             stats['still_parsable'] += 1
             continue
+        # FIX 2026-08-11: ten sam test co w parserze, z KOMPLETEM przesłanek —
+        # bez zbioru słów pisanych wielką literą reguła przymiotnikowa działa tu
+        # słabiej niż w parserze i migracja przepuszcza etykiety, których świeże
+        # parsowanie już nie zwraca („Okolica jest bardzo spokojna i zielona").
         boundary = parser._boundary_text(description)
-        if is_street_name(old_label) and not parser._is_adjective_use(old_label.lower(), boundary):
+        capitalized = parser._capitalized_words(description)
+        if is_street_name(old_label) and not parser._is_adjective_use(
+                old_label.lower(), boundary, capitalized):
             stats['real_street'] += 1
             continue
 

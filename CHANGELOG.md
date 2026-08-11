@@ -151,6 +151,13 @@ Weryfikacja skuteczności musi iść na produkcji (ręczny `workflow_dispatch`):
 egress tego środowiska deweloperskiego re-terminuje TLS, przez co impersowany
 handshake i tak pada i wpada w fallback — sprawdzianem jest `offers_found > 0`
 w skanie z Actions.
+### Naprawione (2026-08-11) — migracja dostała komplet przesłanek parsera
+Skan po wdrożeniu reguły wielkości liter zdjął mniej etykiet, niż wynikało
+z pomiaru: migracja wołała `_is_adjective_use` **bez** zbioru słów pisanych
+wielką literą, więc jej test był słabszy niż ten w parserze i przepuszczała
+oferty typu „Okolica jest bardzo spokojna i zielona" (4 aktywne na produkcji).
+Teraz obie strony pytają o to samo. Sucha próba po poprawce: 16 ofert
+(4 aktywne, 12 nieaktywnych). `ADDRESS_PARSER_VERSION` → `2026-08-11c`.
 
 ### Naprawione (2026-08-11) — wielkość liter rozstrzyga przy nazwach-przymiotnikach
 Audyt po skanie: „Przytulna" zeszła z mapy, ale zostało 13 aktywnych ofert
