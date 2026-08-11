@@ -46,6 +46,19 @@ RELIABLE_START = date(2026, 5, 16)
 # ta lista łata historię sprzed 2026-08-09, gdzie długości przerw nie znamy.
 REACTIVATION_ARTIFACT_DAYS = frozenset({date(2026, 8, 5)})
 
+# Dni, w których „odpływ" (ile ofert zniknęło) to artefakt cyklu
+# blokada→odblokowanie OLX, nie obraz rynku.
+# 2026-08-11: od ~13:00 OLX/CloudFront zwracał 403 (blokada TLS-fingerprintu),
+# przez ~10 h dezaktywacja była wstrzymana (ochrona przed masową dezaktywacją).
+# Skan naprawczy o 22:45 (po wdrożeniu impersonacji curl_cffi) zdezaktywował
+# naraz 82 nagromadzone oferty, a krok weryfikacji nieaktywnych padł 50/50
+# (te same 403 na stronach ofert), więc nie odsiał fałszywych dezaktywacji.
+# Efekt: 98 zniknięć jednego dnia (norma 28–50), z czego 86 to świeże,
+# niezweryfikowane wpisy — sztuczny „rekord". Świeże dni bronią się przez
+# pomiar (przyszłe reaktywacje przesuną fałszywe poza 11.08), ale sam 11.08
+# ma zamrożony `last_seen`, więc maskujemy go na stałe — jak 2026-08-05 powroty.
+OUTFLOW_ARTIFACT_DAYS = frozenset({date(2026, 8, 11)})
+
 
 def _day_ms(d: date) -> int:
     """Epoch (ms) dla południa danego dnia — punkt ląduje w środku dnia na osi."""
@@ -184,7 +197,9 @@ def build_outflow(offers):
         if d and d >= start:
             dep[d] = dep.get(d, 0) + 1
 
-    return _flow_metric(dep, days)
+    # Dni-artefakty (blokada→odblokowanie) idą do serii jako None: przerwa na
+    # wykresie zamiast sztucznego rekordu, i bez wpływu na średnią oraz „rekord".
+    return _flow_metric(dep, days, skip_days=OUTFLOW_ARTIFACT_DAYS)
 
 
 def measured_from(offers):

@@ -16,6 +16,18 @@ except ImportError:  # pragma: no cover - fallback gdy paths niedostępne
     _DEFAULT_LOG = "../data/scan_history.json"
 
 
+def is_block_scan(scan: Dict) -> bool:
+    """Skan zablokowany przez OLX: 0 pobranych ofert + zalogowany błąd blokady.
+
+    Taki skan nic nie zmierzył (0 ofert, ~2 s zamiast ~135 s) — bezpiecznik
+    przed masową dezaktywacją zadziałał, a scraper dostał 403. Nie liczymy go
+    do średnich ani nie rysujemy jako realnego punktu na wykresach monitoringu,
+    bo serią blokad zaniżyłby i „średni czas", i „średnią ofert".
+    """
+    stats = scan.get('stats') or {}
+    return stats.get('raw_offers', 0) == 0 and bool(scan.get('errors'))
+
+
 class ScanLogger:
     def __init__(self, log_file: str = _DEFAULT_LOG):
         self.log_file = Path(log_file)
@@ -223,12 +235,17 @@ class ScanLogger:
         )
         failed = total - successful
         
-        # Średni czas (tylko dla zakończonych)
-        durations = [s.get('total_duration', 0) for s in history if 'total_duration' in s]
+        # FIX 2026-08-11: średnie liczymy z realnych skanów — bez zablokowanych
+        # (0 ofert / ~2 s), inaczej seria blokad OLX zaniża i „średni czas",
+        # i „średnią ofert" (sztuczny dołek na dashboardzie).
+        real = [s for s in history if not is_block_scan(s)]
+
+        # Średni czas (tylko dla zakończonych, realnych skanów)
+        durations = [s.get('total_duration', 0) for s in real if 'total_duration' in s]
         avg_duration = sum(durations) / len(durations) if durations else 0
-        
-        # Średnia liczba ofert
-        offers_counts = [s['stats'].get('raw_offers', 0) for s in history if 'stats' in s]
+
+        # Średnia liczba ofert (bez zablokowanych skanów)
+        offers_counts = [s['stats'].get('raw_offers', 0) for s in real if 'stats' in s]
         avg_offers = sum(offers_counts) / len(offers_counts) if offers_counts else 0
         
         return {

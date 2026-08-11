@@ -89,6 +89,25 @@ def test_outflow_counts_only_inactive_on_last_seen_day():
     assert out['rate'] == round(3 / 3, 1)             # 3 dni w oknie
 
 
+def test_outflow_skips_block_recovery_artifact_day():
+    """Dzień blokada→odblokowanie (OUTFLOW_ARTIFACT_DAYS) to zrzut nagromadzonych
+    dezaktywacji, nie realny odpływ — idzie do serii jako None i nie zawyża ani
+    średniej, ani rekordu (inaczej „rekord 98" zamiast realnych ~50)."""
+    art = sorted(gen.OUTFLOW_ARTIFACT_DAYS)[0]        # 2026-08-11
+    art_iso = art.isoformat()
+    offers = (
+        [_offer('2026-05-16', '2026-08-04')] * 2 +    # realny odpływ 04.08
+        [_offer('2026-05-16', art_iso)] * 50 +        # zrzut w dniu-artefakcie
+        [_offer('2026-05-16', art_iso, True)]         # aktywna → oś sięga art
+    )
+    out = gen.build_outflow(offers)
+    daily = _by_day(out['daily'])
+    assert daily[art] is None                          # dzień-artefakt zamaskowany
+    assert daily[date(2026, 8, 4)] == 2
+    assert out['max_day'] == 2                          # rekord = realny dzień, nie 50
+    assert out['total'] == 2                            # 50 z artefaktu poza sumą
+
+
 def test_outflow_moving_average_is_trailing_7d():
     offers = (
         [_offer('2026-05-16', '2026-05-16')] * 7 +

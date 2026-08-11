@@ -10,6 +10,27 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Naprawione (2026-08-11) — artefakty na wykresach po cyklu blokada→odblokowanie
+Po odblokowaniu OLX (impersonacja curl_cffi) skan naprawczy zdezaktywował naraz
+82 oferty nagromadzone przez ~10 h blokady, a krok weryfikacji nieaktywnych padł
+50/50 (te same 403 na stronach ofert), więc nie odsiał fałszywych dezaktywacji.
+To wykrzywiło wykresy — poprawione:
+
+- **`trend_generator` — „Odpływ ofert"**: 11.08 pokazywał **98 zniknięć**
+  (norma 28–50), z czego 86 to świeże niezweryfikowane wpisy. Nowy
+  `OUTFLOW_ARTIFACT_DAYS = {2026-08-11}` maskuje ten dzień jako `None` (jak
+  `REACTIVATION_ARTIFACT_DAYS` dla powrotów) — rekord wrócił do realnych
+  **50 (04.08)**, średnia z 24,8 na 23,9/dzień.
+- **`monitoring` — „Oferty w czasie" i „Czas skanu"**: 6 zablokowanych skanów
+  (0 ofert / ~2,5 s) szło jako realne zera/dołki. Nowy `scan_logger.is_block_scan`
+  wykrywa je (0 ofert + wpis w `errors`); w wykresach idą jako `None` (przerwa),
+  a średnie (`avg_offers_found`, `avg_duration`) liczą się bez nich —
+  realniej: 677→**729** ofert, 135→**146 s**.
+
+Napływ 11.08 (46) świadomie zostawiony — mieści się w normie (07.08 = 50).
+Znany, otwarty wątek: weryfikacja nieaktywnych dostaje 403 na stronach ofert
+(prawdopodobnie limit po IP datacenter w ogonie skanu) — do obserwacji.
+
 ### Podsumowanie rundy „jakość pinezek" (2026-08-06 → 2026-08-09)
 Punktem wyjścia był audyt umieszczenia pinezek na mapie. Poniższe wpisy opisują
 kolejne poprawki osobno; tu jest całość w jednym miejscu, razem z liczbami przed

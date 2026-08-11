@@ -4,7 +4,7 @@ Monitoring Data Generator - przygotowuje dane dla dashboardu monitoringu
 
 import json
 from pathlib import Path
-from scan_logger import ScanLogger
+from scan_logger import ScanLogger, is_block_scan
 import paths
 
 
@@ -32,27 +32,32 @@ def generate_monitoring_data():
     for scan in reversed(recent_scans):  # Odwróć na chronologiczną kolejność
         timestamp = scan.get('timestamp', '')
         performance = scan.get('performance', {})
-        
+
+        # FIX 2026-08-11: skan zablokowany przez OLX (0 ofert, ~2 s) nic nie
+        # zmierzył — jego wartości idą jako None, żeby wykres pokazał w tym
+        # miejscu przerwę zamiast fałszywego zejścia do zera / dołka czasu.
+        blocked = is_block_scan(scan)
+
         # Wykres czasu wykonania + metryki wydajności
         if 'total_duration' in scan:
             chart_data['duration_over_time'].append({
                 'timestamp': timestamp,
-                'duration': scan['total_duration'],
-                'offers_per_second': performance.get('offers_per_second', 0),
-                'scraping_per_page': performance.get('scraping_per_page', 0),
-                'geocoding_duration': performance.get('geocoding_duration', 0),
-                'geocoding_per_address': performance.get('geocoding_per_address', 0)
+                'duration': None if blocked else scan['total_duration'],
+                'offers_per_second': None if blocked else performance.get('offers_per_second', 0),
+                'scraping_per_page': None if blocked else performance.get('scraping_per_page', 0),
+                'geocoding_duration': None if blocked else performance.get('geocoding_duration', 0),
+                'geocoding_per_address': None if blocked else performance.get('geocoding_per_address', 0)
             })
-        
+
         # Wykres liczby ofert
         if 'stats' in scan:
             chart_data['offers_over_time'].append({
                 'timestamp': timestamp,
-                'raw_offers': scan['stats'].get('raw_offers', 0),
-                'processed': scan['stats'].get('processed', 0),
-                'new': scan['stats'].get('new', 0),
-                'disappeared': scan['stats'].get('disappeared'),  # None gdy stary skan
-                'confirmed_inactive': (scan['stats'].get('verification') or {}).get('confirmed_inactive')
+                'raw_offers': None if blocked else scan['stats'].get('raw_offers', 0),
+                'processed': None if blocked else scan['stats'].get('processed', 0),
+                'new': None if blocked else scan['stats'].get('new', 0),
+                'disappeared': None if blocked else scan['stats'].get('disappeared'),  # None gdy stary skan
+                'confirmed_inactive': None if blocked else (scan['stats'].get('verification') or {}).get('confirmed_inactive')
             })
         
         # Wykres jakości mapy — tylko skany, które tę metrykę zapisały
