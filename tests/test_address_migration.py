@@ -10,7 +10,8 @@ import json
 import pytest
 
 from address_migration import (ADDRESS_PARSER_VERSION, MAX_RETRACTION_RATIO,
-                               MIN_OFFERS_FOR_RATIO_GUARD, retract_fake_numbers)
+                               MIN_OFFERS_FOR_RATIO_GUARD, drop_rejected_labels,
+                               retract_fake_numbers)
 from main import SonarMieszkaniowy
 
 # Opis, z którego stary parser zrobił „Zana 2" (numer to liczba pokoi)
@@ -131,3 +132,50 @@ class TestScanIntegration:
         errors = agent.scan_logger.current_scan['errors']
         assert errors, "Zablokowana migracja ma trafić do błędów skanu (⚠️ w monitoringu)"
         assert 'parser' in errors[0]['message'].lower()
+
+
+class TestDropRejectedLabels:
+    """FIX 2026-08-10: etykieta, której parser już nie uznaje za adres, schodzi
+    z mapy także ofertom siedzącym w bazie. `_update_existing_offer` umie adres
+    tylko poprawić, a ofert nieaktywnych scraper w ogóle nie odwiedza.
+    """
+
+    JUNK_TEXT = 'Wynajmę mieszkanie, wolne miejsca parkingowe w garażu podziemnym'
+    ADJECTIVE_TEXT = 'Do wynajęcia przytulna kawalerka, blisko uczelni, umeblowana'
+    REAL_TEXT = 'Do wynajęcia mieszkanie przy ul. Lipowa 10 w Lublinie'
+
+    def test_zdejmuje_smieciowa_etykiete(self):
+        offers = [_offer('Wolne', 'Wolne', None, self.JUNK_TEXT,
+                         coords={'lat': 51.24, 'lon': 22.53})]
+        result = drop_rejected_labels(offers)
+
+        assert result['to_fix'] == 1
+        assert offers[0]['address']['full'] == ''
+        assert offers[0]['address']['precision'] == 'none'
+
+    def test_zdejmuje_przymiotnik_bedacy_nazwa_ulicy(self):
+        """„Przytulna" to realna ulica Lublina — o odrzuceniu decyduje kontekst."""
+        offers = [_offer('Przytulna', 'Przytulna', None, self.ADJECTIVE_TEXT)]
+        assert drop_rejected_labels(offers)['to_fix'] == 1
+        assert offers[0]['address']['full'] == ''
+
+    def test_nie_rusza_adresu_ktory_parser_nadal_widzi(self):
+        offers = [_offer('Lipowa 10', 'Lipowa', '10', self.REAL_TEXT, active=True)]
+        assert drop_rejected_labels(offers)['to_fix'] == 0
+        assert offers[0]['address']['full'] == 'Lipowa 10'
+
+    def test_nie_rusza_realnej_ulicy_bez_kontekstu_przymiotnikowego(self):
+        """Opis bez adresu, ale etykieta to realna ulica z innego źródła
+        (np. z tytułu, którego stare oferty nie mają w bazie) — zostaje."""
+        offers = [_offer('Narutowicza', 'Narutowicza', None,
+                         'Mieszkanie dwupokojowe, umeblowane, od zaraz')]
+        assert drop_rejected_labels(offers)['to_fix'] == 0
+        assert offers[0]['address']['full'] == 'Narutowicza'
+
+    def test_bezpiecznik_blokuje_masowe_czyszczenie(self):
+        offers = [_offer(f'Wolne{i}', f'Wolne{i}', None, self.JUNK_TEXT)
+                  for i in range(MIN_OFFERS_FOR_RATIO_GUARD + 5)]
+        result = drop_rejected_labels(offers)
+
+        assert result['blocked'] and 'awarię parsera' in result['blocked']
+        assert all(o['address']['full'].startswith('Wolne') for o in offers)

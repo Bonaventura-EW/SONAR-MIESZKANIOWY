@@ -27,6 +27,7 @@ W skanie migracja odpala się sama raz, po zmianie `ADDRESS_PARSER_VERSION`.
 """
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -36,7 +37,7 @@ from address_parser import AddressParser
 from atomic_json import atomic_write_json
 
 # Wersja kontraktu parsera adresów. Bump = migracja przeliczy bazę raz jeszcze.
-ADDRESS_PARSER_VERSION = '2026-08-08'
+ADDRESS_PARSER_VERSION = '2026-08-10'
 
 # Ile ofert może maksymalnie zmienić adres, zanim uznamy to za awarię parsera.
 # (Na 2026-08-06: 127 z 1219 ofert z numerem, czyli 10,4% — próg ma spory zapas.)
@@ -189,6 +190,81 @@ def upgrade_junk_streets(offers: list, parser: AddressParser = None, geocoding_c
                     for o, a in planned],
         **stats,
     }
+    for offer, new_address in planned:
+        offer['address'] = new_address
+    return result
+
+
+def drop_rejected_labels(offers: list, parser: AddressParser = None) -> dict:
+    """Zdejmuje etykiety, których parser już nie uznaje za adres (in-place).
+
+    FIX 2026-08-10: ścieżka ratunkowa (route 4) dostała dwa filtry — kandydat musi
+    być realną ulicą z OSM i nie może być przymiotnikiem opisującym mieszkanie
+    („przytulna kawalerka", „spokojna okolica"). Nowe parsowania są już czyste, ale
+    oferty **w bazie** zostałyby ze starą etykietą na zawsze: `_update_existing_offer`
+    umie adres tylko poprawić, nigdy skasować, a ofert nieaktywnych scraper nie
+    odwiedza. Zmierzone 2026-08-10: 82 oferty (23 aktywne) z etykietą typu „Wolne",
+    „Miejsca", „Piętro", „Przytulna", „Spokojnej".
+
+    Warunki są wąskie, żeby migracja nie zabrała realnego adresu:
+      - świeże parsowanie zapisanego opisu NIE daje żadnego adresu (gdyby dawało,
+        oferta jest w rękach zwykłej ścieżki aktualizacji),
+      - stara etykieta jest śmieciem (`is_street_name` mówi „to nie ulica")
+        ALBO stoi w opisie jako przymiotnik (ten sam test, co w parserze).
+
+    Ofertom nie kasujemy współrzędnych — zeruje je precyzja 'none', czyli warstwa
+    „bez lokacji"; punkt zostaje w rekordzie, gdyby ktoś chciał wrócić do decyzji.
+    """
+    from street_whitelist import is_street_name
+
+    parser = parser or AddressParser()
+    planned = []
+    considered = 0
+    stats = {'still_parsable': 0, 'real_street': 0}
+
+    for offer in offers:
+        address = offer.get('address')
+        if not isinstance(address, dict):
+            continue
+        old_label = (address.get('street') or address.get('full') or '').strip()
+        if not old_label:
+            continue
+        considered += 1
+        description = offer.get('description') or ''
+        if parser.extract_address(description):
+            stats['still_parsable'] += 1
+            continue
+        boundary = re.sub(r'[^\w\sśćłąęóżźńŚĆŁĄĘÓŻŹŃ]', ' ¶ ', description).lower()
+        if is_street_name(old_label) and not parser._is_adjective_use(old_label.lower(), boundary):
+            stats['real_street'] += 1
+            continue
+
+        new_address = dict(address)
+        new_address.update({
+            'full': '', 'street': '', 'number': None,
+            'has_number': False, 'precision': 'none',
+        })
+        planned.append((offer, new_address))
+
+    result = {
+        'considered': considered,
+        'to_fix': len(planned),
+        'active_to_fix': sum(1 for o, _ in planned if o.get('active')),
+        'inactive_to_fix': sum(1 for o, _ in planned if not o.get('active')),
+        'changes': [((o.get('address') or {}).get('full'), '', bool(o.get('active')))
+                    for o, _ in planned],
+        'blocked': None,
+        **stats,
+    }
+
+    if considered >= MIN_OFFERS_FOR_RATIO_GUARD and len(planned) > considered * MAX_RETRACTION_RATIO:
+        result['blocked'] = (
+            f"Migracja chciała zdjąć adres z {len(planned)} z {considered} ofert "
+            f"({len(planned) / considered * 100:.0f}%, próg: {MAX_RETRACTION_RATIO * 100:.0f}%) — "
+            f"to wygląda na awarię parsera, nie na porządki. Nic nie zmieniono."
+        )
+        return result
+
     for offer, new_address in planned:
         offer['address'] = new_address
     return result

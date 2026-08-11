@@ -30,10 +30,16 @@ def parser():
 
 def test_corpus_nie_gubi_adresow(parser):
     """Żaden adres z korpusu nie może zniknąć — to gwarancja, że zmiana parsera
-    nie zacznie wycinać ofert ze strony."""
+    nie zacznie wycinać ofert ze strony.
+
+    Wyjątek: przypadki z pustym `full` to opisy, dla których poprawną odpowiedzią
+    jest BRAK adresu (etykiety-śmieci wycięte 2026-08-10: „Słoneczne", „Botanik",
+    „Akademicki"). Tych parser ma nadal nie rozpoznawać — pilnuje tego
+    `test_corpus_nie_zmienia_adresow`, który porówna wynik z pustą wartością.
+    """
     lost = []
     for case in CORPUS['cases']:
-        if parser.extract_address(case['text']) is None:
+        if case['full'] and parser.extract_address(case['text']) is None:
             lost.append((case['id'], case['full']))
     assert not lost, f"Parser przestał rozpoznawać adres w {len(lost)} ofertach: {lost[:5]}"
 

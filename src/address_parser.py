@@ -361,10 +361,22 @@ class AddressParser:
         normalized_raw = re.sub(r'[^\w\sśćłąęóżźńŚĆŁĄĘÓŻŹŃ]', ' ', text).lower()
         words_raw = normalized_raw.split()
         words_set_raw = set(words_raw)
-        
+
+        # FIX 2026-08-10: druga wersja tekstu, w której interpunkcja zostawia ślad
+        # („¶"). Reguła przymiotnikowa musi widzieć granice zdań — w wariancie ze
+        # spacjami sklejka tytułu z opisem („… | Narutowicza. Mieszkanie 2 pokoje")
+        # udaje przymiotnik przed rzeczownikiem i kasuje realny adres.
+        boundary_raw = re.sub(r'[^\w\sśćłąęóżźńŚĆŁĄĘÓŻŹŃ]', ' ¶ ', text).lower()
+
+        # Słowa zapisane w ogłoszeniu wielką literą — tylko one mogą być nazwą
+        # ulicy na tej ścieżce (patrz `_filter_candidates`, reguła 3).
+        capitalized_raw = {w.lower() for w in re.findall(r'\w+', text) if w[:1].isupper()}
+
         # === KROK 1: EXACT MATCH (bez transformacji) ===
         # Najczęstszy przypadek: cache i tekst mają tę samą formę nazwy.
-        candidates = self._find_in_text(words_set_raw, normalized_raw)
+        candidates = self._filter_candidates(
+            self._find_in_text(words_set_raw, normalized_raw), boundary_raw,
+            capitalized_raw)
         
         # === KROK 2: NOMINATIVE MATCH (z transformacją do mianownika) ===
         # Jeśli exact nic nie znalazł, próbujemy z mianownikiem ('Lipowej' → 'Lipowa').
@@ -384,9 +396,20 @@ class AddressParser:
             
             normalized_nom = ' '.join(nominative_words)
             words_set_nom = set(nominative_words)
-            
-            candidates = self._find_in_text(words_set_nom, normalized_nom)
-        
+
+            # Ta sama transformacja na wariancie z granicami zdań — „¶" nie jest
+            # słowem, więc przechodzi przez to_nominative nietknięte.
+            boundary_nom = ' '.join(
+                to_nominative(w).lower() if len(w) >= 4 and w[0].isalpha() else w
+                for w in boundary_raw.split())
+
+            capitalized_nom = {to_nominative(w).lower() if len(w) >= 4 else w
+                               for w in capitalized_raw}
+
+            candidates = self._filter_candidates(
+                self._find_in_text(words_set_nom, normalized_nom), boundary_nom,
+                capitalized_nom)
+
         if not candidates:
             return None
         
@@ -433,6 +456,130 @@ class AddressParser:
                     candidates.append((street_lower, len(street_lower), match.start()))
         return candidates
     
+    # Rzeczowniki, które w ogłoszeniu stoją po PRZYMIOTNIKU, nie po nazwie ulicy:
+    # „przytulna kawalerka", „spokojna okolica", „słoneczne mieszkanie". Nazwy ulic
+    # Lublina to w dużej części zwykłe przymiotniki (Przytulna, Spokojna, Cicha,
+    # Słoneczna), więc bez tego rozróżnienia ścieżka ratunkowa stawia pinezkę
+    # na opisie wnętrza.
+    _ADJECTIVE_NOUN = re.compile(
+        r'^(kawalerk|mieszkan|garsonier|apartament|pokoj|pokój|studio|lokal|'
+        r'okolic|dzielnic|sypialni|kuchni|łazienk|przestrze|miejsc|nieruchomo)',
+        re.IGNORECASE)
+
+    # Końcówki polskich przymiotników — token, przez który wolno przeskoczyć
+    # w drodze do rzeczownika („cichej **i zielonej** okolicy").
+    _ADJECTIVE_TAIL = re.compile(r'(a|e|ej|ą|y|i|ym|im|ych|ich)$', re.IGNORECASE)
+
+    # Jawny prefiks ulicy tuż przed nazwą — dowód, że to jednak adres.
+    _STREET_PREFIX_BEFORE = re.compile(
+        r'\b(ul|ulic\w*|al|alej\w*|os|osiedl\w*|pl|plac\w*)\s*$', re.IGNORECASE)
+
+    # Nazwy ulic Lublina, które są zarazem zwykłymi przymiotnikami z ogłoszeń.
+    # Tylko dla nich włącza się reguła przymiotnikowa. Dla nazwisk w dopełniaczu
+    # („Narutowicza Mieszkanie", „Filaretów Apartament") sąsiedztwo rzeczownika
+    # nic nie znaczy — to sklejka tytułu z opisem, a reguła skasowałaby realne
+    # adresy (zmierzone 2026-08-10: 12 takich ofert w bazie).
+    _ADJECTIVE_STREETS = {
+        'przytulna', 'przytulne', 'przytulny',
+        'spokojna', 'spokojne', 'spokojnej',
+        'cicha', 'ciche', 'cichej',
+        'słoneczna', 'słoneczne', 'słonecznej',
+        'zielona', 'zielone', 'wesoła', 'wesołe',
+        'jasna', 'jasne', 'nowa', 'nowe', 'dobra', 'ciepła',
+    }
+
+    def _filter_candidates(self, candidates: list, text: str,
+                           capitalized: set = None) -> list:
+        """FIX 2026-08-10: przycina kandydatów ścieżki ratunkowej (route 4).
+
+        Dwie reguły, obie mierzone na całej bazie przed wdrożeniem:
+
+        1. **Kandydat musi być realną ulicą Lublina z OSM.** `_known_streets`
+           powstaje z kluczy `geocoding_cache.json`, a cache uczy się wszystkiego,
+           co raz udało się zgeokodować — łącznie z naszymi własnymi pomyłkami
+           („Wolne", „Miejsca", „Piętro", „Stokrotka"). Bez tego filtra śmieć raz
+           wpuszczony do cache'u uwiarygadnia kolejne takie parsowania (pętla
+           sprzężenia zwrotnego opisana w `clean_geocoding_cache.py`).
+        2. **Nazwa użyta przymiotnikowo nie jest adresem.** Odrzucamy kandydata
+           z `_ADJECTIVE_STREETS`, który stoi bezpośrednio przed rzeczownikiem
+           mieszkaniowym, o ile nigdzie w tekście nie pojawia się z prefiksem
+           „ul./al./os.". Prefiks gdziekolwiek w treści broni realny adres
+           („ul. Cicha, mieszkanie z ogródkiem" zostaje).
+
+        3. **Nazwa musi być w ogłoszeniu napisana z wielkiej litery** (`capitalized`).
+           Ulice ogłoszeniodawcy piszą wielką literą („Chodźki", „Agatowa",
+           „Rubinowa"), a to, co route 4 zgaduje ze zdania, jest małą literą:
+           „wolne od lipca" → ul. Lipca, „nowe AGD" → ul. Nowe, „widok na miasto"
+           → ul. Widok. Bez tej reguły odsianie jednego śmiecia tylko przesuwało
+           pinezkę na następny (zmierzone: 37 z 62 podmian).
+
+        `text` musi być wersją z ZACHOWANYMI granicami zdań (interpunkcja jako
+        „¶"): w tekście z interpunkcją zamienioną na spacje sklejka tytułu
+        z opisem („… | Narutowicza. Mieszkanie do wynajęcia") wygląda jak
+        przymiotnik przed rzeczownikiem.
+
+        Filtrujemy KANDYDATÓW, nie zwycięzcę: dzięki temu śmieć nie tylko
+        odpada, ale też przestaje wygrywać z realną ulicą wymienioną obok.
+        """
+        kept = []
+        for candidate in candidates:
+            name = candidate[0]
+            if not self._is_whitelisted_street(name):
+                continue
+            if capitalized is not None and not self._capitalization_ok(name, text, capitalized):
+                continue
+            if self._is_adjective_use(name, text):
+                continue
+            kept.append(candidate)
+        return kept
+
+    @staticmethod
+    def _capitalization_ok(name: str, text: str, capitalized: set) -> bool:
+        """Wymóg wielkiej litery — ZMIERZONY I NIEWŁĄCZONY, zostaje wyłączony.
+
+        Pomysł był taki: skoro ogłoszeniodawcy piszą ulice wielką literą, a to,
+        co route 4 zgaduje ze zdania, jest małą („wolne od lipca" → ul. Lipca,
+        „nowe AGD" → ul. Nowe, „widok na miasto" → ul. Widok), to wielkość liter
+        odsieje resztę śmieci. Zmierzone na całej bazie 2026-08-10: kasuje 37
+        z 62 podmian śmieć→śmieć, ale **zabiera pinezkę realnym adresom** pisanym
+        małą literą („mieszkanie na wynajem unicka", „wynajmę mieszkanie
+        wędrowna", „miasteczko akademickie weteranów 19") — łącznie ~9 ofert,
+        a wyjątki na prefiks i numer domu łatały to tylko częściowo.
+        CLAUDE.md pkt 17 dopuszcza wyłącznie przejścia, w których realna ulica
+        NIE traci pinezki, więc reguła zostaje wyłączona do czasu, aż odróżnimy
+        pospolite słowo od nazwy ulicy inaczej niż wielkością liter (kandydat:
+        częstość słowa pisanego małą literą w całym korpusie ogłoszeń).
+        """
+        return True
+
+    @classmethod
+    def _is_adjective_use(cls, name: str, text: str) -> bool:
+        """Czy nazwa pełni w tekście rolę przymiotnika, a nie nazwy ulicy."""
+        if name.lower() not in cls._ADJECTIVE_STREETS:
+            return False
+        # W tekście z granicami zdań kropka po skrócie jest już jako „¶"
+        # („ul. Cicha" → „ul ¶ cicha”), więc separator musi ją przepuścić.
+        prefixed = re.search(
+            r'\b(ul|ulic\w*|al|alej\w*|os|osiedl\w*|pl|plac\w*)[\s¶]+'
+            + re.escape(name), text, re.IGNORECASE)
+        if prefixed:
+            return False                      # jawny adres gdziekolwiek w treści
+        for match in re.finditer(re.escape(name) + r'\w*(?=\s|$)', text, re.IGNORECASE):
+            before = text[max(0, match.start() - 14):match.start()]
+            if cls._STREET_PREFIX_BEFORE.search(before):
+                continue
+            # Rzeczownik nie musi stać tuż obok: „w cichej i spokojnej okolicy"
+            # to nadal opis wnętrza, a nie adres. Przeskakujemy spójniki i kolejne
+            # przymiotniki (do trzech tokenów), ale zatrzymujemy się na „¶", czyli
+            # na kropce, kresce czy pionowej krysce — za granicą zdania stoi już
+            # inne zdanie, nie rzeczownik opisywany przez tę nazwę.
+            for token in text[match.end():].split()[:3]:
+                if cls._ADJECTIVE_NOUN.match(token):
+                    return True
+                if token != 'i' and token != 'oraz' and not cls._ADJECTIVE_TAIL.search(token):
+                    break
+        return False
+
     @staticmethod
     def _is_whitelisted_street(name: str) -> bool:
         """Czy nazwa odpowiada realnej ulicy/osiedlu Lublina (snapshot OSM).

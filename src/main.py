@@ -22,8 +22,8 @@ from duplicate_detector import DuplicateDetector
 from scan_logger import ScanLogger
 from street_whitelist import (is_district_name, is_known_place, is_known_street,
                               is_street_name, name_variants)
-from address_migration import (ADDRESS_PARSER_VERSION, retract_fake_numbers,
-                               upgrade_junk_streets)
+from address_migration import (ADDRESS_PARSER_VERSION, drop_rejected_labels,
+                               retract_fake_numbers, upgrade_junk_streets)
 from clean_geocoding_cache import (find_junk_keys, find_street_level_number_keys,
                                    street_forms)
 
@@ -282,6 +282,20 @@ class SonarMieszkaniowy:
         print(f"   ✅ Śmieciowa etykieta → realna ulica w {upgrade['to_fix']} ofertach "
               f"(aktywne: {upgrade['active_to_fix']}, nieaktywne: {upgrade['inactive_to_fix']}); "
               f"pinezkę z cache zyskało: {upgrade['gained_coords']}")
+
+        # FIX 2026-08-10: trzecia część — etykieta, której parser już nie uznaje
+        # za adres („Wolne", „Miejsca", „przytulna kawalerka"), schodzi z mapy.
+        # `_update_existing_offer` umie adres tylko poprawić, nigdy skasować.
+        dropped = drop_rejected_labels(
+            self.database['offers'], parser=self.address_parser)
+        if dropped['blocked']:
+            print(f"   ⛔ {dropped['blocked']}")
+            self.scan_logger.log_error(dropped['blocked'])
+        else:
+            print(f"   ✅ Zdjęto nieadresową etykietę z {dropped['to_fix']} ofert "
+                  f"(aktywne: {dropped['active_to_fix']}, "
+                  f"nieaktywne: {dropped['inactive_to_fix']})")
+
         self.database['address_parser_version'] = ADDRESS_PARSER_VERSION
 
     @staticmethod

@@ -241,6 +241,19 @@ python price_parser.py     # parsowanie cen
     zmierzony zakres (`measured_from`), a dni-artefakty (`REACTIVATION_ARTIFACT_DAYS`)
     lecą do serii jako `null`.
 
+21. **Ścieżka ratunkowa parsera (route 4, `extract_from_whitelist`) to zgadywanie
+    — i tak ją traktuj.** Bierze nazwę z kluczy `geocoding_cache.json`, a cache
+    uczy się wszystkiego, co raz się zgeokodowało, łącznie z naszymi błędami.
+    Stąd dwa filtry (`_filter_candidates`): kandydat musi być realną ulicą z OSM
+    i nie może stać jako przymiotnik przed rzeczownikiem mieszkaniowym
+    („przytulna kawalerka"). Reguła przymiotnikowa działa **tylko** dla nazw
+    z `_ADJECTIVE_STREETS` — dla nazwisk w dopełniaczu („Narutowicza Mieszkanie"
+    to sklejka tytułu z opisem) kasowałaby realne adresy. Czyta tekst z „¶"
+    w miejscu interpunkcji, bo bez granic zdań te sklejki są nie do odróżnienia.
+    Filtruj KANDYDATÓW, nie zwycięzcę — inaczej śmieć dalej bije realną ulicę
+    wymienioną obok. Wymóg wielkiej litery zmierzono i odrzucono (zabiera pinezkę
+    ogłoszeniom pisanym małą literą) — szczegóły w `_capitalization_ok`.
+
 ## Konwencja commitów
 
 Format `typ(zakres): opis` po polsku, np.:
