@@ -234,7 +234,7 @@ def drop_rejected_labels(offers: list, parser: AddressParser = None) -> dict:
         if parser.extract_address(description):
             stats['still_parsable'] += 1
             continue
-        boundary = re.sub(r'[^\w\sśćłąęóżźńŚĆŁĄĘÓŻŹŃ]', ' ¶ ', description).lower()
+        boundary = parser._boundary_text(description)
         if is_street_name(old_label) and not parser._is_adjective_use(old_label.lower(), boundary):
             stats['real_street'] += 1
             continue

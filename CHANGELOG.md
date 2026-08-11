@@ -50,6 +50,34 @@ wybrane ulice — to rozjazd danych między Nominatim a Overpass, nie błąd par
 Ich naprawa wymagałaby własnego indeksu punktów adresowych z Overpass
 (`audit_map_placement.py` już te dane pobiera i cache'uje).
 
+### Naprawione (2026-08-11) — filtr przymiotnikowy objął wszystkie ścieżki parsera
+Skan po wdrożeniu poprzedniej poprawki pokazał, że ogłoszenie „**Przytulna**
+kawalerka 38 m²" — to samo, od którego wszystko się zaczęło — **dalej** ma pinezkę
+pod ul. Przytulną. Filtr siedział wyłącznie w ścieżce ratunkowej (route 4), a tę
+nazwę wyciągała ścieżka główna (route 1). Dokładnie pułapka z CLAUDE.md pkt 18:
+*każdy filtr musi obowiązywać we wszystkich czterech ścieżkach*.
+
+- **Reguła przymiotnikowa stoi teraz na wspólnym wyjściu `extract_address`**,
+  a nie w jednej trasie. Adres z numerem domu jest zwolniony („Przytulna 5" to
+  adres, nie opis wnętrza), prefiks „ul./al./os." nadal broni realnej ulicy.
+- **Przecinek przestał być granicą zdania.** Wyliczanka „cicha, bezpieczna
+  i monitorowana okolica" gubiła rzeczownik, bo przecinek trafiał do tekstu jako
+  „¶" na równi z kropką. Teraz twarda interpunkcja (kropka, kreska, pionowa
+  kreska) rozdziela zdania, a przecinek jest zwykłym separatorem; wyliczankę
+  przechodzimy do pięciu tokenów.
+- Wspólny `_boundary_text` zamiast dwóch kopii tego samego wyrażenia
+  (parser + migracja).
+
+Pomiar różnicy wobec wdrożonej wersji (3039 ofert): **KEEP 3032, CLEAN 7
+(4 aktywne), CHANGE 0, GAIN 0**. Wszystkie 7 sprawdzone w kontekście — każde to
+przymiotnik („Okolica bardzo spokojna, mieszkanie ciepłe", „cicha, bezpieczna
+i monitorowana okolica"). Korpus regresyjny: 2 kolejne przypadki. Testy: 412 (+6).
+
+Znane ograniczenie: gdy filtr odrzuci zwycięzcę, `extract_address` zwraca brak
+adresu zamiast sięgnąć po następnego kandydata — jedna z siedmiu ofert miała
+w treści realną ulicę („…w spokojnej, cichej okolicy, ul. J. Kossaka") i zamiast
+niej trafia do warstwy „bez lokacji". To utrata *okazji*, nie zła pinezka.
+
 ### Naprawione (2026-08-10) — koniec pinezek na przymiotnikach
 Ogłoszenie „**Przytulna** kawalerka 38 m², centrum" dostawało pinezkę pod
 ul. Przytulną. Winna jest czwarta, ratunkowa ścieżka parsera
