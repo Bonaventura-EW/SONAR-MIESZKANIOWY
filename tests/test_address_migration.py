@@ -179,3 +179,22 @@ class TestDropRejectedLabels:
 
         assert result['blocked'] and 'awarię parsera' in result['blocked']
         assert all(o['address']['full'].startswith('Wolne') for o in offers)
+
+    def test_zdejmuje_przymiotnik_pisany_mala_litera(self):
+        """FIX 2026-08-11: migracja musi mieć KOMPLET przesłanek, których używa
+        parser — bez zbioru słów pisanych wielką literą przepuszczała etykiety,
+        których świeże parsowanie już nie zwraca (4 aktywne oferty na produkcji).
+        """
+        text = ('Mieszkanie 2-pokojowe na Felinie, blok TBV. '
+                'Okolica jest bardzo spokojna i zielona, blisko sklepy.')
+        offers = [_offer('Spokojna', 'Spokojna', None, text, active=True,
+                         coords={'lat': 51.24, 'lon': 22.60})]
+        assert drop_rejected_labels(offers)['to_fix'] == 1
+        assert offers[0]['address']['full'] == ''
+
+    def test_nie_rusza_ulicy_pisanej_wielka_litera(self):
+        """Kontrola: ta sama nazwa zapisana jak nazwa własna zostaje adresem."""
+        text = 'Mieszkanie w kamienicy, ścisłe centrum, ulica Spokojna, budynek z kamerami'
+        offers = [_offer('Spokojna', 'Spokojna', None, text, active=True)]
+        assert drop_rejected_labels(offers)['to_fix'] == 0
+        assert offers[0]['address']['full'] == 'Spokojna'

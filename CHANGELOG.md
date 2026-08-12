@@ -152,6 +152,28 @@ egress tego środowiska deweloperskiego re-terminuje TLS, przez co impersowany
 handshake i tak pada i wpada w fallback — sprawdzianem jest `offers_found > 0`
 w skanie z Actions.
 
+### Naprawione (2026-08-11) — jedno publiczne wejście do reguły przymiotnikowej
+Trzy kolejne poprawki parsera adresów miały ten sam kształt: reguła obowiązywała
+w jednym miejscu, a druga ścieżka (route 4 vs 1–3, potem migracja) montowała ją
+sama i gubiła jedną przesłankę — raz granice zdań, raz zbiór słów pisanych wielką
+literą. Ostatni objaw: skan po regule wielkości liter zdjął mniej etykiet, niż
+wynikało z pomiaru, bo `drop_rejected_labels` wołało `_is_adjective_use` bez
+kompletu argumentów i podejmowało słabszą decyzję niż parser („Okolica jest
+bardzo spokojna i zielona" zostawało jako `Spokojna`).
+
+- **Cała reguła chodzi teraz przez jedno publiczne wejście
+  `AddressParser.is_adjectival_label(label, text)`**, które samo składa
+  `_boundary_text` i `_capitalized_words`. Zewnętrzny wołający (migracja) nie
+  montuje już przesłanek ręcznie, więc nie ma jak przekazać niekompletu — klasa
+  błędu „dwie strony pytają o to samo, ale inaczej" jest domknięta strukturalnie,
+  nie kolejną łatką. Wewnętrzne wywołania parsera (route 4, wyjście
+  `extract_address`) zostają, bo działają na per-przebiegowych wariantach tekstu
+  (surowy/mianownik).
+- Zachowanie bez zmian: sucha próba migracji identyczna co do oferty (16 ofert —
+  4 aktywne, 12 nieaktywnych). `ADDRESS_PARSER_VERSION` → `2026-08-11c`.
+- Test kontraktowy pilnuje, że `is_adjectival_label` i wynik `extract_address`
+  nigdy się nie rozjadą. Testy: 426 (+6 wobec poprzedniej rundy).
+
 ### Naprawione (2026-08-11) — wielkość liter rozstrzyga przy nazwach-przymiotnikach
 Audyt po skanie: „Przytulna" zeszła z mapy, ale zostało 13 aktywnych ofert
 z etykietą typu „Spokojna"/„Nowe" wziętą z **„nowe wyposażenie"**, **„przy

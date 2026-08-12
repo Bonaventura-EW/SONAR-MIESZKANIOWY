@@ -621,11 +621,24 @@ class AddressParser:
         """
         result = self._extract_address_routes(text)
         if result and not result.get('number'):
-            street = (result.get('street') or result.get('full') or '').lower()
-            if street and self._is_adjective_use(
-                    street, self._boundary_text(text), self._capitalized_words(text)):
+            street = result.get('street') or result.get('full') or ''
+            if street and self.is_adjectival_label(street, text):
                 return None
         return result
+
+    def is_adjectival_label(self, label: str, text: str) -> bool:
+        """Czy `label` występuje w `text` jako przymiotnik (opis wnętrza), a nie
+        nazwa ulicy — JEDYNE publiczne wejście do reguły przymiotnikowej.
+
+        FIX 2026-08-11: składa wszystkie przesłanki (`_boundary_text`,
+        `_capitalized_words`) tutaj, w jednym miejscu. Wcześniej każdy zewnętrzny
+        wołający (`address_migration`) montował je sam i raz po raz gubił jedną —
+        najpierw granice zdań, potem zbiór słów pisanych wielką literą — przez co
+        migracja podejmowała słabszą decyzję niż parser i zostawiała etykiety,
+        których parser już nie zwracał. Teraz nie ma jak przekazać niekompletu.
+        """
+        return self._is_adjective_use(
+            label.lower(), self._boundary_text(text), self._capitalized_words(text))
 
     @staticmethod
     def _boundary_text(text: str) -> str:
