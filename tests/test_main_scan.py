@@ -68,22 +68,43 @@ class TestDeactivationProtection:
         assert agent._deactivation_block_reason(2, 9) is None
         assert agent._deactivation_block_reason(0, 9) is not None
 
-    def test_mark_inactive_offers_deactivates_missing(self, agent):
+    def test_single_miss_does_not_deactivate(self, agent):
+        # FIX 2026-08-12: jedno zniknięcie z listingu = szum paginacji, nie
+        # dezaktywacja. Oferta zostaje aktywna z licznikiem chybień = 1.
         agent.database['offers'] = [
             _offer('aaa1', active=True),
             _offer('bbb2', active=True),
         ]
-        deactivated = agent._mark_inactive_offers(
+        candidates = agent._reconcile_presence(
             current_offer_ids=['oferta-aaa1-CID3-IDaaa1'], skipped_offer_ids=[]
         )
-        assert deactivated == 1
         by_cid = {o['id']: o for o in agent.database['offers']}
-        assert by_cid['oferta-aaa1-CID3-IDaaa1']['active'] is True
-        assert by_cid['oferta-bbb2-CID3-IDbbb2']['active'] is False
+        assert by_cid['oferta-bbb2-CID3-IDbbb2']['active'] is True      # NIE zdezaktywowana
+        assert by_cid['oferta-bbb2-CID3-IDbbb2']['missing_streak'] == 1
+        assert candidates == []                                         # jeszcze nie kandydat
+        assert 'missing_streak' not in by_cid['oferta-aaa1-CID3-IDaaa1']  # obecna → brak licznika
 
-    def test_mark_inactive_reactivates_skipped(self, agent):
+    def test_two_misses_becomes_candidate_still_active(self, agent):
+        # Po progu (2 chybienia) oferta staje się KANDYDATEM, ale wciąż aktywna —
+        # o dezaktywacji decyduje dopiero _verify_and_deactivate (link).
+        agent.database['offers'] = [_offer('bbb2', active=True)]
+        agent._reconcile_presence(current_offer_ids=[], skipped_offer_ids=[])   # miss 1
+        candidates = agent._reconcile_presence(current_offer_ids=[], skipped_offer_ids=[])  # miss 2
+        offer = agent.database['offers'][0]
+        assert offer['missing_streak'] == 2
+        assert offer['active'] is True                 # wciąż aktywna
+        assert candidates == [offer]                   # ale już kandydat do sprawdzenia linku
+
+    def test_presence_resets_missing_streak(self, agent):
+        agent.database['offers'] = [_offer('bbb2', active=True)]
+        agent._reconcile_presence(current_offer_ids=[], skipped_offer_ids=[])   # miss 1
+        assert agent.database['offers'][0]['missing_streak'] == 1
+        agent._reconcile_presence(current_offer_ids=['oferta-bbb2-CID3-IDbbb2'], skipped_offer_ids=[])
+        assert 'missing_streak' not in agent.database['offers'][0]              # obecność zeruje
+
+    def test_reconcile_reactivates_skipped(self, agent):
         agent.database['offers'] = [_offer('ccc3', active=False)]
-        agent._mark_inactive_offers(
+        agent._reconcile_presence(
             current_offer_ids=[], skipped_offer_ids=['oferta-ccc3-CID3-IDccc3']
         )
         offer = agent.database['offers'][0]
@@ -96,7 +117,7 @@ class TestDeactivationProtection:
         się odróżnić powrotu na rynek od zgubienia oferty na jeden skan."""
         gone_since = (datetime.now(TZ) - timedelta(days=3)).isoformat()
         agent.database['offers'] = [_offer('ddd4', active=False, last_seen=gone_since)]
-        agent._mark_inactive_offers(
+        agent._reconcile_presence(
             current_offer_ids=[], skipped_offer_ids=['oferta-ddd4-CID3-IDddd4']
         )
         history = agent.database['offers'][0]['reactivation_dates']
@@ -212,44 +233,84 @@ class TestPriceUpdateLogic:
         assert existing['price']['current'] == 2000  # podejrzana zmiana — ignorowana
 
 
-class TestVerifyCooldown:
-    """FIX 2026-06-12: oferty potwierdzone jako nieaktywne nie są
-    re-weryfikowane przez 7 dni (wcześniej te same 50 co skan, 3×dziennie)."""
+class _Resp:
+    """Uproszczona odpowiedź HTTP do podmiany ImpersonatedSession.get."""
+    def __init__(self, status_code, text=''):
+        self.status_code = status_code
+        self.text = text
 
-    def test_recently_verified_offers_are_skipped(self, agent, monkeypatch):
-        now = datetime.now(TZ)
-        fresh = (now - timedelta(days=1)).isoformat()
-        stale = (now - timedelta(days=30)).isoformat()
-        agent.database['offers'] = [
-            _offer('aaa1', verified_inactive_at=fresh),   # świeżo potwierdzona → pomiń
-            _offer('bbb2', verified_inactive_at=stale),   # stary znacznik → sprawdź
-            _offer('ccc3'),                               # bez znacznika → sprawdź
-        ]
 
-        attempted = []
+_ALIVE_HTML = ('<html><body><script type="application/ld+json">'
+               '{"@type":"Product","offers":{"availability":"https://schema.org/InStock"}}'
+               '</script></body></html>')
+_DEAD_HTML = '<html><body><h1>Ogłoszenie zakończone</h1></body></html>'
 
-        def fake_get(self, url, **kw):
-            attempted.append(url)
-            raise requests.RequestException('sieć zablokowana w teście')
 
-        # Weryfikacja używa ImpersonatedSession (impersonacja TLS) — patchujemy ją,
-        # nie requests.Session. requests.RequestException nadal wpada w RequestError.
-        monkeypatch.setattr(http_client.ImpersonatedSession, 'get', fake_get)
-        stats = agent._verify_inactive_offers(max_to_verify=50)
+class TestVerifyAndDeactivate:
+    """FIX 2026-08-12: dezaktywacja na podstawie REALNEGO stanu oferty (link),
+    nie nieobecności w listingu. 404/nie-InStock → dezaktywuj; 200+InStock →
+    zostaw; 403/błąd → zostaw (błąd ≠ śmierć oferty). Circuit breaker chroni
+    przed biciem w zdławione IP."""
 
-        assert stats['skipped_recently_verified'] == 1
-        assert len(attempted) == 2
-        assert stats['errors'] == 2
+    def _patch_get(self, monkeypatch, resp_or_fn):
+        fn = resp_or_fn if callable(resp_or_fn) else (lambda self, url, **kw: resp_or_fn)
+        monkeypatch.setattr(http_client.ImpersonatedSession, 'get', fn)
+        monkeypatch.setattr('main.time.sleep', lambda s: None)   # bez czekania w teście
 
-    def test_confirmed_inactive_gets_marker(self, agent, monkeypatch):
-        agent.database['offers'] = [_offer('ddd4')]
-
-        class FakeResp:
-            status_code = 404
-            text = ''
-
-        monkeypatch.setattr(http_client.ImpersonatedSession, 'get', lambda self, url, **kw: FakeResp())
-        stats = agent._verify_inactive_offers(max_to_verify=50)
-
+    def test_dead_link_404_deactivates(self, agent, monkeypatch):
+        offer = _offer('aaa1', active=True, missing_streak=2)
+        self._patch_get(monkeypatch, lambda self, url, **kw: _Resp(404))
+        stats = agent._verify_and_deactivate([offer])
         assert stats['confirmed_inactive'] == 1
-        assert agent.database['offers'][0].get('verified_inactive_at')
+        assert offer['active'] is False
+        assert offer.get('verified_inactive_at')
+        assert 'missing_streak' not in offer
+
+    def test_dead_page_200_without_instock_deactivates(self, agent, monkeypatch):
+        offer = _offer('aaa2', active=True, missing_streak=2)
+        self._patch_get(monkeypatch, lambda self, url, **kw: _Resp(200, _DEAD_HTML))
+        stats = agent._verify_and_deactivate([offer])
+        assert stats['confirmed_inactive'] == 1
+        assert offer['active'] is False
+
+    def test_alive_link_keeps_active_and_resets_streak(self, agent, monkeypatch):
+        offer = _offer('bbb2', active=True, missing_streak=2)
+        self._patch_get(monkeypatch, lambda self, url, **kw: _Resp(200, _ALIVE_HTML))
+        stats = agent._verify_and_deactivate([offer])
+        assert stats['still_alive'] == 1
+        assert stats['confirmed_inactive'] == 0
+        assert offer['active'] is True
+        assert 'missing_streak' not in offer          # link żyje → reset licznika
+
+    def test_error_403_keeps_active(self, agent, monkeypatch):
+        offer = _offer('ccc3', active=True, missing_streak=2)
+        self._patch_get(monkeypatch, lambda self, url, **kw: _Resp(403))
+        stats = agent._verify_and_deactivate([offer])
+        assert stats['errors'] == 1
+        assert stats['confirmed_inactive'] == 0
+        assert offer['active'] is True                # 403 ≠ dezaktywacja
+
+    def test_network_error_keeps_active(self, agent, monkeypatch):
+        offer = _offer('ddd4', active=True, missing_streak=2)
+        def boom(self, url, **kw):
+            raise requests.RequestException('sieć w teście')
+        self._patch_get(monkeypatch, boom)
+        stats = agent._verify_and_deactivate([offer])
+        assert stats['errors'] == 1
+        assert offer['active'] is True
+
+    def test_circuit_breaker_stops_after_consecutive_errors(self, agent, monkeypatch):
+        offers = [_offer(f'o{i}', active=True, missing_streak=2) for i in range(20)]
+        self._patch_get(monkeypatch, lambda self, url, **kw: _Resp(403))
+        stats = agent._verify_and_deactivate(offers)
+        assert stats['circuit_broken'] is True
+        assert stats['errors'] == agent.LINK_CHECK_ERROR_CIRCUIT   # przerwane na progu
+        assert all(o['active'] for o in offers)                    # nic nie zdezaktywowane
+
+    def test_empty_candidates_no_requests(self, agent, monkeypatch):
+        called = []
+        self._patch_get(monkeypatch, lambda self, url, **kw: called.append(url) or _Resp(200))
+        stats = agent._verify_and_deactivate([])
+        assert stats == {'checked': 0, 'confirmed_inactive': 0, 'still_alive': 0,
+                         'errors': 0, 'circuit_broken': False, 'candidates': 0}
+        assert called == []

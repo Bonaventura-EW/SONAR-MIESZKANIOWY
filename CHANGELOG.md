@@ -10,6 +10,38 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Zmienione (2026-08-12) — dezaktywacja oparta na realnym stanie oferty (koniec churnu)
+Przebudowa mechanizmu dezaktywacji/weryfikacji. Diagnoza: listing OLX jest
+niestabilny — pojedynczy scrape gubi losowe ~7–10% żywych ofert (zestaw rotuje,
+przerwy <24 h). Stary kod dezaktywował na **pierwszym** chybieniu, a potem
+weryfikacja odpytywała 50 linków i cofała **~48/50** tych „zniknięć" (zmierzone
+8–11.08: reaktywowane 41–50, realnie martwe 0–9). To był churn: oferty migały
+inactive↔active co skan, zatruwając historię reaktywacji i wykres odpływu, a sam
+ogon 50 sekwencyjnych requestów padał pierwszy pod limitem OLX (błędy 50/50
+z 22:45).
+
+Nowy przepływ (`main.py`):
+- **`_reconcile_presence`** — oferta nieobecna w listingu dostaje `+1` do
+  licznika chybień (`missing_streak`); obecność go zeruje. Zwraca **kandydatów**
+  (nieobecni ≥ `MISSING_STREAK_THRESHOLD` = 2 skany). Nic nie dezaktywuje.
+- **`_verify_and_deactivate`** — sprawdza **link** każdego kandydata i
+  dezaktywuje **tylko** potwierdzone zniknięcia (`404/410` albo strona bez
+  `InStock`). `200 + InStock` → zostaje aktywna (reset licznika). **`403`/błąd
+  sieci → zostaje aktywna** (błąd ≠ śmierć oferty). **Circuit breaker**
+  (`LINK_CHECK_ERROR_CIRCUIT` = 5 błędów z rzędu) przerywa krok, gdy IP jest
+  zdławione — koniec bicia w mur i pogłębiania limitu.
+- Blokada OLX (bezpiecznik 60%) **nie rusza** ani licznika chybień, ani
+  dezaktywacji — inaczej odblokowanie zrzuciłoby naraz wszystkie nagromadzone
+  chybienia (to była przyczyna piku odpływu 98 z 11.08).
+- Usunięty stary `_verify_inactive_offers` (re-check 2400 nieaktywnych co skan) —
+  zbędny: realne powroty łapie listing, a fałszywych dezaktywacji już nie ma.
+
+Zmierzone offline na bazie (658 aktywnych): zdrowy skan → 0 kandydatów;
+pojedyncze zgubienie 54 ofert → **0 dezaktywacji / 0 requestów** (grace period);
+dopiero powtórne zgubienie tych samych → 54 do sprawdzenia linku. Efekt: dezaktywacje
+z ~55 do ~5–10/skan, koniec churnu, weryfikacja przestaje być kruchym ogonem.
+Testy: +7 (`TestVerifyAndDeactivate` + przepisane `_reconcile_presence`), suite 429→436.
+
 ### Naprawione (2026-08-11) — artefakty na wykresach po cyklu blokada→odblokowanie
 Po odblokowaniu OLX (impersonacja curl_cffi) skan naprawczy zdezaktywował naraz
 82 oferty nagromadzone przez ~10 h blokady, a krok weryfikacji nieaktywnych padł
