@@ -214,7 +214,12 @@ python price_parser.py     # parsowanie cen
     adresy dopiero co odrzucone („Powierzchnia 32" z metrażu, „Nałęczowska 2" z czasu
     dojścia). Dokładając filtr do ścieżki głównej **sprawdź, czy nie trzeba go dodać
     również tam** — i pamiętaj, że tylko ten fallback zwraca `has_number=True`, czyli
-    jego błąd od razu daje na mapie „adres dokładny".
+    jego błąd od razu daje na mapie „adres dokładny". Regułę przymiotnikową
+    (przymiotnik ≠ ulica) trzymaj wyłącznie za publicznym `is_adjectival_label`
+    — to ono składa `_boundary_text` i `_capitalized_words`. Poza parserem
+    (np. `address_migration`) **nigdy** nie wołaj `_is_adjective_use` wprost:
+    trzy poprawki z rzędu (2026-08-10/11) rozjechały się dokładnie na tym, że
+    druga strona montowała przesłanki sama i gubiła jedną.
 
 19. **Trafienie Nominatim ≠ trafienie w budynek.** Na adres z numerem, którego nie ma
     w OSM, Nominatim potrafi oddać punkt reprezentatywny ulicy (czasem *innej* —

@@ -234,14 +234,10 @@ def drop_rejected_labels(offers: list, parser: AddressParser = None) -> dict:
         if parser.extract_address(description):
             stats['still_parsable'] += 1
             continue
-        # FIX 2026-08-11: ten sam test co w parserze, z KOMPLETEM przesłanek —
-        # bez zbioru słów pisanych wielką literą reguła przymiotnikowa działa tu
-        # słabiej niż w parserze i migracja przepuszcza etykiety, których świeże
-        # parsowanie już nie zwraca („Okolica jest bardzo spokojna i zielona").
-        boundary = parser._boundary_text(description)
-        capitalized = parser._capitalized_words(description)
-        if is_street_name(old_label) and not parser._is_adjective_use(
-                old_label.lower(), boundary, capitalized):
+        # Reguła przymiotnikowa przez JEDNO publiczne wejście parsera — migracja
+        # nie montuje już przesłanek sama, więc nie może przekazać niekompletu
+        # (historia: FIX 2026-08-11, gdy zabrakło tu zbioru słów z wielkiej litery).
+        if is_street_name(old_label) and not parser.is_adjectival_label(old_label, description):
             stats['real_street'] += 1
             continue
 

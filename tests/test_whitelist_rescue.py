@@ -151,3 +151,45 @@ class TestWielkoscLiter:
     def test_nazwa_spoza_listy_przymiotnikow_przezywa_mala_litere(self, parser):
         """„unicka" nie jest przymiotnikiem — wielkość liter jej nie dotyczy."""
         assert _rescue(parser, 'Mieszkanie na wynajem unicka', {'unicka'}) == 'Unicka'
+
+
+class TestWspolnyKontraktPrzymiotnikowy:
+    """`is_adjectival_label` to jedyne publiczne wejście do reguły przymiotnikowej.
+
+    Regresja historyczna: `address_migration` montowało przesłanki samo
+    (`_boundary_text` + `_capitalized_words`) i raz po raz gubiło jedną, przez co
+    podejmowało słabszą decyzję niż parser (FIX 2026-08-11). Publiczna metoda
+    składa je w jednym miejscu — te testy pilnują, że wejście i wewnętrzne
+    wyjście `extract_address` mówią to samo.
+    """
+
+    ADJ = [
+        'Okolica jest bardzo spokojna i zielona, blisko sklepy',
+        'W kuchni znajduje się nowe wyposażenie, mieszkanie po remoncie',
+        'Mieszkanie w spokojnej części Lublina, cena 3700 zł',
+    ]
+    STREET = [
+        ('Mieszkanie przy ul. Cicha, cicha okolica', 'cicha'),
+        ('Ścisłe centrum, ulica Spokojna, budynek z kamerami', 'spokojna'),
+    ]
+
+    @pytest.mark.parametrize("text", ADJ)
+    def test_wejscie_wykrywa_przymiotnik(self, parser, text):
+        # nazwa, którą parser by tu zwrócił, gdyby nie reguła
+        name = {'spokojna', 'nowe'}
+        assert any(parser.is_adjectival_label(n, text) for n in name)
+        # i faktycznie extract_address nic nie zwraca
+        assert parser.extract_address(text) is None
+
+    @pytest.mark.parametrize("text,name", STREET)
+    def test_wejscie_przepuszcza_realny_adres(self, parser, text, name):
+        assert parser.is_adjectival_label(name, text) is False
+
+    def test_wejscie_zgodne_z_wynikiem_extract_address(self, parser):
+        """Gdy `is_adjectival_label` mówi 'przymiotnik', `extract_address` nie
+        może zwrócić tej nazwy — i odwrotnie. To gwarancja przeciw rozjazdowi."""
+        for text in self.ADJ + [t for t, _ in self.STREET]:
+            res = parser.extract_address(text)
+            got = (res or {}).get('full', '').lower()
+            if got:
+                assert not parser.is_adjectival_label(got, text)
