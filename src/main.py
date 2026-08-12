@@ -73,6 +73,29 @@ class SonarMieszkaniowy:
     # zamiast raportować „✅ sukces" przy wyciętej połowie bazy.
     MAX_NO_ADDRESS_RATIO = 0.20
 
+    # FIX 2026-08-12: dezaktywacja oparta na REALNYM stanie oferty, nie na
+    # jednorazowej nieobecności w listingu.
+    #
+    # Problem: listing OLX jest niestabilny — pojedynczy scrape gubi losowe
+    # ~7–10% żywych ofert (zestaw rotuje, przerwy <24 h). Stary kod dezaktywował
+    # na PIERWSZYM chybieniu, a potem weryfikacja cofała ~48/50 z tych „zniknięć"
+    # (zmierzone 8–11.08). To był churn: oferta migała inactive↔active co skan,
+    # zatruwając historię reaktywacji i wykres odpływu.
+    #
+    # Teraz: oferta nieobecna w listingu dostaje +1 do licznika chybień; dopiero
+    # po MISSING_STREAK_THRESHOLD kolejnych chybieniach sprawdzamy jej link
+    # BEZPOŚREDNIO i dezaktywujemy tylko gdy OLX potwierdzi zniknięcie (404/410
+    # lub brak „InStock"). Próg 2 wycina ~99% szumu paginacji za zero requestów.
+    MISSING_STREAK_THRESHOLD = 2
+    # Sufit sprawdzeń linków na skan (po filtrze streaka kandydatów jest mało;
+    # limit chroni OLX na wypadek nietypowego skanu z lawiną chybień).
+    MAX_LINK_CHECKS = 60
+    # Circuit breaker: tyle błędów sprawdzenia linku z rzędu (403/sieć) i
+    # przerywamy krok — IP prawdopodobnie zdławione. Błąd ≠ śmierć oferty, więc
+    # nic na jego podstawie nie dezaktywujemy; przerwanie chroni przed biciem
+    # w mur i pogłębianiem limitu (to był mechanizm 50/50 błędów z 22:45).
+    LINK_CHECK_ERROR_CIRCUIT = 5
+
     def __init__(self, data_file: str = paths.OFFERS_JSON, removed_file: str = paths.REMOVED_JSON):
         self.data_file = Path(data_file)
         self.removed_file = Path(removed_file)
@@ -1197,33 +1220,43 @@ class SonarMieszkaniowy:
                 print(f"⚠️ Błąd obliczania days_active dla oferty {offer.get('id')}: {e}")
                 offer['days_active'] = 0
     
-    def _mark_inactive_offers(self, current_offer_ids: List[str], skipped_offer_ids: List[str] = None):
+    def _reconcile_presence(self, current_offer_ids: List[str], skipped_offer_ids: List[str] = None):
         """
-        Oznacza ogłoszenia jako nieaktywne jeśli nie ma ich w bieżącym scanie.
-        Reaktywuje oferty które pojawiły się ponownie (w skipped_ids).
-        
+        Aktualizuje obecność ofert i zwraca KANDYDATÓW do dezaktywacji — oferty
+        aktywne w bazie, nieobecne w listingu przez ≥ MISSING_STREAK_THRESHOLD
+        kolejnych skanów. NIE dezaktywuje sama (patrz `_verify_and_deactivate`).
+
+        FIX 2026-08-12: pojedyncze zniknięcie z listingu to szum paginacji OLX
+        (~48/50 takich „zniknięć" wracało przy dawnej weryfikacji). Zamiast
+        dezaktywować na jednym chybieniu i cofać to weryfikacją, liczymy kolejne
+        chybienia (`missing_streak`); dopiero uporczywie nieobecne oferty idą do
+        sprawdzenia linku. Obecność zeruje licznik.
+
         Args:
-            current_offer_ids: Lista ID ofert które zostały przetworzone (nowe + zaktualizowane)
-            skipped_offer_ids: Lista ID ofert które zostały pominięte przez inteligentne skanowanie
+            current_offer_ids: ID ofert przetworzonych w tym skanie (nowe + zaktualizowane)
+            skipped_offer_ids: ID ofert pominiętych przez inteligentne skanowanie (ta sama cena)
+
+        Returns:
+            Lista ofert-kandydatów do sprawdzenia linku i ewentualnej dezaktywacji.
         """
         if skipped_offer_ids is None:
             skipped_offer_ids = []
-        
-        # Wszystkie oferty które powinny być aktywne = przetworzone + pominięte
+
+        # Wszystkie oferty które są obecne w listingu = przetworzone + pominięte
         # FIX 2026-05-24: porównanie po CID3-IDxxxx zamiast pełnego slugu
         # (slug może się zmienić gdy sprzedawca edytuje tytuł ogłoszenia)
         all_active_cids = set(extract_cid(i) for i in (current_offer_ids + skipped_offer_ids))
         skipped_cids = set(extract_cid(i) for i in skipped_offer_ids)
-        
+
         now = datetime.now(self.tz).isoformat()
-        deactivated_count = 0
         reactivated_from_skipped = 0
-        
+        candidates = []
+
         for offer in self.database['offers']:
-            offer_cid = extract_cid(offer.get('id',''))
+            offer_cid = extract_cid(offer.get('id', ''))
             if offer_cid in all_active_cids:
-                # Oferta jest aktywna - upewnij się że ma active=True
-                # i zaktualizuj last_seen dla pominiętych ofert
+                # Obecna w listingu → zeruj licznik chybień
+                offer.pop('missing_streak', None)
                 if offer_cid in skipped_cids:
                     if not offer.get('active', True):
                         # Reaktywacja oferty która była nieaktywna
@@ -1234,17 +1267,144 @@ class SonarMieszkaniowy:
                         reactivated_from_skipped += 1
                     # Aktualizuj last_seen dla skipped ofert
                     offer['last_seen'] = now
-            elif offer['active']:
-                # Oferta nie jest w scanie - dezaktywuj
-                offer['active'] = False
-                deactivated_count += 1
-        
-        if deactivated_count > 0:
-            print(f"   ⏸️  Oznaczono jako nieaktywne: {deactivated_count}")
+            elif offer.get('active'):
+                # Nieobecna, ale wciąż aktywna → policz chybienie.
+                # Dezaktywacja NIE tu — dopiero po progu i sprawdzeniu linku.
+                streak = offer.get('missing_streak', 0) + 1
+                offer['missing_streak'] = streak
+                if streak >= self.MISSING_STREAK_THRESHOLD:
+                    candidates.append(offer)
+
         if reactivated_from_skipped > 0:
             print(f"   🔄 Reaktywowano (skipped): {reactivated_from_skipped}")
-        
-        return deactivated_count
+        if candidates:
+            print(f"   🔎 Kandydaci do dezaktywacji (nieobecni ≥{self.MISSING_STREAK_THRESHOLD} skany): {len(candidates)}")
+
+        return candidates
+
+    def _offer_page_is_live(self, html: str) -> bool:
+        """Czy strona pojedynczej oferty OLX świadczy o żywym ogłoszeniu.
+
+        Priorytet: JSON-LD `availability == InStock` (najpewniejsze), a jak go
+        brak — obecność ceny i przycisków kontaktu. Ta sama heurystyka co dawniej
+        w weryfikacji, wyciągnięta osobno, żeby dała się testować bez sieci.
+        """
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html, 'lxml')
+
+        for script in soup.find_all('script', type='application/ld+json'):
+            try:
+                data = json.loads(script.string)
+                if isinstance(data, dict) and data.get('@type') == 'Product':
+                    if 'InStock' in data.get('offers', {}).get('availability', ''):
+                        return True
+                    break
+            except (json.JSONDecodeError, TypeError, AttributeError):
+                continue
+
+        price_element = soup.select_one('[data-testid="ad-price-container"]')
+        contact_btns = soup.select('[data-testid*="phone"], [data-testid*="contact"]')
+        return bool(price_element and len(contact_btns) > 0)
+
+    def _deactivate_offer(self, offer: Dict, now_iso: str):
+        """Dezaktywuje ofertę potwierdzoną jako zniknięta z OLX."""
+        offer['active'] = False
+        offer['verified_inactive_at'] = now_iso
+        offer.pop('missing_streak', None)
+
+    def _verify_and_deactivate(self, candidates: List[Dict]) -> Dict:
+        """
+        Sprawdza bezpośrednio link każdego kandydata i dezaktywuje TYLKO oferty,
+        które OLX potwierdza jako zniknięte. FIX 2026-08-12.
+
+        Decyzja na podstawie realnego stanu ogłoszenia, nie nieobecności w naszym
+        listingu:
+          - 404/410 albo strona bez „InStock" → zniknęła → dezaktywuj
+          - 200 + InStock                     → żyje mimo nieobecności → zostaje
+                                                 aktywna, reset licznika chybień
+          - 403 / timeout / błąd sieci        → NIE WIADOMO → zostaje aktywna,
+                                                 spróbujemy następnym skanem
+        Circuit breaker: LINK_CHECK_ERROR_CIRCUIT błędów z rzędu → przerywamy
+        (IP prawdopodobnie zdławione — dalsze próby to bicie w mur).
+        """
+        import http_client
+
+        stats = {
+            'checked': 0,
+            'confirmed_inactive': 0,
+            'still_alive': 0,
+            'errors': 0,
+            'circuit_broken': False,
+            'candidates': len(candidates),
+        }
+        if not candidates:
+            return stats
+
+        # Najstarsze last_seen najpierw — najbardziej podejrzane o realne zniknięcie.
+        to_check = sorted(candidates, key=lambda o: o.get('last_seen', ''))[:self.MAX_LINK_CHECKS]
+        print(f"   🔍 Sprawdzam linki {len(to_check)} kandydatów (z {len(candidates)})...")
+
+        session = http_client.ImpersonatedSession(headers={
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'pl-PL,pl;q=0.9,en;q=0.8'
+        })
+        now = datetime.now(self.tz).isoformat()
+        consecutive_errors = 0
+
+        def _register_error():
+            nonlocal consecutive_errors
+            stats['errors'] += 1
+            consecutive_errors += 1
+            if consecutive_errors >= self.LINK_CHECK_ERROR_CIRCUIT:
+                stats['circuit_broken'] = True
+                print(f"   🛑 Circuit breaker: {consecutive_errors} błędów z rzędu — "
+                      f"przerywam sprawdzanie linków (IP prawdopodobnie zdławione).")
+                return True
+            return False
+
+        for i, offer in enumerate(to_check, 1):
+            url = offer.get('url', '')
+            offer_id = offer.get('id', 'unknown')
+            if not url:
+                continue
+            try:
+                if i > 1:
+                    time.sleep(random.uniform(0.3, 0.7))
+                response = session.get(url, timeout=15)
+                stats['checked'] += 1
+
+                if response.status_code in (404, 410):
+                    self._deactivate_offer(offer, now)
+                    stats['confirmed_inactive'] += 1
+                    consecutive_errors = 0
+                    continue
+
+                if response.status_code != 200:
+                    if _register_error():
+                        break
+                    continue
+
+                consecutive_errors = 0
+                if self._offer_page_is_live(response.text):
+                    # Żyje mimo nieobecności w listingu → zostaje aktywna.
+                    offer.pop('missing_streak', None)
+                    stats['still_alive'] += 1
+                else:
+                    self._deactivate_offer(offer, now)
+                    stats['confirmed_inactive'] += 1
+                    print(f"      ⏸️  Zniknęła z OLX: {offer_id[:50]}")
+            except http_client.RequestError:
+                if _register_error():
+                    break
+            except Exception:
+                if _register_error():
+                    break
+
+        print(f"   📊 Weryfikacja linków: sprawdzono {stats['checked']}, "
+              f"zniknęły {stats['confirmed_inactive']}, żyją mimo nieobecności {stats['still_alive']}, "
+              f"błędy {stats['errors']}" + (" (circuit breaker)" if stats['circuit_broken'] else ""))
+        return stats
     
     def _deactivation_block_reason(self, scraped_count: int, active_in_db: int):
         """
@@ -1286,161 +1446,6 @@ class SonarMieszkaniowy:
                 f"({pct:.0f}%, próg: {self.MAX_NO_ADDRESS_RATIO * 100:.0f}%) — prawdopodobna "
                 f"regresja parsera lub zmiana formatu ogłoszeń. Te oferty trafiły na stronę "
                 f"bez lokalizacji na mapie.")
-
-    def _verify_inactive_offers(self, max_to_verify: int = 50) -> Dict:
-        """
-        Weryfikuje nieaktywne oferty sprawdzając bezpośrednio ich URL na OLX.
-        Reaktywuje oferty które nadal istnieją na OLX.
-        
-        Args:
-            max_to_verify: Maksymalna liczba ofert do zweryfikowania na jeden skan
-            
-        Returns:
-            Dict ze statystykami: {'verified': N, 'reactivated': N, 'confirmed_inactive': N, 'errors': N}
-        """
-        import http_client
-        from bs4 import BeautifulSoup
-
-        stats = {
-            'verified': 0,
-            'reactivated': 0,
-            'confirmed_inactive': 0,
-            'errors': 0,
-            'skipped_recently_verified': 0
-        }
-
-        # FIX 2026-06-12: oferty potwierdzone jako nieaktywne dostają znacznik
-        # verified_inactive_at i przez VERIFY_COOLDOWN_DAYS nie są sprawdzane
-        # ponownie. Wcześniej te same 50 najnowszych nieaktywnych było odpytywane
-        # przy KAŻDYM skanie (3×dziennie), w kółko potwierdzając to samo.
-        VERIFY_COOLDOWN_DAYS = 7
-        cooldown_cutoff = datetime.now(self.tz) - timedelta(days=VERIFY_COOLDOWN_DAYS)
-
-        def _recently_verified(offer):
-            ts = offer.get('verified_inactive_at')
-            if not ts:
-                return False
-            try:
-                return datetime.fromisoformat(ts) > cooldown_cutoff
-            except (ValueError, TypeError):
-                return False
-
-        all_inactive = [
-            offer for offer in self.database.get('offers', [])
-            if not offer.get('active', True)
-        ]
-        inactive_offers = [o for o in all_inactive if not _recently_verified(o)]
-        stats['skipped_recently_verified'] = len(all_inactive) - len(inactive_offers)
-        if stats['skipped_recently_verified']:
-            print(f"   ⏭️  Pominięto {stats['skipped_recently_verified']} ofert zweryfikowanych w ostatnich {VERIFY_COOLDOWN_DAYS} dniach")
-        
-        if not inactive_offers:
-            print("   ℹ️  Brak nieaktywnych ofert do weryfikacji")
-            return stats
-        
-        # Sortuj od najnowszych (last_seen malejąco)
-        inactive_offers.sort(
-            key=lambda x: x.get('last_seen', '1970-01-01'),
-            reverse=True
-        )
-        
-        # Ogranicz do max_to_verify
-        to_verify = inactive_offers[:max_to_verify]
-        
-        print(f"   🔍 Weryfikuję {len(to_verify)} nieaktywnych ofert (z {len(inactive_offers)} łącznie)...")
-        
-        # FIX 2026-08-11: ta sama impersonacja TLS co w scraperze — weryfikacja
-        # też uderza w OLX/CloudFront, więc goły requests dostawałby 403.
-        session = http_client.ImpersonatedSession(headers={
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-            'Accept-Language': 'pl-PL,pl;q=0.9,en;q=0.8'
-        })
-        
-        now = datetime.now(self.tz).isoformat()
-        
-        for i, offer in enumerate(to_verify, 1):
-            url = offer.get('url', '')
-            offer_id = offer.get('id', 'unknown')
-            
-            if not url:
-                continue
-                
-            try:
-                # Opóźnienie między requestami (anti-throttling)
-                if i > 1:
-                    time.sleep(random.uniform(0.3, 0.7))
-                
-                response = session.get(url, timeout=15)
-                stats['verified'] += 1
-                
-                # Sprawdź czy oferta istnieje
-                if response.status_code in (404, 410):
-                    # 404 = Not Found, 410 = Gone - oferta usunięta
-                    stats['confirmed_inactive'] += 1
-                    offer['verified_inactive_at'] = now
-                    continue
-                
-                if response.status_code != 200:
-                    stats['errors'] += 1
-                    continue
-                
-                soup = BeautifulSoup(response.text, 'lxml')
-                
-                # Sprawdź status oferty przez JSON-LD (najbardziej wiarygodne źródło)
-                is_active = False
-                
-                scripts = soup.find_all('script', type='application/ld+json')
-                for script in scripts:
-                    try:
-                        data = json.loads(script.string)
-                        if isinstance(data, dict) and data.get('@type') == 'Product':
-                            availability = data.get('offers', {}).get('availability', '')
-                            # InStock = aktywna oferta
-                            if 'InStock' in availability:
-                                is_active = True
-                            break
-                    except (json.JSONDecodeError, TypeError, AttributeError):
-                        continue
-                
-                # Jeśli nie ma JSON-LD, sprawdź elementy HTML
-                if not is_active:
-                    # Sprawdź czy jest cena (znak aktywnej oferty)
-                    price_element = soup.select_one('[data-testid="ad-price-container"]')
-                    # Sprawdź czy są przyciski kontaktu
-                    contact_btns = soup.select('[data-testid*="phone"], [data-testid*="contact"]')
-                    
-                    if price_element and len(contact_btns) > 0:
-                        is_active = True
-                
-                if is_active:
-                    # Oferta AKTYWNA - reaktywuj!
-                    offer['active'] = True
-                    prev_last_seen = offer.get('last_seen')
-                    offer['last_seen'] = now
-                    reactivation_log.record(offer, now, 'verification', prev_last_seen)
-                    offer.pop('verified_inactive_at', None)  # znacznik nieaktualny
-                    stats['reactivated'] += 1
-                    print(f"      ✅ Reaktywowano: {offer_id[:50]}...")
-                else:
-                    # Oferta nieaktywna - potwierdzone
-                    stats['confirmed_inactive'] += 1
-                    offer['verified_inactive_at'] = now
-                    
-            except http_client.RequestError as e:
-                stats['errors'] += 1
-            except Exception as e:
-                stats['errors'] += 1
-        
-        # Podsumowanie
-        print(f"   📊 Weryfikacja zakończona:")
-        print(f"      Sprawdzono: {stats['verified']}")
-        print(f"      Reaktywowano: {stats['reactivated']}")
-        print(f"      Potwierdzone nieaktywne: {stats['confirmed_inactive']}")
-        if stats['errors'] > 0:
-            print(f"      Błędy: {stats['errors']}")
-        
-        return stats
 
     def _cleanup_old_offers(self, max_age_days: int = 548):
         """
@@ -1721,13 +1726,27 @@ class SonarMieszkaniowy:
             # FIX 2026-06-12: blokada OLX była raportowana jako "✅ sukces, brak zmian"
             # (status completed, zero errors). Teraz logujemy błąd do scan_history —
             # api_generator zamieni go na uiStatus=warning i powiadomienie ⚠️.
+            #
+            # FIX 2026-08-12: dezaktywacja oparta na REALNYM stanie oferty.
+            # `_reconcile_presence` liczy chybienia (nieobecność w listingu),
+            # a `_verify_and_deactivate` sprawdza link kandydatów (≥ próg chybień)
+            # i dezaktywuje tylko potwierdzone zniknięcia. Blokada OLX → nie
+            # ruszamy ani licznika chybień, ani dezaktywacji (inaczej odblokowanie
+            # zrzuciłoby naraz wszystkie nagromadzone chybienia).
             block_reason = self._deactivation_block_reason(scraped_count, active_in_db)
             scrape_blocked = block_reason is not None
             if scrape_blocked:
                 print(f"   ⚠️  OCHRONA: {block_reason}")
                 self.scan_logger.log_error(block_reason)
+                verification_stats = {
+                    'checked': 0, 'confirmed_inactive': 0, 'still_alive': 0,
+                    'errors': 0, 'circuit_broken': False, 'candidates': 0,
+                    'skipped_blocked': True,
+                }
             else:
-                deactivated_count = self._mark_inactive_offers(current_offer_ids, skipped_ids)
+                candidates = self._reconcile_presence(current_offer_ids, skipped_ids)
+                verification_stats = self._verify_and_deactivate(candidates)
+                deactivated_count = verification_stats['confirmed_inactive']
             
             # FIX 2026-08-06: bezpiecznik — czy parser adresów nagle nie zaczął
             # wycinać ofert (regresja reguł / zmiana formatu opisów w OLX).
@@ -1756,17 +1775,14 @@ class SonarMieszkaniowy:
             if retracted:
                 print(f"   🔧 Wycofane zmyślone numery domów: {retracted}")
             
-            # 4. Weryfikacja nieaktywnych ofert
-            # FIX 2026-06-12: przy blokadzie OLX pomijamy weryfikację — 50 requestów
-            # i tak skończyłoby się błędami (w skanach z 11-12.06 errors=50/50).
-            print("\n🔍 Krok 4: Weryfikacja nieaktywnych ofert...")
-            if scrape_blocked:
-                print("   ⏭️  Pominięto (blokada OLX wykryta w tym skanie)")
-                verification_stats = {'verified': 0, 'reactivated': 0, 'confirmed_inactive': 0, 'errors': 0, 'skipped_blocked': True}
-            else:
-                verification_stats = self._verify_inactive_offers(max_to_verify=50)
-            reactivated_count += verification_stats.get('reactivated', 0)
-            
+            # (Weryfikacja + dezaktywacja odbyły się wyżej, w kroku dezaktywacji:
+            #  _reconcile_presence + _verify_and_deactivate. FIX 2026-08-12 —
+            #  nie ma już osobnego kroku „weryfikacja nieaktywnych", bo nie
+            #  dezaktywujemy przedwcześnie, więc nie ma czego masowo cofać.)
+            if verification_stats.get('still_alive'):
+                print(f"   ℹ️  Żywe mimo nieobecności w listingu (zostają aktywne): "
+                      f"{verification_stats['still_alive']}")
+
             # 5. Czyszczenie starych ofert
             print("\n🗑️ Krok 5: Czyszczenie starych ofert...")
             self._cleanup_old_offers(max_age_days=548)
