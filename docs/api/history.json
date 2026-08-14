@@ -1,8 +1,75 @@
 {
   "system": "sonar",
-  "generatedAt": "2026-08-14T07:11:30.389413+02:00",
+  "generatedAt": "2026-08-14T10:44:53.746698+02:00",
   "count": 20,
   "scans": [
+    {
+      "id": "2026-08-14T10-42-07",
+      "timestamp": "2026-08-14T10:42:07.769856+02:00",
+      "endTimestamp": "2026-08-14T10:44:51.867271+02:00",
+      "durationSeconds": 164.1,
+      "durationFormatted": "2m 44s",
+      "uiStatus": "success",
+      "rawStatus": "completed",
+      "scanTimeFormatted": "10:42",
+      "failureReason": null,
+      "notification": {
+        "title": "✅ Skan 10:42 — 4 4 ogłoszenia znikły, brak nowych",
+        "body": "Znikło 4 ofert, żadnych nowych mieszkań"
+      },
+      "offers": {
+        "found": 698,
+        "processed": 639,
+        "new": 0,
+        "disappeared": 4,
+        "updated": 639,
+        "active": 735,
+        "inactive": 2408
+      },
+      "skipped": {
+        "noAddress": 0,
+        "noCoords": 0,
+        "duplicates": 59
+      },
+      "errors": [],
+      "hasErrors": false
+    },
+    {
+      "id": "2026-08-14T10-39-31",
+      "timestamp": "2026-08-14T10:39:31.278679+02:00",
+      "endTimestamp": "2026-08-14T10:40:07.760075+02:00",
+      "durationSeconds": 36.48,
+      "durationFormatted": "36s",
+      "uiStatus": "warning",
+      "rawStatus": "completed",
+      "scanTimeFormatted": "10:39",
+      "failureReason": "Scraper zwrócił tylko 153 ofert przy 739 aktywnych w bazie (próg: 443) — prawdopodobna blokada OLX. Dezaktywacja pominięta.",
+      "notification": {
+        "title": "⚠️ Skan 10:39 — zakończony z ostrzeżeniami",
+        "body": "Scraper zwrócił tylko 153 ofert przy 739 aktywnych w bazie (próg: 443) — prawdopodobna blokada OLX. Dezaktywacja pominięta."
+      },
+      "offers": {
+        "found": 153,
+        "processed": 132,
+        "new": 0,
+        "disappeared": 0,
+        "updated": 132,
+        "active": 739,
+        "inactive": 2404
+      },
+      "skipped": {
+        "noAddress": 0,
+        "noCoords": 0,
+        "duplicates": 21
+      },
+      "errors": [
+        {
+          "message": "Scraper zwrócił tylko 153 ofert przy 739 aktywnych w bazie (próg: 443) — prawdopodobna blokada OLX. Dezaktywacja pominięta.",
+          "timestamp": "2026-08-14T10:40:04.861011+02:00"
+        }
+      ],
+      "hasErrors": true
+    },
     {
       "id": "2026-08-14T07-08-08",
       "timestamp": "2026-08-14T07:08:08.625161+02:00",
@@ -590,68 +657,6 @@
         }
       ],
       "hasErrors": true
-    },
-    {
-      "id": "2026-08-11T12-45-10",
-      "timestamp": "2026-08-11T12:45:10.631523+02:00",
-      "endTimestamp": "2026-08-11T12:48:23.702437+02:00",
-      "durationSeconds": 193.07,
-      "durationFormatted": "3m 13s",
-      "uiStatus": "success",
-      "rawStatus": "completed",
-      "scanTimeFormatted": "12:45",
-      "failureReason": null,
-      "notification": {
-        "title": "✅ Skan 12:45 — brak zmian",
-        "body": "Skan zakończony, żadnych zmian w ofertach"
-      },
-      "offers": {
-        "found": 717,
-        "processed": 652,
-        "new": 0,
-        "disappeared": 0,
-        "updated": 652,
-        "active": 705,
-        "inactive": 2342
-      },
-      "skipped": {
-        "noAddress": 0,
-        "noCoords": 0,
-        "duplicates": 65
-      },
-      "errors": [],
-      "hasErrors": false
-    },
-    {
-      "id": "2026-08-11T12-31-57",
-      "timestamp": "2026-08-11T12:31:57.567477+02:00",
-      "endTimestamp": "2026-08-11T12:35:04.653326+02:00",
-      "durationSeconds": 187.09,
-      "durationFormatted": "3m 7s",
-      "uiStatus": "success",
-      "rawStatus": "completed",
-      "scanTimeFormatted": "12:31",
-      "failureReason": null,
-      "notification": {
-        "title": "✅ Skan 12:31 — +1 nowe / -1 znikły",
-        "body": "Pojawiło się 1 nowych, znikło 1 ofert mieszkań w Lublinie"
-      },
-      "offers": {
-        "found": 718,
-        "processed": 654,
-        "new": 1,
-        "disappeared": 1,
-        "updated": 653,
-        "active": 706,
-        "inactive": 2341
-      },
-      "skipped": {
-        "noAddress": 0,
-        "noCoords": 0,
-        "duplicates": 64
-      },
-      "errors": [],
-      "hasErrors": false
     }
   ]
 }
