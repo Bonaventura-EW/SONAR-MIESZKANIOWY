@@ -1,74 +1,5 @@
 [
   {
-    "timestamp": "2026-08-01T06:40:16.304518+02:00",
-    "status": "completed",
-    "phases": {
-      "scraping": {
-        "duration": 5.24,
-        "details": {
-          "offers_found": 42,
-          "max_pages": 50
-        }
-      },
-      "processing": {
-        "duration": 0.79,
-        "details": {
-          "processed": 37,
-          "skipped_no_address": 5,
-          "skipped_no_price": 0,
-          "skipped_no_coords": 0,
-          "skipped_duplicate": 0,
-          "skipped_removed": 0
-        }
-      },
-      "geocoding": {
-        "duration": 0.77,
-        "details": {
-          "geocoded_addresses": 37
-        }
-      }
-    },
-    "stats": {
-      "raw_offers": 42,
-      "processed": 37,
-      "new": 1,
-      "updated": 36,
-      "reactivated": 0,
-      "total_in_db": 2744,
-      "active": 711,
-      "inactive": 2033,
-      "skipped_no_address": 5,
-      "skipped_no_price": 0,
-      "skipped_no_coords": 0,
-      "skipped_duplicate": 0,
-      "skipped_removed": 0,
-      "disappeared": 0,
-      "verification": {
-        "verified": 0,
-        "reactivated": 0,
-        "confirmed_inactive": 0,
-        "errors": 0,
-        "skipped_blocked": true
-      }
-    },
-    "errors": [
-      {
-        "timestamp": "2026-08-01T06:40:22.335392+02:00",
-        "message": "Scraper zwrócił tylko 42 ofert przy 711 aktywnych w bazie (próg: 213) — prawdopodobna blokada OLX. Dezaktywacja pominięta."
-      }
-    ],
-    "end_timestamp": "2026-08-01T06:40:22.465739+02:00",
-    "total_duration": 6.16,
-    "performance": {
-      "offers_per_second": 6.82,
-      "pages_scanned": 50,
-      "geocoding_duration": 0.77,
-      "geocoding_per_address": 0.02,
-      "scraping_per_page": 0.1,
-      "processing_success_rate": 88.1
-    }
-  },
-  {
     "timestamp": "2026-08-01T09:03:56.296292+02:00",
     "status": "completed",
     "phases": {
@@ -7329,6 +7260,88 @@
       "geocoding_per_address": 0.16,
       "scraping_per_page": 0.98,
       "processing_success_rate": 90.8
+    }
+  },
+  {
+    "timestamp": "2026-08-18T09:56:26.627977+02:00",
+    "status": "completed",
+    "phases": {
+      "scraping": {
+        "duration": 55.22,
+        "details": {
+          "offers_found": 764,
+          "max_pages": 50
+        }
+      },
+      "processing": {
+        "duration": 66.13,
+        "details": {
+          "processed": 691,
+          "no_address_kept": 56,
+          "skipped_no_address": 0,
+          "skipped_no_price": 0,
+          "skipped_no_coords": 0,
+          "skipped_duplicate": 73,
+          "skipped_removed": 0
+        }
+      },
+      "geocoding": {
+        "duration": 65.99,
+        "details": {
+          "geocoded_addresses": 691
+        }
+      }
+    },
+    "stats": {
+      "raw_offers": 764,
+      "processed": 691,
+      "new": 6,
+      "updated": 685,
+      "reactivated": 7,
+      "total_in_db": 3248,
+      "active": 763,
+      "inactive": 2485,
+      "skipped_no_address": 0,
+      "skipped_no_price": 0,
+      "skipped_no_coords": 0,
+      "skipped_duplicate": 73,
+      "skipped_removed": 0,
+      "disappeared": 2,
+      "verification": {
+        "checked": 34,
+        "confirmed_inactive": 2,
+        "still_alive": 32,
+        "errors": 0,
+        "circuit_broken": false,
+        "candidates": 34
+      },
+      "map_quality": {
+        "active": 763,
+        "on_map": 672,
+        "off_map": 91,
+        "counts": {
+          "no_address": 42,
+          "not_a_street": 40,
+          "area_only": 5,
+          "no_coords": 4
+        },
+        "precision": {
+          "exact": 259,
+          "street": 413,
+          "none": 91
+        }
+      }
+    },
+    "errors": [],
+    "end_timestamp": "2026-08-18T09:59:25.951298+02:00",
+    "total_duration": 179.32,
+    "performance": {
+      "offers_per_second": 4.26,
+      "pages_scanned": 50,
+      "geocoding_duration": 65.99,
+      "geocoding_per_address": 0.1,
+      "scraping_per_page": 1.1,
+      "processing_success_rate": 90.4
     }
   }
 ]
