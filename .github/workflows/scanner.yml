@@ -28,7 +28,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.PAT_TOKEN }}
+          # FIX 2026-08-19: checkout na wbudowanym GITHUB_TOKEN zamiast PAT_TOKEN.
+          # Repo jest publiczne, a job ma `permissions: contents: write`, więc
+          # GITHUB_TOKEN wystarcza i do checkoutu, i do push (persist-credentials
+          # domyślnie zapisuje go do późniejszego `git push`). Wygasły/nieważny PAT
+          # przestaje wywalać cały skan na kroku checkout (patrz CHANGELOG 2026-08-19).
           fetch-depth: 0
       
       - name: Set up Python

@@ -147,8 +147,14 @@ python price_parser.py     # parsowanie cen
    commitem „po fakcie". Jeśli zmiana poszła bez PR-a — commit z wpisem pushuj
    bezpośrednio na `main`.
 
-9. **Workflow CI używa `secrets.PAT_TOKEN`** (nie domyślnego `GITHUB_TOKEN`).
-   `scanner.yml` ma `concurrency: sonar-scanner` — nigdy dwa skany równolegle.
+9. **Workflow CI działają na wbudowanym `GITHUB_TOKEN`** (od 2026-08-19; wcześniej
+   `PAT_TOKEN`, którego wygaśnięcie wywalało cały pipeline na kroku checkout).
+   Repo jest publiczne, więc `GITHUB_TOKEN` wystarcza: `scanner.yml` pushuje
+   (`permissions: contents: write`), a `watchdog.yml` robi checkout i wyzwala
+   scanner przez `gh workflow run` (`permissions: contents: read` + `actions: write`).
+   `workflow_dispatch` przez `GITHUB_TOKEN` tworzy nowy run (blokada rekurencji
+   dotyczy tylko push/PR). `scanner.yml` ma `concurrency: sonar-scanner` — nigdy
+   dwa skany równolegle.
 
 10. **Zapisy JSON przez `atomic_json.atomic_write_json`** (tmp + `os.replace`),
     nie goły `json.dump` do pliku docelowego. Uszkodzony `data/offers.json`
