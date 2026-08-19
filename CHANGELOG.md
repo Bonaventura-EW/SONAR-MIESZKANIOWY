@@ -10,6 +10,22 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Naprawione (2026-08-19) — checkout w Actions na GITHUB_TOKEN (koniec awarii po wygaśnięciu PAT)
+Wygaśnięcie sekretu `PAT_TOKEN` (18.08 ok. południa) wywaliło **wszystkie**
+workflow na kroku `actions/checkout`: `fatal: could not read Username for
+'https://github.com': terminal prompts disabled`. Skaner przestał zapisywać
+oferty, a watchdog co 30 min słał maile „All jobs have failed". Regeneracja PAT-a
+nie pomagała (zły token = 401; dla repo publicznego gorsze niż brak tokenu —
+checkout wysyła nieważny nagłówek zamiast pobrać anonimowo).
+
+Rozwiązanie u źródła: `scanner.yml` i `watchdog.yml` robią checkout na wbudowanym
+`GITHUB_TOKEN` zamiast `PAT_TOKEN`. Repo jest publiczne, a joby mają już
+odpowiednie `permissions` (`contents: write` w scannerze → push; `contents: read`
++ `actions: write` w watchdogu → checkout + `gh workflow run`). Watchdog wyzwala
+scanner też przez `GITHUB_TOKEN` (`workflow_dispatch` przez ten token tworzy run —
+blokada rekurencji dotyczy tylko zdarzeń push/PR). Pipeline przestaje zależeć od
+ręcznie odnawianego PAT-a i nie wygasa.
+
 ### Zmienione (2026-08-12) — dezaktywacja oparta na realnym stanie oferty (koniec churnu)
 Przebudowa mechanizmu dezaktywacji/weryfikacji. Diagnoza: listing OLX jest
 niestabilny — pojedynczy scrape gubi losowe ~7–10% żywych ofert (zestaw rotuje,

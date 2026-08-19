@@ -16,7 +16,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.PAT_TOKEN }}
+          # FIX 2026-08-19: checkout na wbudowanym GITHUB_TOKEN zamiast PAT_TOKEN.
+          # Repo publiczne + `permissions: contents: read` = GITHUB_TOKEN wystarcza.
+          # Wygasły PAT nie wywala już watchdoga (patrz CHANGELOG 2026-08-19).
           fetch-depth: 1
 
       - name: Check last scan age
@@ -64,7 +66,11 @@ jobs:
       - name: Trigger scanner.yml if stale
         if: steps.check.outputs.trigger == 'true'
         env:
-          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+          # FIX 2026-08-19: triggerowanie scanner.yml na GITHUB_TOKEN (job ma
+          # `permissions: actions: write`). workflow_dispatch przez GITHUB_TOKEN
+          # tworzy nowy run — ograniczenie „GITHUB_TOKEN nie wyzwala workflow"
+          # dotyczy tylko zdarzeń push/PR, nie ręcznego dispatchu.
+          GH_TOKEN: ${{ github.token }}
         run: |
           echo "Wyzwalam scanner.yml (wiek ostatniego scanu: ${{ steps.check.outputs.age_hours }}h)"
           gh workflow run scanner.yml --ref main --repo ${{ github.repository }}
