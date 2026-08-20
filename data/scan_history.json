@@ -1,74 +1,5 @@
 [
   {
-    "timestamp": "2026-08-01T16:41:03.295337+02:00",
-    "status": "completed",
-    "phases": {
-      "scraping": {
-        "duration": 10.18,
-        "details": {
-          "offers_found": 93,
-          "max_pages": 50
-        }
-      },
-      "processing": {
-        "duration": 1.39,
-        "details": {
-          "processed": 85,
-          "skipped_no_address": 6,
-          "skipped_no_price": 0,
-          "skipped_no_coords": 0,
-          "skipped_duplicate": 2,
-          "skipped_removed": 0
-        }
-      },
-      "geocoding": {
-        "duration": 1.37,
-        "details": {
-          "geocoded_addresses": 85
-        }
-      }
-    },
-    "stats": {
-      "raw_offers": 93,
-      "processed": 85,
-      "new": 5,
-      "updated": 80,
-      "reactivated": 1,
-      "total_in_db": 2757,
-      "active": 718,
-      "inactive": 2039,
-      "skipped_no_address": 6,
-      "skipped_no_price": 0,
-      "skipped_no_coords": 0,
-      "skipped_duplicate": 2,
-      "skipped_removed": 0,
-      "disappeared": 0,
-      "verification": {
-        "verified": 0,
-        "reactivated": 0,
-        "confirmed_inactive": 0,
-        "errors": 0,
-        "skipped_blocked": true
-      }
-    },
-    "errors": [
-      {
-        "timestamp": "2026-08-01T16:41:14.871504+02:00",
-        "message": "Scraper zwrócił tylko 93 ofert przy 718 aktywnych w bazie (próg: 215) — prawdopodobna blokada OLX. Dezaktywacja pominięta."
-      }
-    ],
-    "end_timestamp": "2026-08-01T16:41:14.943078+02:00",
-    "total_duration": 11.65,
-    "performance": {
-      "offers_per_second": 7.98,
-      "pages_scanned": 50,
-      "geocoding_duration": 1.37,
-      "geocoding_per_address": 0.02,
-      "scraping_per_page": 0.2,
-      "processing_success_rate": 91.4
-    }
-  },
-  {
     "timestamp": "2026-08-01T18:27:30.469492+02:00",
     "status": "completed",
     "phases": {
@@ -7378,6 +7309,88 @@
       "geocoding_per_address": 0.09,
       "scraping_per_page": 0.99,
       "processing_success_rate": 89.8
+    }
+  },
+  {
+    "timestamp": "2026-08-20T05:12:49.581550+02:00",
+    "status": "completed",
+    "phases": {
+      "scraping": {
+        "duration": 51.17,
+        "details": {
+          "offers_found": 771,
+          "max_pages": 50
+        }
+      },
+      "processing": {
+        "duration": 99.8,
+        "details": {
+          "processed": 694,
+          "no_address_kept": 59,
+          "skipped_no_address": 0,
+          "skipped_no_price": 1,
+          "skipped_no_coords": 0,
+          "skipped_duplicate": 76,
+          "skipped_removed": 0
+        }
+      },
+      "geocoding": {
+        "duration": 99.65,
+        "details": {
+          "geocoded_addresses": 694
+        }
+      }
+    },
+    "stats": {
+      "raw_offers": 771,
+      "processed": 694,
+      "new": 7,
+      "updated": 687,
+      "reactivated": 1,
+      "total_in_db": 3333,
+      "active": 820,
+      "inactive": 2513,
+      "skipped_no_address": 0,
+      "skipped_no_price": 1,
+      "skipped_no_coords": 0,
+      "skipped_duplicate": 76,
+      "skipped_removed": 0,
+      "disappeared": 26,
+      "verification": {
+        "checked": 60,
+        "confirmed_inactive": 26,
+        "still_alive": 34,
+        "errors": 0,
+        "circuit_broken": false,
+        "candidates": 97
+      },
+      "map_quality": {
+        "active": 820,
+        "on_map": 709,
+        "off_map": 111,
+        "counts": {
+          "no_address": 53,
+          "not_a_street": 45,
+          "area_only": 8,
+          "no_coords": 5
+        },
+        "precision": {
+          "exact": 274,
+          "street": 435,
+          "none": 111
+        }
+      }
+    },
+    "errors": [],
+    "end_timestamp": "2026-08-20T05:17:00.637127+02:00",
+    "total_duration": 251.06,
+    "performance": {
+      "offers_per_second": 3.07,
+      "pages_scanned": 50,
+      "geocoding_duration": 99.65,
+      "geocoding_per_address": 0.14,
+      "scraping_per_page": 1.02,
+      "processing_success_rate": 90.0
     }
   }
 ]
