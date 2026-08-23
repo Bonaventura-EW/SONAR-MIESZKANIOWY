@@ -1,0 +1,47 @@
+# ── Polityka propagacji dla TEGO repo ─────────────────────────────────
+# Ten plik ROŚNIE w czasie. To jest "pamięć granic" agenta.
+# Na starcie jest prawie pusty → wszystko trafia do Ciebie jako issue.
+# Zmiany w tym pliku wchodzą przez PR, który zatwierdzasz (tak jak kod).
+# Zła reguła nie wślizgnie się po cichu.
+
+repo: "Bonaventura-EW/SONAR-MIESZKANIOWY"          # owner/name TEGO repo
+family: "sonary"        # nazwa rodziny (bracia mają tę samą)
+
+# Rodzeństwo, którego zmiany ten repo ma przeglądać co przebieg:
+siblings:
+  - Bonaventura-EW/SONAR-POKOJOWY
+  - Bonaventura-EW/Sprzedaz-mieszkan
+  - Bonaventura-EW/SONAR---DZIA-KOWY
+  - Bonaventura-EW/parkingi-i-garaze      # pozostałe repo z tej rodziny, po jednym w linii jako  - owner/name
+
+# ── TWARDE GRANICE (siatka bezpieczeństwa — rusza się rzadko) ─────────
+# Propagacja NIGDY nie dotyka tych ścieżek, niezależnie od werdyktu.
+never_touch:
+  - ".propagation/**"
+  - ".github/workflows/**"
+  - ".claude/**"
+  #  - "src/payments/**"
+  #  - "src/config/secrets*"
+
+# ── MIĘKKA POLITYKA (to jest to, co się UCZY) ────────────────────────
+# Poziom autonomii per kategoria zmiany — steruje etykietą `propagate:go`,
+# która wyzwala etap implementacji (Opus):
+#   ask    → issue BEZ `propagate:go`. Ty nakładasz etykietę, gdy chcesz zbudować.
+#            (DOMYŚLNIE — poziom 0, Ty jesteś kontrolerem)
+#   draft  → etap decyzji sam nakłada `propagate:go` → Opus pisze DRAFT PR.
+#            (poziom 1 — po awansie zasłużonym w decisions.jsonl)
+#   AUTO-MERGE NIE ISTNIEJE. Ostatni, nieodwracalny krok zawsze robi człowiek.
+#
+# MODELE: decyzje = Sonnet (claude-sonnet-5), programowanie = Opus (claude-opus-4-8).
+default_autonomy: ask
+
+categories: {}
+  # css-refactor:   draft
+  # a11y-fix:       draft
+  # dependency-bump: ask
+
+# Reguły destylowane z Twoich decyzji — dopisuje je skill `distill-policy`
+# przez PR, który zatwierdzasz. Ręcznie też możesz.
+learned_rules: []
+  #  - "Nie propaguj niczego, co rusza moduł auth (dotąd 0/6 przyjętych)."
+  #  - "Zmiany typu css-refactor przyjmowane w 11/12 → kandydat do awansu na 'draft'."
