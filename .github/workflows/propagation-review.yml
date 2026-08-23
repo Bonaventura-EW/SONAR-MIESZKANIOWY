@@ -33,7 +33,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.SIBLINGS_TOKEN }}   # read do repo-braci
         with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: "/evaluate-propagation"
           claude_args: |
             --model claude-sonnet-5
