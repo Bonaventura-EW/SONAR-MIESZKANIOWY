@@ -1063,7 +1063,9 @@
                         marker.offers.forEach(offer => {
                             offers.push({
                                 ...offer,
-                                address_full: marker.address
+                                // Markery grupowane po współrzędnych → marker.address to tylko
+                                // reprezentant grupy. Preferuj adres konkretnej oferty.
+                                address_full: offer.address || marker.address
                             });
                         });
                     }
