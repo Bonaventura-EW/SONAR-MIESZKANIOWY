@@ -78,3 +78,64 @@ def test_trend_grouped_by_month():
 def test_scatter_capped():
     offers = [_offer(2000, 'mieszkanie 40 m2') for _ in range(gen.SCATTER_MAX_POINTS + 50)]
     assert len(gen.build_stats(offers)['scatter']) == gen.SCATTER_MAX_POINTS
+
+
+# ── Okazje (ranking rabatu vs mediana grupy) ─────────────────────────────────
+
+def _active(price, desc, title='Mieszkanie do wynajęcia', oid=None, url='https://olx.pl/x'):
+    return {'price': {'current': price}, 'description': desc, 'title': title,
+            'active': True, 'id': oid or title, 'url': url,
+            'first_seen': '2026-05-01T10:00:00+02:00'}
+
+
+def test_okazje_ignores_inactive_offers():
+    # _offer(...) nie ma active=True -> nie trafia do rankingu okazji.
+    k = gen.build_stats([_offer(2000, 'mieszkanie 40 m2')])['okazje']
+    assert k['analyzed'] == 0
+    assert k['count'] == 0
+    assert k['offers'] == []
+
+
+def test_okazje_discount_vs_group_median():
+    # 8 kawalerek ~55 zł/m² + jedna wyraźnie tańsza -> ta jedna to okazja.
+    offers = [_active(2200, 'kawalerka 40 m2', title=f'Kawalerka {i}') for i in range(8)]
+    offers.append(_active(1600, 'kawalerka 40 m2', title='Tania kawalerka'))
+    k = gen.build_stats(offers)['okazje']
+    top = k['offers'][0]
+    assert top['title'] == 'Tania kawalerka'
+    assert top['discount_pct'] > 0          # poniżej mediany grupy
+    assert top['est_savings'] > 0
+    assert top['group'].startswith('1-pokojowe')  # kaskada spadła na pokoje/miasto
+    assert top['group_n'] >= gen.OKAZJE_ROOMS_MIN
+    assert k['count'] >= 1
+
+
+def test_okazje_atypical_by_title_excluded_from_medians():
+    # "Pokój w mieszkaniu" tania -> nietypowa, nie zaniża mediany typowych.
+    offers = [_active(2200, 'mieszkanie 40 m2', title=f'Mieszkanie {i}') for i in range(8)]
+    offers.append(_active(600, 'pokój 40 m2', title='Pokój w mieszkaniu 4 pokojowym'))
+    k = gen.build_stats(offers)['okazje']
+    atyp = [o for o in k['offers'] if o['atypical']]
+    assert len(atyp) == 1
+    assert 'pokój' in atyp[0]['atypical_reason'].lower()
+    assert k['atypical_count'] == 1
+    # mediana miasta ~55 (typowe), nie ściągnięta przez pokój (15 zł/m²)
+    assert k['city_median_ppm'] > 40
+
+
+def test_okazje_atypical_by_price_threshold():
+    offers = [_active(2200, 'mieszkanie 40 m2', title=f'Mieszkanie {i}') for i in range(8)]
+    # 800/40 = 20 zł/m² < 55% * ~55 -> nietypowa mimo neutralnego tytułu.
+    offers.append(_active(800, 'mieszkanie 40 m2', title='Super tanie mieszkanie'))
+    k = gen.build_stats(offers)['okazje']
+    cheap = [o for o in k['offers'] if o['title'] == 'Super tanie mieszkanie']
+    assert cheap and cheap[0]['atypical']
+    assert 'mediany miasta' in cheap[0]['atypical_reason']
+
+
+def test_okazje_city_fallback_is_weak():
+    # Bez dzielnicy i bez rozpoznanych pokoi -> ostatni szczebel = całe miasto, weak.
+    offers = [_active(2000 + i * 50, 'lokal 40 m2', title=f'Lokal {i}') for i in range(6)]
+    k = gen.build_stats(offers)['okazje']
+    assert all(o['group'] == 'całe miasto' for o in k['offers'])
+    assert all(o['weak'] for o in k['offers'])

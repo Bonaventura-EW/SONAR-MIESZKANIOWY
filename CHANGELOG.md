@@ -10,6 +10,33 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Dodane (2026-09-01) — zakładka „Okazje" (ranking rabatu vs mediana grupy)
+Nowa podstrona `docs/okazje.html` rankinguje aktywne oferty wg odchylenia ceny
+za m² od mediany **najwęższej porównywalnej grupy**, a nie całego miasta — surowe
+zł/m² wypycha na górę tylko najtańsze lokalizacje, nie realnie zaniżone oferty.
+Propagacja z repo-brata `Sprzedaz-mieszkan` (manifest `2026-08-27-okazje-tab`,
+commit c663135), zaadaptowana do najmu.
+
+Adaptacja u nas różni się od wersji brata w dwóch miejscach:
+- **Generator zamiast frontendu.** Brat liczył wszystko po stronie klienta
+  z `data.json`, bo miał tam metraż/pokoje/dzielnicę per oferta. Nasz `data.json`
+  ich nie niesie (opisy są ucięte), więc ranking liczy `area_price_generator.py`
+  (reużywa `area_parser`) i dokłada sekcję `okazje` do istniejącego
+  `docs/area_price_data.json` — plik i tak generowany oraz commitowany przez
+  `scanner.yml`, więc **zero zmian w workflow**.
+- **Oś grupowania: dzielnica + liczba pokoi** (nie mamy „rynku pierwotny/wtórny"
+  ze sprzedaży). Kaskada z progiem próbki: dzielnica+pokoje ≥5 → dzielnica ≥5 →
+  pokoje w mieście ≥8 → całe miasto. Przy każdej ofercie pokazujemy etykietę grupy
+  i jej liczność (n) — bez tego rabat jest nieweryfikowalny. Ostatni szczebel
+  (całe miasto, bez wymiaru pokoi) miesza kawalerki z 4-pokojowymi, więc jest
+  oznaczony `weak` = „orientacyjnie".
+
+Oferty nietypowe (pokój/kwatera udające mieszkanie — wąski regex **tylko na
+tytule** — lub cena <55% mediany miasta) są wykluczone z liczenia median i
+domyślnie ukryte, ale nie usunięte: checkbox przywraca je z ostrzeżeniem i
+powodem. Fałszywy alarm psuje zaufanie do rankingu bardziej niż przeoczenie,
+które i tak łapie próg cenowy — dlatego regex jest celowo wąski.
+
 ### Naprawione (2026-08-19) — checkout w Actions na GITHUB_TOKEN (koniec awarii po wygaśnięciu PAT)
 Wygaśnięcie sekretu `PAT_TOKEN` (18.08 ok. południa) wywaliło **wszystkie**
 workflow na kroku `actions/checkout`: `fatal: could not read Username for
