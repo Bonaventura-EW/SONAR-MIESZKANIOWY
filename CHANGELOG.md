@@ -10,6 +10,42 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Zmienione (2026-09-02) — jedna belka nawigacji na wszystkich zakładkach
+Dziewięć zakładek miało **pięć różnych belek** i trzy różne listy linków:
+fioletowa belka z linkami stylowanymi `inline` (Mapa), `.nav-links` o innej
+wysokości i typografii (Indeks, Top 5), biała karta z „← Powrót do mapy"
+(Analityka, Monitoring, Analiza Rynku), ta sama karta z „← Mapa ofert"
+(Ceny/m², Okazje) i szósta wersja generowana z Pythona (Pominięte). Z czterech
+zakładek nie dało się przejść nigdzie poza mapę, a linku do „Okazji" nie było
+prawie znikąd. Zgłoszenie Mateusza: „belka na górze w każdej zakładce ma tak
+samo wyglądać".
+
+- **Nowy `docs/assets/header.css`** (klasa `.sm-header`) — konstrukcja wzięta
+  z SONAR-a POKOJOWEGO (`sp-header`): logo + „SONAR MIESZKANIOWY · nazwa
+  zakładki" po lewej, komplet **9 pigułek** po prawej, aktywna na biało.
+  Paleta została nasza, fioletowa (wariant C z wizualizacji: gradient
+  `#6366f1 → #667eea → #764ba2`, pigułki białe 18%) — dzięki temu oba sonary
+  działają tak samo, ale dalej odróżnia się je po jednym spojrzeniu.
+- **Belka wyjęta przed `.container`** na wszystkich stronach, które trzymały ją
+  w środku (Analityka, Monitoring, Analiza Rynku, Ceny/m², Okazje) — inaczej
+  dziedziczy `max-width` kontenera i przy oknie 1600 px renderuje się jako wyspa
+  1200–1400 px z tłem strony po bokach. `padding: 20px` przeniesiony z `body`
+  do `.container`.
+- **Zakładka „Pominięte" ma tę samą belkę u ŹRÓDŁA** — szablon w
+  `src/skipped_debug_generator.py`, nie tylko w wygenerowanym HTML-u; bez tego
+  po najbliższym skanie wróciłaby stara wersja z 6 linkami.
+- **Responsywność**: jeden rząd do 1400 px (niżej ciaśniejsze pigułki), zawijanie
+  ≤ 768 px, a ≤ 560 px h1 skraca się do samego „SONAR MIESZKANIOWY" — nazwę
+  zakładki niesie już aktywna pigułka, a `white-space: nowrap` wypychał belkę
+  poza ekran telefonu (nasze rozwinięcie wobec wersji brata).
+- **Porządki**: usunięty martwy CSS belki (`.header`, `.nav-links`, `.back-link`,
+  `header {}` z białą kartą) z 8 plików HTML i z `assets/style.css`; podtytuł
+  Okazji/Cen za m² (`#subtitle`) wyszedł z białej karty na tło strony jako
+  `.page-sub`. Bump `style.css?v=5`.
+- **Weryfikacja**: zrzuty w Chromium przy 1600 / 1366 / 500 px — każda belka
+  zaczyna się na `x = 0` i ma szerokość okna, jeden rząd do 1366 px, dwa rzędy
+  bez wychodzenia poza ekran przy 500 px. `pytest` 467 ✅.
+
 ### Dodane (2026-09-02) — metryka ofert PROMOWANYCH (płatne wyróżnienia na listingu OLX)
 Propagacja z SONAR-POKOJOWY (manifest `2026-08-26-promoted-listings-metric`,
 commit `bab2ffb`, issue #39). Nie zbieraliśmy w ogóle informacji o płatnym

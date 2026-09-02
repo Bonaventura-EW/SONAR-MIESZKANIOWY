@@ -314,15 +314,10 @@ def generate_skipped_debug_page(
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SONAR MIESZKANIOWY - Diagnostyka skanu (debug)</title>
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="stylesheet" href="assets/header.css?v=1">
 <style>
 * {{ box-sizing: border-box; margin: 0; padding: 0; }}
 body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f7fa; color: #2d3748; line-height: 1.5; }}
-header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }}
-header h1 {{ font-size: 20px; display: flex; align-items: center; gap: 8px; }}
-header .nav-links {{ display: flex; gap: 12px; flex-wrap: wrap; }}
-header .nav-links a {{ color: white; text-decoration: none; background: rgba(255,255,255,0.2); padding: 8px 16px; border-radius: 6px; font-weight: 600; font-size: 14px; transition: background 0.3s; }}
-header .nav-links a:hover {{ background: rgba(255,255,255,0.3); }}
-header .nav-links a.tmp {{ background: rgba(255,200,0,0.4); border: 1px dashed white; }}
 .banner {{ background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 24px; color: #78350f; font-size: 14px; }}
 .container {{ max-width: 1400px; margin: 24px auto; padding: 0 24px; }}
 .stats-grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }}
@@ -434,23 +429,58 @@ header .nav-links a.tmp {{ background: rgba(255,200,0,0.4); border: 1px dashed w
 </head>
 <body>
 
-<header>
-  <h1>
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <circle cx="12" cy="12" r="10"/>
-      <line x1="12" y1="8" x2="12" y2="12"/>
-      <line x1="12" y1="16" x2="12.01" y2="16"/>
+<header class="sm-header">
+  <div class="sm-brand">
+    <svg class="sm-brand-svg" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <radialGradient id="smRb-skipped" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#3a2e15"/>
+          <stop offset="100%" stop-color="#1a1408"/>
+        </radialGradient>
+        <linearGradient id="smRs-skipped" x1="50%" y1="50%" x2="100%" y2="50%">
+          <stop offset="0%" stop-color="#ffb800" stop-opacity="0.8"/>
+          <stop offset="50%" stop-color="#ffb800" stop-opacity="0.3"/>
+          <stop offset="100%" stop-color="#ffb800" stop-opacity="0"/>
+        </linearGradient>
+        <mask id="smRm-skipped"><circle cx="32" cy="32" r="28" fill="white"/></mask>
+      </defs>
+      <circle cx="32" cy="32" r="32" fill="url(#smRb-skipped)"/>
+      <circle cx="32" cy="32" r="30" fill="none" stroke="#ffb800" stroke-width="0.5" opacity="0.6"/>
+      <circle cx="32" cy="32" r="22" fill="none" stroke="#ffb800" stroke-width="0.3" opacity="0.3"/>
+      <circle cx="32" cy="32" r="14" fill="none" stroke="#ffb800" stroke-width="0.3" opacity="0.3"/>
+      <line x1="32" y1="4" x2="32" y2="60" stroke="#ffb800" stroke-width="0.3" opacity="0.3"/>
+      <line x1="4" y1="32" x2="60" y2="32" stroke="#ffb800" stroke-width="0.3" opacity="0.3"/>
+      <g transform="translate(32, 32)">
+        <path fill-rule="evenodd" d="M0,-6 L-5,-1 L5,-1 Z M-4,-1 L4,-1 L4,5 L-4,5 Z M-1.2,1 L1.2,1 L1.2,5 L-1.2,5 Z" fill="#ffb800" stroke="#3a2400" stroke-width="0.5" opacity="0.9">
+          <animateTransform attributeName="transform" type="scale" values="1;1.3;1" dur="2s" repeatCount="indefinite"/>
+        </path>
+      </g>
+      <g mask="url(#smRm-skipped)">
+        <path d="M32,32 L32,4 A28,28 0 0,1 60,32 Z" fill="url(#smRs-skipped)" opacity="0.6">
+          <animateTransform attributeName="transform" type="rotate" from="0 32 32" to="360 32 32" dur="3s" repeatCount="indefinite"/>
+        </path>
+      </g>
+      <circle cx="22" cy="18" r="1.5" fill="#ffb800" opacity="0.8">
+        <animate attributeName="opacity" values="0.8;0.3;0.8" dur="1.5s" repeatCount="indefinite"/>
+      </circle>
     </svg>
-    SONAR MIESZKANIOWY
-  </h1>
-  <div class="nav-links">
+    <h1>
+      <span class="sm-b">SONAR MIESZKANIOWY</span>
+      <span class="sm-s">·</span>
+      <span class="sm-p">🐛 Pominięte</span>
+    </h1>
+  </div>
+  <nav>
     <a href="index.html">🗺️ Mapa</a>
     <a href="analytics.html">📈 Analityka</a>
     <a href="trend.html">📉 Indeks</a>
     <a href="monitoring.html">📊 Monitoring</a>
     <a href="market_analysis.html">🔍 Analiza Rynku</a>
-    <a href="skipped_debug.html" class="tmp">🐛 Pominięte (debug)</a>
-  </div>
+    <a href="analiza_metraz.html">📐 Ceny/m²</a>
+    <a href="okazje.html">💎 Okazje</a>
+    <a href="top5.html">🏆 Top 5</a>
+    <a href="skipped_debug.html" class="active">🐛 Pominięte</a>
+  </nav>
 </header>
 
 <div class="banner">
