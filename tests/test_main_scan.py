@@ -299,6 +299,47 @@ class TestVerifyAndDeactivate:
         assert stats['errors'] == 1
         assert offer['active'] is True
 
+    def test_offer_missing_over_the_ceiling_is_deactivated_without_a_request(self, agent, monkeypatch):
+        """FIX 2026-09-02: sufit nieobecności. Sprawdzenie linku mieści
+        MAX_LINK_CHECKS ofert na skan i było JEDYNYM wyjściem z puli aktywnych —
+        kolejka rosła 3 → 254, a „aktywnych" 694 → 1019 przy płaskim listingu."""
+        called = []
+        self._patch_get(monkeypatch, lambda self, url, **kw: called.append(url) or _Resp(200, _ALIVE_HTML))
+        stale_day = (datetime.now(TZ) - timedelta(days=agent.MAX_MISSING_DAYS)).isoformat()
+        offer = _offer('stale1', active=True, last_seen=stale_day, missing_streak=2)
+        stats = agent._verify_and_deactivate([offer])
+        assert offer['active'] is False
+        assert stats['stale_inactive'] == 1
+        assert stats['confirmed_inactive'] == 1       # API/monitoring czytają tę metrykę
+        assert called == []                           # zero requestów do OLX
+
+    def test_freshly_missing_offer_still_goes_through_the_link_check(self, agent, monkeypatch):
+        self._patch_get(monkeypatch, lambda self, url, **kw: _Resp(200, _ALIVE_HTML))
+        fresh_day = (datetime.now(TZ) - timedelta(days=1)).isoformat()
+        offer = _offer('fresh1', active=True, last_seen=fresh_day, missing_streak=2)
+        stats = agent._verify_and_deactivate([offer])
+        assert stats['stale_inactive'] == 0
+        assert stats['still_alive'] == 1
+        assert offer['active'] is True                # świeża nieobecność = szum paginacji
+
+    def test_link_check_budget_is_spent_on_fresh_candidates(self, agent, monkeypatch):
+        """Sufit zdejmuje najstarszych z kolejki, więc limit sprawdzeń idzie na
+        oferty, przy których link check jeszcze coś wnosi."""
+        checked = []
+        self._patch_get(monkeypatch, lambda self, url, **kw: checked.append(url) or _Resp(200, _ALIVE_HTML))
+        stale = [_offer(f'old{i}', active=True, missing_streak=2,
+                        last_seen=(datetime.now(TZ) - timedelta(days=10)).isoformat())
+                 for i in range(5)]
+        fresh = [_offer(f'new{i}', active=True, missing_streak=2,
+                        last_seen=(datetime.now(TZ) - timedelta(days=1)).isoformat())
+                 for i in range(3)]
+        stats = agent._verify_and_deactivate(stale + fresh)
+        assert stats['stale_inactive'] == 5
+        assert stats['checked'] == 3
+        assert all(f'new{i}' in ' '.join(checked) for i in range(3))
+        assert all(o['active'] is False for o in stale)
+        assert all(o['active'] is True for o in fresh)
+
     def test_circuit_breaker_stops_after_consecutive_errors(self, agent, monkeypatch):
         offers = [_offer(f'o{i}', active=True, missing_streak=2) for i in range(20)]
         self._patch_get(monkeypatch, lambda self, url, **kw: _Resp(403))
@@ -311,6 +352,7 @@ class TestVerifyAndDeactivate:
         called = []
         self._patch_get(monkeypatch, lambda self, url, **kw: called.append(url) or _Resp(200))
         stats = agent._verify_and_deactivate([])
-        assert stats == {'checked': 0, 'confirmed_inactive': 0, 'still_alive': 0,
-                         'errors': 0, 'circuit_broken': False, 'candidates': 0}
+        assert stats == {'checked': 0, 'confirmed_inactive': 0, 'stale_inactive': 0,
+                         'still_alive': 0, 'errors': 0, 'circuit_broken': False,
+                         'candidates': 0}
         assert called == []

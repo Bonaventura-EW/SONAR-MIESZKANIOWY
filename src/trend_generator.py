@@ -77,11 +77,67 @@ def _safe_day(iso_string):
         return None
 
 
+def _absence_intervals(offer):
+    """Dni, w których oferty NIE było na rynku, odczytane z historii powrotów.
+
+    Powrót po realnej nieobecności (`gap_h` ≥ próg) znaczy, że między ostatnim
+    widzeniem a powrotem ogłoszenia na OLX nie było. Jeden ciągły okres
+    `first_seen..last_seen` liczyłby te dni jako żywe — stąd wycinamy je
+    z okresu życia. Powroty ze źródła `verification` NIE są nieobecnością:
+    to nasza własna pomyłka przy dezaktywacji, ogłoszenie cały czas żyło
+    (patrz `reactivation_log.NOISE_SOURCES`).
+    """
+    gaps = []
+    for entry in reactivation_log.entries(offer):
+        gap_h = entry.get('gap_h')
+        if gap_h is None or gap_h < reactivation_log.MIN_REAL_GAP_HOURS:
+            continue
+        if entry.get('src') in reactivation_log.NOISE_SOURCES:
+            continue
+        back = _safe_day(entry.get('at'))
+        if back is None:
+            continue
+        gone = back - timedelta(days=int(gap_h // 24))
+        # Dzień zniknięcia i dzień powrotu oferta jeszcze/już żyła — wycinamy
+        # tylko pełne dni nieobecności między nimi.
+        first_missing, last_missing = gone + timedelta(days=1), back - timedelta(days=1)
+        if last_missing >= first_missing:
+            gaps.append((first_missing, last_missing))
+    return sorted(gaps)
+
+
+def _split_span(start, end, gaps):
+    """Okres życia [start, end] pocięty przerwami → lista rozłącznych odcinków."""
+    pieces, cursor = [], start
+    for gone, back in gaps:
+        if back < cursor or gone > end:
+            continue
+        if gone > cursor:
+            pieces.append((cursor, min(gone - timedelta(days=1), end)))
+        cursor = max(cursor, back + timedelta(days=1))
+        if cursor > end:
+            return pieces
+    if cursor <= end:
+        pieces.append((cursor, end))
+    return pieces
+
+
 def _offer_spans(offers):
-    """[(oferta, start, end), ...] — okres życia oferty razem z samą ofertą.
+    """[(oferta, start, end), ...] — okresy życia ofert razem z samą ofertą.
 
     Wersja z ofertą jest potrzebna pasmom (`build_bands`), które muszą zajrzeć
-    do historii reaktywacji; `build_spans` zwraca z tego same okresy.
+    do historii reaktywacji; `build_spans` zwraca z tego same okresy. Oferta
+    z przerwą w życiu daje WIĘCEJ NIŻ JEDEN odcinek — odcinki są rozłączne,
+    więc każdy dzień liczy ofertę najwyżej raz.
+
+    FIX 2026-09-02: koniec odcinka to zawsze `last_seen`, także dla ofert
+    z `active=True`. Wcześniej aktywne ciągnęły się do dnia ostatniego skanu,
+    co doliczało do KAŻDEGO dnia oferty, których scraper od tygodni nie widzi
+    w listingu, a które czekają w kolejce do sprawdzenia linku (2026-09-02:
+    1019 „aktywnych" wobec 774 ofert realnie zebranych z OLX — nadwyżka rosła
+    od 18.08 wprost proporcjonalnie do kolejki `verification.candidates`).
+    Skany chodzą 3×/dzień, więc pojedyncze zgubienie oferty przez paginację
+    nie rusza `last_seen` z dokładnością do dnia — grace nie jest potrzebny.
     """
     today = max(
         (d for d in (_safe_day(o.get('last_seen')) for o in offers) if d),
@@ -90,13 +146,13 @@ def _offer_spans(offers):
     spans = []
     for o in offers:
         start = _safe_day(o.get('first_seen'))
-        last = _safe_day(o.get('last_seen'))
-        if start is None or last is None:
+        end = _safe_day(o.get('last_seen'))
+        if start is None or end is None:
             continue
-        end = today if o.get('active') else last
         if end < start:
             end = start
-        spans.append((o, start, end))
+        for piece_start, piece_end in _split_span(start, end, _absence_intervals(o)):
+            spans.append((o, piece_start, piece_end))
     return spans, today
 
 
@@ -122,17 +178,34 @@ def _days_window(spans, today):
     return days
 
 
-def build_series(offers):
-    """Dzienna seria [[ms, liczba_aktywnych], ...] od RELIABLE_START do dziś."""
+def build_series(offers, scan_days=None):
+    """Dzienna seria [[ms, liczba_ofert_na_rynku], ...] od RELIABLE_START do dziś.
+
+    Dzień bez skanu (awaria Actions, blokada OLX) idzie do serii jako `None` —
+    ApexCharts rysuje w tym miejscu przerwę. Bez tej maski taki dzień wyglądałby
+    jak załamanie rynku: skoro `last_seen` się nie podbiło, żaden okres życia
+    by go nie objął. Ta sama konwencja co w `build_promoted`.
+    """
     spans, today = build_spans(offers)
     if not spans:
         return []
+    # Dzień z jakimkolwiek `first_seen`/`last_seen` to dzień, w którym skan
+    # zebrał dane — `_scanned_days` patrzy tylko na `last_seen`, więc sam
+    # gubiłby dzień, w którym wszystkie widziane wtedy oferty były nowe.
+    scanned = (set(scan_days or set()) | _scanned_days(offers)
+               | {d for d in (_safe_day(o.get('first_seen')) for o in offers) if d})
+    # Luki rysujemy TYLKO w zakresie, który pokrywa dziennik skanów: poza nim
+    # (starsza historia, testy jednostkowe bez dziennika) nie wiemy, czy skan
+    # danego dnia był, więc nie udajemy pewności i liczymy jak dotąd.
+    known_from = min(scan_days) if scan_days else None
     start = max(RELIABLE_START, min(s for s, _ in spans))
     series = []
     day = start
     while day <= today:
-        count = sum(1 for s, e in spans if s <= day <= e)
-        series.append([_day_ms(day), count])
+        if known_from is not None and day >= known_from and day not in scanned:
+            series.append([_day_ms(day), None])
+        else:
+            series.append([_day_ms(day), sum(1 for s, e in spans if s <= day <= e)])
         day += timedelta(days=1)
     return series
 
@@ -438,22 +511,24 @@ def build_promoted(offers, series, scan_days=None):
 
 
 def _value_at_or_before(series, target_ms):
+    """Ostatnia ZMIERZONA wartość nie później niż `target_ms` (luki pomijamy)."""
     best = None
     for ms, val in series:
-        if ms <= target_ms:
-            best = val
-        else:
+        if ms > target_ms:
             break
+        if val is not None:
+            best = val
     return best
 
 
 def compute_deltas(series):
     """Zmiany 1D/1M/6M/1Y vs dziś. None gdy nie mamy tak starej historii."""
-    if not series:
+    measured = [(ms, val) for ms, val in series if val is not None]
+    if not measured:
         return {}
-    now_ms = series[-1][0]
-    current = series[-1][1]
-    first_ms = series[0][0]
+    now_ms = measured[-1][0]
+    current = measured[-1][1]
+    first_ms = measured[0][0]
     out = {}
     for label, days in (('1D', 1), ('1M', 30), ('6M', 182), ('1Y', 365)):
         target = now_ms - days * DAY_MS
@@ -475,18 +550,23 @@ def generate_trend_data(input_file=None, output_file=None) -> bool:
         data = json.load(f)
     offers = data.get('offers', [])
 
-    series = build_series(offers)
+    scan_days = load_scan_days(input_file)
+    series = build_series(offers, scan_days)
     if not series:
         print("⚠️  Brak danych do rekonstrukcji — pomijam trend_data.json")
         return False
 
-    values = [val for _, val in series]
+    measured = [(ms, val) for ms, val in series if val is not None]
+    if not measured:
+        print("⚠️  Same luki w serii (brak dni ze skanem) — pomijam trend_data.json")
+        return False
+    values = [val for _, val in measured]
     current = values[-1]
     mx, mn = max(values), min(values)
     # MAX: pierwsze wystąpienie, MIN: ostatnie (spójnie z SONAR POKOJOWY)
-    max_ts = next(ms for ms, val in series if val == mx)
-    min_ts = next(ms for ms, val in reversed(series) if val == mn)
-    last_day = datetime.fromtimestamp(series[-1][0] / 1000).date()
+    max_ts = next(ms for ms, val in measured if val == mx)
+    min_ts = next(ms for ms, val in reversed(measured) if val == mn)
+    last_day = datetime.fromtimestamp(measured[-1][0] / 1000).date()
 
     out = {
         'generated_at': datetime.now().astimezone().isoformat(),
@@ -506,7 +586,7 @@ def generate_trend_data(input_file=None, output_file=None) -> bool:
         'outflow': build_outflow(offers),
         'inflow': build_inflow(offers),
         'bands': build_bands(offers),
-        'promoted': build_promoted(offers, series, load_scan_days(input_file)),
+        'promoted': build_promoted(offers, series, scan_days),
     }
 
     atomic_write_json(output_file, out)

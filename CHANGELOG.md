@@ -10,6 +10,52 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Naprawione (2026-09-02) — Indeks liczył o ~25% za dużo (kolejka weryfikacji rosła szybciej, niż ją drenowaliśmy)
+Pierwszy wykres na zakładce Indeks pokazywał 02.09 **1019 ofert i „rekord dziś"**,
+podczas gdy scraper zbierał z listingu OLX ~774 oferty na skan — i to od trzech
+tygodni płasko. Nadwyżka nie była trendem rynku, tylko naszym długiem:
+
+- **Źródło (`main.py`)**: od 2026-08-12 jedynym wyjściem z puli aktywnych było
+  sprawdzenie linku (`_verify_and_deactivate`), a mieści się w nim
+  `MAX_LINK_CHECKS = 60` ofert na skan. Przy ~20 nowych ofertach i ~7
+  potwierdzonych zniknięciach na skan kolejka `verification.candidates` rosła
+  3 → 254 (10.08 → 02.09), a liczba „aktywnych" 694 → 1019. Nadwyżka
+  (`active − raw_offers`) pokrywała się z kolejką co do kilku ofert.
+  **Fix: `MAX_MISSING_DAYS = 3`** — skan przechodzi CAŁY listing 3×/dzień, więc
+  oferta nieobecna we wszystkich skanach przez 3 dni (≈9 przebiegów) nie jest
+  już na OLX i idzie do nieaktywnych bez czekania na swoją kolej w kolejce
+  linków. Limit sprawdzeń linku wydajemy odtąd na ŚWIEŻO nieobecne, gdzie
+  faktycznie coś wnosi (wcześniej sortowanie „najstarsze najpierw" pchało go
+  na oferty, które i tak są martwe). Ochrona przed masową dezaktywacją
+  (`_deactivation_block_reason`) obejmuje nowy krok tak samo jak weryfikację.
+- **Wykres (`trend_generator.py`)**: `_offer_spans` ciągnęło okres życia oferty
+  `active=True` do dnia ostatniego skanu — czyli oferta niewidziana od 12.08
+  doliczała się do KAŻDEGO dnia wykresu. Teraz koniec okresu to zawsze
+  `last_seen`. Grace nie jest potrzebny: przy 3 skanach dziennie pojedyncze
+  zgubienie oferty przez paginację nie rusza `last_seen` z dokładnością do dnia.
+- **Przerwy w życiu oferty**: jeden ciągły odcinek `first_seen..last_seen`
+  liczył jako żywe także dni, w których oferty nie było na rynku (powrót po
+  realnej nieobecności). Okres życia jest teraz cięty przerwami z
+  `reactivation_log` (gap ≥ 24 h, bez źródła `verification` — to nasza własna
+  pomyłka przy dezaktywacji, nie zniknięcie oferty). Wycięte: ~4070 oferta-dni.
+- **Dni bez skanu** (awaria Actions, blokada OLX) idą do serii jako `null`
+  zamiast fałszywego załamania — ta sama konwencja co w `build_promoted`.
+  Luki rysujemy tylko w zakresie, który pokrywa `scan_history.json`; statystyki
+  (`current`/`max`/`min`/`deltas`) liczą się z pominięciem luk.
+
+Efekt po przeliczeniu bazy: **teraz 755 zamiast 1019**, max 900 zamiast „rekord
+dziś", zmiana 1M `−73` zamiast `+120` (wcześniejszy wzrost był artefaktem).
+Pasma i odpływ korzystają z tej samej definicji okresu życia, więc suma pasm
+dalej zgadza się z linią Indeksu (646 świeżych + 109 recyklingu = 755).
+
+⚠️ Przy pierwszym skanie po wdrożeniu licznik „znikło" pokaże jednorazowy skok
+(~250 ofert = zaległa kolejka). Na wykresie odpływu rozłożą się na swoje realne
+dni (`build_outflow` liczy po `last_seen`, a dezaktywacja go nie rusza) — skacze
+tylko licznik pojedynczego skanu w monitoringu.
+
+Testy: 475 ✅ (nowe: `TestSpansEndAtLastSeen` w `test_trend_generator.py`, sufit
+nieobecności i podział budżetu linków w `test_main_scan.py`).
+
 ### Zmienione (2026-09-02) — jedna belka nawigacji na wszystkich zakładkach
 Dziewięć zakładek miało **pięć różnych belek** i trzy różne listy linków:
 fioletowa belka z linkami stylowanymi `inline` (Mapa), `.nav-links` o innej
