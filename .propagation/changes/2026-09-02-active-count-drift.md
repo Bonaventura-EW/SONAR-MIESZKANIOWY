@@ -10,7 +10,7 @@ how:         Dwie warstwy. (1) Skaner - `MAX_MISSING_DAYS`: oferta nieobecna w C
 surface:     src/main.py, src/trend_generator.py, tests/test_main_scan.py, tests/test_trend_generator.py
 generality:  family
 propagate:   yes
-commit:      PENDING
+commit:      2f25455
 ---
 
 # Kontekst
