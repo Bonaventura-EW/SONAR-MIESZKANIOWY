@@ -221,7 +221,9 @@ class TestBands:
         ]
         bands = gen.build_bands(offers)
         fresh, recycled = _by_day(bands['new']), _by_day(bands['react'])
-        assert fresh[date(2026, 5, 20)] == 1 and recycled[date(2026, 5, 20)] == 1
+        # 20.05 bohatera NIE MA na rynku: wrócił 21.05 po 48 h nieobecności,
+        # więc dzień przed powrotem jest wycięty z okresu życia.
+        assert fresh[date(2026, 5, 20)] == 0 and recycled[date(2026, 5, 20)] == 1
         assert fresh[date(2026, 5, 21)] == 0 and recycled[date(2026, 5, 21)] == 2
         assert recycled[date(2026, 5, 25)] == 2      # zostaje do końca życia
 
@@ -291,3 +293,52 @@ def test_generate_raises_on_corrupted_input(tmp_path):
     src.write_text('{ucięty', encoding='utf-8')
     with pytest.raises(json.JSONDecodeError):
         gen.generate_trend_data(input_file=src, output_file=tmp_path / 'out.json')
+
+
+class TestSpansEndAtLastSeen:
+    """Okres życia kończy się na `last_seen` — także dla ofert `active=True`.
+
+    Regresja z 2026-09-02: aktywne oferty ciągnęły się do dnia ostatniego skanu,
+    więc Indeks doliczał ogłoszenia, których scraper od tygodni nie widzi
+    w listingu (1019 „aktywnych" wobec 774 realnie zebranych z OLX).
+    """
+
+    def test_stale_active_offer_stops_counting_after_last_seen(self):
+        offers = [
+            _offer('2026-05-16', '2026-05-25', True),        # widziana do końca
+            _offer('2026-05-16', '2026-05-18', True),        # active, ale znikła 18.05
+        ]
+        days = _by_day(gen.build_series(offers))
+        assert days[date(2026, 5, 18)] == 2
+        assert days[date(2026, 5, 19)] == 1
+        assert days[date(2026, 5, 25)] == 1
+
+    def test_real_absence_is_cut_out_of_the_span(self):
+        # Powrót 21.05 po 48 h nieobecności → 20.05 oferty nie było na rynku.
+        offers = [_returned('2026-05-16', '2026-05-25', ['2026-05-21'])]
+        days = _by_day(gen.build_series(offers))
+        assert days[date(2026, 5, 19)] == 1
+        assert days[date(2026, 5, 20)] == 0
+        assert days[date(2026, 5, 21)] == 1
+
+    def test_verification_returns_are_not_absences(self):
+        """`src='verification'` = nasza pomyłka przy dezaktywacji, nie zniknięcie
+        oferty z OLX — dnia nie wycinamy (patrz reactivation_log.NOISE_SOURCES)."""
+        offers = [_returned('2026-05-16', '2026-05-25', ['2026-05-21'], src='verification')]
+        assert _by_day(gen.build_series(offers))[date(2026, 5, 20)] == 1
+
+    def test_day_without_scan_is_a_gap_not_a_crash(self):
+        offers = [_offer('2026-05-16', '2026-05-20', True)]
+        scan_days = {date(2026, 5, 16), date(2026, 5, 17), date(2026, 5, 19), date(2026, 5, 20)}
+        days = _by_day(gen.build_series(offers, scan_days))
+        assert days[date(2026, 5, 18)] is None      # 18.05 skan nie chodził
+        assert days[date(2026, 5, 19)] == 1
+        # Luka nie może zatruć statystyk liczonych z serii.
+        assert gen.compute_deltas(gen.build_series(offers, scan_days))['1D'] == 0
+
+    def test_gaps_only_inside_the_scan_log_window(self):
+        """Dni starsze niż dziennik skanów liczymy jak dotąd — o tym, czy skan
+        wtedy chodził, dziennik po prostu nic nie wie."""
+        offers = [_offer('2026-05-16', '2026-05-20', True)]
+        days = _by_day(gen.build_series(offers, {date(2026, 5, 19), date(2026, 5, 20)}))
+        assert days[date(2026, 5, 17)] == 1

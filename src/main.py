@@ -7,7 +7,7 @@ WERSJA 2.0: Równoległy scraping + monitoring
 import json
 import re
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 import pytz
 from typing import List, Dict
 import time
@@ -90,6 +90,16 @@ class SonarMieszkaniowy:
     # Sufit sprawdzeń linków na skan (po filtrze streaka kandydatów jest mało;
     # limit chroni OLX na wypadek nietypowego skanu z lawiną chybień).
     MAX_LINK_CHECKS = 60
+    # FIX 2026-09-02: sufit nieobecności. Sprawdzenie linku było JEDYNYM wyjściem
+    # z puli aktywnych, a mieści się w nim MAX_LINK_CHECKS ofert na skan — przy
+    # ~20 nowych ofertach na skan i ~7 potwierdzonych zniknięciach kolejka
+    # `verification.candidates` rosła 3 → 254 (10.08 → 02.09), a liczba
+    # „aktywnych" 694 → 1019 przy PŁASKIM listingu (~770 ofert/skan). Skan
+    # przechodzi CAŁY listing 3×/dzień, więc ogłoszenie nieobecne we wszystkich
+    # skanach przez tyle dni nie jest już na OLX — dezaktywujemy bez czekania
+    # na swoją kolej w kolejce linków. Ochrona przed masową dezaktywacją
+    # (`_deactivation_block_reason`) obejmuje ten krok tak samo jak weryfikację.
+    MAX_MISSING_DAYS = 3
     # Circuit breaker: tyle błędów sprawdzenia linku z rzędu (403/sieć) i
     # przerywamy krok — IP prawdopodobnie zdławione. Błąd ≠ śmierć oferty, więc
     # nic na jego podstawie nie dezaktywujemy; przerwanie chroni przed biciem
@@ -1405,6 +1415,7 @@ class SonarMieszkaniowy:
         stats = {
             'checked': 0,
             'confirmed_inactive': 0,
+            'stale_inactive': 0,
             'still_alive': 0,
             'errors': 0,
             'circuit_broken': False,
@@ -1413,9 +1424,36 @@ class SonarMieszkaniowy:
         if not candidates:
             return stats
 
+        now_day = datetime.now(self.tz).date()
+
+        def _missing_days(offer):
+            try:
+                return (now_day - date.fromisoformat((offer.get('last_seen') or '')[:10])).days
+            except ValueError:
+                return 0          # brak/uszkodzony last_seen → nie zgadujemy
+
+        # KROK 1: nieobecne dłużej niż sufit — dezaktywacja bez sprawdzania linku.
+        # Bez tego kolejka rośnie szybciej, niż ją drenujemy (patrz MAX_MISSING_DAYS).
+        stale = [o for o in candidates if _missing_days(o) >= self.MAX_MISSING_DAYS]
+        if stale:
+            stale_now = datetime.now(self.tz).isoformat()
+            for offer in stale:
+                self._deactivate_offer(offer, stale_now)
+            stats['stale_inactive'] = len(stale)
+            # Liczy się do tej samej metryki co potwierdzenia linkiem — API
+            # i monitoring czytają `confirmed_inactive` jako „ile zniknęło".
+            stats['confirmed_inactive'] += len(stale)
+            print(f"   ⌛ Nieobecne ≥{self.MAX_MISSING_DAYS} dni → dezaktywowane bez "
+                  f"sprawdzania linku: {len(stale)}")
+
+        # KROK 2: świeżo nieobecne — link check łapie zniknięcie wcześniej niż sufit.
+        fresh = [o for o in candidates if _missing_days(o) < self.MAX_MISSING_DAYS]
+        if not fresh:
+            print(f"   📊 Weryfikacja linków: pominięta (wszyscy kandydaci przekroczyli sufit)")
+            return stats
         # Najstarsze last_seen najpierw — najbardziej podejrzane o realne zniknięcie.
-        to_check = sorted(candidates, key=lambda o: o.get('last_seen', ''))[:self.MAX_LINK_CHECKS]
-        print(f"   🔍 Sprawdzam linki {len(to_check)} kandydatów (z {len(candidates)})...")
+        to_check = sorted(fresh, key=lambda o: o.get('last_seen', ''))[:self.MAX_LINK_CHECKS]
+        print(f"   🔍 Sprawdzam linki {len(to_check)} kandydatów (z {len(fresh)})...")
 
         session = http_client.ImpersonatedSession(headers={
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
