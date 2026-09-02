@@ -200,6 +200,24 @@
             pokazujemy tylko zakres, który realnie mierzymy: każdy powrót zapisujemy teraz osobno, razem z długością
             nieobecności.
         </div>
+
+        <div class="card" style="margin-top:22px">
+            <h2>⭐ Promowane ogłoszenia &ndash; płatne wyróżnienia na listingu</h2>
+            <div class="sub" id="promoLabel">Dzienna liczba wyróżnionych ofert + udział w rynku</div>
+            <div id="chart6"><div class="loading">Ładowanie danych…</div></div>
+        </div>
+
+        <div class="foot">
+            <strong>Skąd dane:</strong> OLX oznacza kafelki płatnie wyróżnione parametrem
+            <code>search_reason=search|promoted</code> (organiczne: <code>search|organic</code>) &mdash;
+            scraper czyta go przy każdym przejściu listingu i zapisuje dzień w <code>promoted_dates</code>
+            oferty (max 1 wpis/dzień, choć skanujemy 3&times; dziennie). Pomarańczowa linia to liczba wyróżnionych
+            ofert danego dnia, jasna to średnia krocząca z 7 dni, fioletowa (prawa oś) to ich udział
+            w liczbie wszystkich aktywnych ofert &mdash; ten sam mianownik co Indeks na górze strony.
+            <strong>Historia zaczyna się w dniu wdrożenia</strong> (<span id="promoSince">&mdash;</span>):
+            wyróżnienia to stan chwilowy na listingu, nie ślad w ofercie, więc nie da się ich odtworzyć głębiej wstecz.
+            Dni bez skanu (awaria Actions, blokada OLX) rysują się jako luka i nie wchodzą do średniej.
+        </div>
     </main>
 
     <script>
@@ -536,6 +554,99 @@
         } else {
             document.getElementById('reactLabel').textContent = waiting;
             noteInstead('chart5', waiting);
+        }
+
+        // --- promowane: dzienna liczba wyróżnień + udział w rynku (druga oś) ---
+        const pr = d.promoted;
+        if (pr && Array.isArray(pr.daily) && pr.daily.some(function (p) { return p[1] != null; })) {
+            const share = pr.current_share == null ? null : String(pr.current_share).replace('.', ',');
+            document.getElementById('promoLabel').innerHTML =
+                'Teraz <b>' + (pr.current == null ? '—' : pr.current) + '</b> wyróżnionych' +
+                (share == null ? '' : ' (<b>' + share + '%</b> rynku)') +
+                ', średnio <b>' + String(pr.rate).replace('.', ',') + '/dzień</b>, ' +
+                'rekord <b>' + pr.max_day + '</b> (' + pr.max_label + ').';
+            document.getElementById('promoSince').textContent = pr.start_label || '—';
+
+            // Zakresy obu osi liczone z danych. Bez tego ApexCharts, dopasowując dwie
+            // osie do siebie, rozciąga skalę „ofert" kilkukrotnie ponad dane i wykres
+            // jest płaski. Oś zaczyna się od dołu zakresu (jak Indeks na górze strony),
+            // bo to metryka STANU — od zera nie widać wahań rzędu kilkunastu ofert.
+            function _span(pairs, padLow, padHigh) {
+                const vals = pairs.map(function (p) { return p[1]; })
+                                  .filter(function (v) { return v != null; });
+                if (!vals.length) return { min: 0, max: 1 };
+                const lo = Math.min.apply(null, vals), hi = Math.max.apply(null, vals);
+                const pad = Math.max((hi - lo) || hi * 0.1, 1);
+                return { min: Math.max(0, lo - pad * padLow), max: hi + pad * padHigh };
+            }
+            const spanCount = _span(pr.daily, 0.6, 0.4);
+            const spanShare = _span(pr.share, 0.6, 0.4);
+
+            const optsP = {
+                chart: {
+                    type: 'line', height: 380, background: 'transparent',
+                    locales: [PL_LOCALE], defaultLocale: 'pl',
+                    fontFamily: 'inherit', foreColor: '#6b7280',
+                    toolbar: { show: true, tools: { download: true, selection: true, zoom: true, zoomin: true, zoomout: true, pan: true, reset: true } },
+                    animations: { enabled: true, speed: 550 },
+                    zoom: { enabled: true },
+                    // Udział w rynku startuje ukryty (kliknięcie w legendę go pokazuje):
+                    // jest proporcjonalny do liczby wyróżnień, więc na starcie tylko
+                    // dubluje kształt tamtej linii. Ma sens dopiero przy porównaniu
+                    // okresów o różnej wielkości rynku.
+                    events: {
+                        mounted: function (ctx) { ctx.hideSeries('Udział w rynku'); }
+                    }
+                },
+                series: [
+                    { name: 'Promowane danego dnia', data: pr.daily },
+                    { name: 'Średnia 7 dni', data: pr.avg },
+                    { name: 'Udział w rynku', data: pr.share }
+                ],
+                colors: ['#d97706', '#fbbf24', '#7c3aed'],
+                stroke: { curve: ['straight', 'smooth', 'smooth'], width: [2, 3, 2], dashArray: [0, 0, 5] },
+                dataLabels: { enabled: false },
+                markers: { size: 0, hover: { size: 5 } },
+                grid: { borderColor: '#e5e7eb', strokeDashArray: 4, xaxis: { lines: { show: true } }, yaxis: { lines: { show: true } } },
+                xaxis: {
+                    type: 'datetime', axisBorder: { show: false }, axisTicks: { color: '#e5e7eb' },
+                    labels: {
+                        datetimeUTC: false, style: { colors: '#6b7280' },
+                        datetimeFormatter: { year: 'yyyy', month: "MMM 'yy", day: 'dd MMM', hour: 'HH:mm' }
+                    }
+                },
+                yaxis: [
+                    {
+                        seriesName: 'Promowane danego dnia', min: spanCount.min, max: spanCount.max, tickAmount: 4,
+                        labels: { style: { colors: '#6b7280' }, formatter: function (v) { return Math.round(v); } },
+                        title: { text: 'ofert', style: { color: '#6b7280', fontWeight: 500 } }
+                    },
+                    { seriesName: 'Promowane danego dnia', show: false },
+                    {
+                        seriesName: 'Udział w rynku', opposite: true, min: spanShare.min, max: spanShare.max, tickAmount: 4,
+                        labels: {
+                            style: { colors: '#6b7280' },
+                            formatter: function (v) { return (Math.round(v * 10) / 10).toString().replace('.', ',') + '%'; }
+                        },
+                        title: { text: '% rynku', style: { color: '#6b7280', fontWeight: 500 } }
+                    }
+                ],
+                legend: { labels: { colors: '#6b7280' }, markers: { radius: 12 }, itemMargin: { horizontal: 10 } },
+                tooltip: {
+                    shared: true, x: { format: 'dd.MM.yyyy' },
+                    y: [
+                        { formatter: function (v) { return v == null ? '—' : (v + ' ofert'); } },
+                        { formatter: function (v) { return v == null ? '—' : (String(v).replace('.', ',') + ' ofert'); } },
+                        { formatter: function (v) { return v == null ? '—' : (String(v).replace('.', ',') + '% rynku'); } }
+                    ]
+                }
+            };
+            document.getElementById('chart6').innerHTML = '';
+            new ApexCharts(document.querySelector('#chart6'), optsP).render();
+        } else {
+            document.getElementById('chart6').innerHTML =
+                '<div class="loading">Metryka rusza od pierwszego skanu po wdrożeniu detekcji wyróżnień — ' +
+                'wykres pojawi się, gdy uzbieramy pierwszy dzień danych.</div>';
         }
     })();
     </script>
