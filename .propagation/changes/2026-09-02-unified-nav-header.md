@@ -10,7 +10,7 @@ how:         Konstrukcja przeniesiona z SONAR-a POKOJOWEGO (sp-header): brand (l
 surface:     docs/assets/header.css, docs/*.html (9 stron), docs/assets/style.css, src/skipped_debug_generator.py
 generality:  family
 propagate:   maybe
-commit:      41b63fd
+commit:      d38d225
 ---
 
 # Kontekst
