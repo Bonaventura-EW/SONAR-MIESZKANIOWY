@@ -1,0 +1,84 @@
+/* === Ujednolicona belka nawigacji SONAR MIESZKANIOWY ===
+   FIX 2026-09-02: jeden plik dla WSZYSTKICH zakładek. Wcześniej 9 stron miało
+   5 różnych belek (fioletowa z linkami inline, `.nav-links`, dwie warianty
+   białej karty z „← Powrót do mapy", plus belka generowana z Pythona) i trzy
+   różne listy linków. Zmieniaj TUTAJ, nie per-strona.
+
+   UWAGA: zakładka „Pominięte" powstaje z `src/skipped_debug_generator.py` —
+   zmieniając listę linków popraw też szablon w generatorze, inaczej po
+   najbliższym skanie wróci stara wersja.
+
+   Belka MUSI stać poza `.container`/`main` (czyli tuż za `<body>`), inaczej
+   dziedziczy `max-width` kontenera i zamiast na całą szerokość okna renderuje
+   się jako wyspa z tłem strony po bokach. === */
+.sm-header {
+  background: linear-gradient(120deg, #6366f1 0%, #667eea 45%, #764ba2 100%);
+  color: #fff;
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: nowrap;                 /* brand + nav ZAWSZE w jednym rzędzie (desktop) */
+  box-shadow: 0 2px 12px rgba(102, 126, 234, 0.28);
+}
+.sm-header .sm-brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.sm-header .sm-brand-svg { width: 32px; height: 32px; flex-shrink: 0; }
+.sm-header h1 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
+  white-space: nowrap;
+}
+.sm-header h1 .sm-b { font-weight: 800; letter-spacing: 0.5px; }
+.sm-header h1 .sm-s { opacity: 0.5; margin: 0 8px; font-weight: 300; }
+.sm-header h1 .sm-p { font-weight: 500; opacity: 0.95; }
+.sm-header nav { display: flex; gap: 3px; flex-wrap: nowrap; justify-content: flex-end; min-width: 0; }
+.sm-header nav a {
+  color: #fff;
+  text-decoration: none;
+  padding: 6px 9px;
+  border-radius: 9px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.sm-header nav a:hover { background: rgba(255, 255, 255, 0.32); }
+.sm-header nav a.active {
+  background: #fff;
+  color: #4c1d95;
+  border-color: #fff;
+  box-shadow: 0 2px 6px rgba(30, 10, 70, 0.3);
+}
+.sm-header nav a:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+/* Węższe laptopy: ciaśniejsze pigułki, ale wciąż JEDEN rząd. Próg 1400 px jak
+   w SONAR-ze POKOJOWYM — przy 9 zakładkach luźny wariant zaczyna nachodzić na
+   tytuł już ~1360 px. */
+@media (max-width: 1400px) {
+  .sm-header { gap: 10px; padding: 12px 16px; }
+  .sm-header nav { gap: 2px; }
+  .sm-header nav a { padding: 5px 7px; font-size: 11px; }
+}
+@media (max-width: 768px) {
+  .sm-header { padding: 10px 14px; flex-wrap: wrap; }   /* na telefonie zawijaj, nie wypychaj poza ekran */
+  .sm-header h1 { font-size: 15px; }
+  .sm-header nav { flex-wrap: wrap; }
+  .sm-header nav a { padding: 5px 8px; font-size: 11px; }
+}
+/* Wąski telefon: sam „SONAR MIESZKANIOWY". Nazwę zakładki niesie już aktywna
+   pigułka, a `white-space: nowrap` na h1 przy 360 px wypychał belkę poza ekran. */
+@media (max-width: 560px) {
+  .sm-header h1 .sm-s,
+  .sm-header h1 .sm-p { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sm-header nav a { transition: none; }
+}
