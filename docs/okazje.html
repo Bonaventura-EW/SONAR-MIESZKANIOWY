@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SONAR MIESZKANIOWY - Okazje</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,Cantarell,sans-serif;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);min-height:100vh;padding:20px}
+.container{max-width:1200px;margin:0 auto}
+header{background:#fff;padding:24px;border-radius:14px;box-shadow:0 4px 6px rgba(0,0,0,.1);margin-bottom:20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+header h1{color:#667eea;font-size:26px}
+.subtitle{color:#888;font-size:14px;margin-top:4px;font-weight:400}
+.back-link{color:#667eea;text-decoration:none;padding:9px 18px;border:2px solid #667eea;border-radius:8px;font-weight:600;transition:all .3s}
+.back-link:hover{background:#667eea;color:#fff}
+.loading{text-align:center;color:#fff;font-size:22px;padding:90px 20px}
+.error-message{background:#fee;color:#c33;padding:20px;border-radius:12px;margin:20px 0}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px;margin-bottom:20px}
+.card{background:#fff;padding:20px;border-radius:14px;box-shadow:0 2px 4px rgba(0,0,0,.1)}
+.card h3{color:#888;font-size:13px;font-weight:600;margin-bottom:8px;text-transform:uppercase;letter-spacing:.03em}
+.card .v{font-size:32px;font-weight:800;color:#333}
+.card .s{font-size:13px;color:#10b981;margin-top:6px}
+.panel{background:#fff;padding:22px;border-radius:14px;box-shadow:0 2px 4px rgba(0,0,0,.1);margin-bottom:20px}
+.panel h2{font-size:18px;color:#333;margin-bottom:6px}
+.panel .hint{font-size:13px;color:#999;margin-bottom:14px;line-height:1.5}
+.controls{display:flex;flex-wrap:wrap;gap:18px;align-items:center;font-size:14px;color:#555}
+.controls label{display:flex;align-items:center;gap:7px;cursor:pointer}
+.controls select{padding:6px 10px;border:1px solid #ddd;border-radius:7px;font-size:14px}
+.deal{display:grid;grid-template-columns:1fr auto;gap:10px 18px;align-items:center;padding:14px 4px;border-bottom:1px solid rgba(0,0,0,.08)}
+.deal:last-child{border-bottom:none}
+.deal .t{font-weight:600;color:#333;font-size:15px;text-decoration:none}
+.deal .t:hover{color:#667eea;text-decoration:underline}
+.deal .meta{font-size:13px;color:#888;margin-top:3px}
+.deal .ref{font-size:12px;color:#aaa;margin-top:2px}
+.deal .right{text-align:right;white-space:nowrap}
+.badge{display:inline-block;font-weight:800;font-size:18px;padding:4px 12px;border-radius:8px;color:#fff}
+.save{font-size:13px;color:#10b981;margin-top:4px;font-weight:600}
+.weak{font-size:11px;color:#e0a800;margin-top:2px}
+.atypical{background:#fff8e1;border:1px solid #ffd54f}
+.atypical .warn{font-size:12px;color:#b8860b;margin-top:4px}
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:#f0f0f5;color:#667eea;margin-left:6px}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h1>💎 Okazje</h1>
+      <div class="subtitle" id="subtitle">Lublin · ładowanie danych…</div>
+    </div>
+    <a class="back-link" href="index.html">← Mapa ofert</a>
+  </header>
+
+  <div id="loading" class="loading">⏳ Wczytywanie okazji…</div>
+  <div id="content" style="display:none"></div>
+</div>
+
+<script>
+// Dane pochodzą ze scrapera OLX (tytuły, URL-e) — obce dane użytkowników.
+// Wszystko wstawiane do innerHTML MUSI przejść przez escapeHtml()/safeUrl()
+// (konwencja projektu, patrz CLAUDE.md pkt 11).
+function escapeHtml(value){
+  return String(value ?? '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function safeUrl(url){
+  return /^https?:\/\//i.test(String(url ?? '')) ? String(url) : '#';
+}
+const PLN = n => (n==null ? '—' : Math.round(n).toLocaleString('pl-PL')+' zł');
+const PPM = n => (n==null ? '—' : (Math.round(n*10)/10).toLocaleString('pl-PL')+' zł/m²');
+const el = id => document.getElementById(id);
+
+// Zielony (mocny rabat) → pomarańcz (lekki). Płynny gradient wg wielkości rabatu.
+function badgeColor(pct){
+  const t = Math.max(0, Math.min(1, pct/45));   // 45%+ = najmocniejsza zieleń
+  const r = Math.round(245 - t*205), g = Math.round(160 + t*40), b = Math.round(20 + t*60);
+  return `rgb(${r},${g},${b})`;
+}
+
+let K = null;
+let sortKey = 'discount_pct';
+let showAtypical = false;
+
+fetch('area_price_data.json?v=' + Date.now())
+  .then(r => { if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+  .then(data => { K = data.okazje; render(); })
+  .catch(err => {
+    el('loading').style.display = 'none';
+    const c = el('content');
+    c.style.display = 'block';
+    c.innerHTML = '<div class="error-message">❌ Nie udało się wczytać <b>area_price_data.json</b>: '
+      + escapeHtml(err.message) + '. Uruchom <code>python src/area_price_generator.py</code>.</div>';
+  });
+
+function render(){
+  el('loading').style.display = 'none';
+  el('content').style.display = 'block';
+
+  if(!K || !K.analyzed){
+    el('subtitle').textContent = 'Lublin · brak danych';
+    el('content').innerHTML = '<div class="error-message">Brak aktywnych ofert z metrażem do rankingu okazji.</div>';
+    return;
+  }
+
+  const deals = K.offers.filter(o => !o.atypical && o.discount_pct > 0);
+  const best = deals[0];
+  const topSave = deals.slice(0, 20).reduce((s, o) => s + (o.est_savings || 0), 0);
+  el('subtitle').textContent =
+    `Lublin · ${K.analyzed} aktywnych ofert · mediana ${PPM(K.city_median_ppm)} · ${K.count} okazji`;
+
+  el('content').innerHTML = `
+    <div class="cards">
+      <div class="card"><h3>Okazje w bazie</h3><div class="v">${K.count}</div><div class="s">poniżej mediany swojej grupy</div></div>
+      <div class="card"><h3>Najlepszy rabat</h3><div class="v">${best ? '−'+Math.round(best.discount_pct)+'%' : '—'}</div><div class="s">${best ? PPM(best.ppm)+' vs '+PPM(best.group_median_ppm) : ''}</div></div>
+      <div class="card"><h3>Oszczędność TOP 20</h3><div class="v" style="font-size:26px">${PLN(topSave)}/mc</div><div class="s">łącznie względem mediany grup</div></div>
+      <div class="card"><h3>Mediana miasta</h3><div class="v">${PPM(K.city_median_ppm)}</div><div class="s">${K.atypical_count} ofert nietypowych ukryto</div></div>
+    </div>
+
+    <div class="panel">
+      <h2>Jak liczymy okazję?</h2>
+      <div class="hint">
+        Rabat to odchylenie ceny za m² danej oferty od <b>mediany najwęższej porównywalnej grupy</b>
+        (dzielnica + liczba pokoi → dzielnica → pokoje w mieście → całe miasto), a nie od mediany całego
+        rynku — inaczej na górze lądują tylko najtańsze lokalizacje, nie realnie zaniżone oferty.
+        Przy każdej ofercie pokazujemy, z czym ją porównaliśmy i ile ofert liczyła grupa (n).
+        Oferty nietypowe (pokój/kwatera udające mieszkanie lub cena &lt;55% mediany miasta) są wykluczone
+        z liczenia median i domyślnie ukryte — możesz je pokazać poniżej z ostrzeżeniem.
+      </div>
+      <div class="controls">
+        <label>Sortuj:
+          <select id="sortSel" onchange="setSort(this.value)">
+            <option value="discount_pct">wg rabatu (%)</option>
+            <option value="est_savings">wg oszczędności (zł/mc)</option>
+          </select>
+        </label>
+        <label><input type="checkbox" id="atypChk" onchange="setAtypical(this.checked)"> Pokaż oferty nietypowe (${K.atypical_count})</label>
+      </div>
+    </div>
+
+    <div class="panel"><div id="list"></div></div>
+  `;
+  renderList();
+}
+
+function setSort(k){ sortKey = k; renderList(); }
+function setAtypical(v){ showAtypical = v; renderList(); }
+
+function renderList(){
+  let rows = K.offers.filter(o => showAtypical ? true : (!o.atypical && o.discount_pct > 0));
+  rows = rows.slice().sort((a,b) => (b[sortKey] || 0) - (a[sortKey] || 0));
+
+  if(!rows.length){
+    el('list').innerHTML = '<div class="hint">Brak ofert spełniających kryteria.</div>';
+    return;
+  }
+
+  el('list').innerHTML = rows.slice(0, 200).map(o => {
+    const disc = Math.round(o.discount_pct);
+    const sign = disc >= 0 ? '−' : '+';               // rabat = taniej od mediany
+    const roomTxt = o.rooms ? o.rooms+'-pok.' : 'metraż nieznany';
+    const meta = `${escapeHtml(PLN(o.price))} · ${o.area} m² · ${escapeHtml(PPM(o.ppm))} · ${escapeHtml(roomTxt)}`;
+    const ref = `porównano z: <b>${escapeHtml(o.group)}</b> (n=${o.group_n}, mediana ${escapeHtml(PPM(o.group_median_ppm))})`;
+    const weak = o.weak ? '<div class="weak">⚠ orientacyjnie — brak węższej grupy z próbką, mieszane metraże</div>' : '';
+    const warn = o.atypical ? `<div class="warn">⚠ oferta nietypowa: ${escapeHtml(o.atypical_reason || '—')}</div>` : '';
+    const save = (!o.atypical && o.est_savings > 0)
+      ? `<div class="save">≈ ${escapeHtml(PLN(o.est_savings))}/mc taniej</div>` : '';
+    const badge = o.atypical
+      ? ''
+      : `<span class="badge" style="background:${badgeColor(o.discount_pct)}">${sign}${Math.abs(disc)}%</span>`;
+    return `
+      <div class="deal${o.atypical ? ' atypical' : ''}">
+        <div>
+          <a class="t" href="${safeUrl(o.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(o.title || 'Oferta')}</a>
+          <div class="meta">${meta}</div>
+          <div class="ref">${ref}</div>
+          ${weak}${warn}
+        </div>
+        <div class="right">${badge}${save}</div>
+      </div>`;
+  }).join('');
+}
+</script>
+</body>
+</html>
