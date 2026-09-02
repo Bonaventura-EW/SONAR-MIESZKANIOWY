@@ -10,6 +10,36 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Dodane (2026-09-02) — metryka ofert PROMOWANYCH (płatne wyróżnienia na listingu OLX)
+Propagacja z SONAR-POKOJOWY (manifest `2026-08-26-promoted-listings-metric`,
+commit `bab2ffb`, issue #39). Nie zbieraliśmy w ogóle informacji o płatnym
+wyróżnianiu ofert — a sygnał **był już w naszej bazie**: zapisujemy pełny URL
+oferty z query stringiem, a 98 z 983 aktywnych ofert (~10%) niosło w nim
+parametr atrybucji `search_reason=search|promoted`.
+
+- **scraper** (`_is_promoted_href`) czyta wyróżnienie z tego parametru
+  (organiczne: `search|organic`) — odporniejsze niż klasy CSS/`data-testid`,
+  które OLX przemebluje co kilka miesięcy. Fallback na plakietkę karty
+  (`data-testid="adCard-featured"`) tylko, gdy href nie niesie atrybucji;
+  alarm w logach, gdy **żaden** kafelek nie ma `search_reason` (zmiana formatu).
+  Dedup na stronie **podnosi** flagę (ten sam kafelek bywa i w bloku promowanych
+  nad listingiem, i organicznie niżej), nie bierze pierwszego trafienia.
+- **main** zapisuje `promoted` (stan z ostatniego skanu) i `promoted_dates`
+  (dni widziane jako wyróżnione, max 1/dzień — `_track_promoted`). Flaga
+  odświeża się na wszystkich ścieżkach: nowe oferty, `_update_existing_offer`,
+  oferty pominięte przez inteligentne skanowanie (`_reconcile_presence`,
+  ratunek jak dla bumpów odświeżenia) i dezaktywacja (`_deactivate_offer`
+  gasi flagę, historię dni zostawia). `_backfill_promoted_from_url` odtwarza
+  bieżący stan z zapisanych URL-i, więc metryka rusza bez czekania na skan.
+- **trend_generator** (`build_promoted`) liczy dzienną liczbę wyróżnionych,
+  średnią 7 dni i udział w rynku (% aktywnych, ten sam mianownik co Indeks).
+  Metryka STANU, nie przepływu (bez `total`). Historia startuje w dniu wdrożenia
+  — wyróżnień nie da się odtworzyć głębiej wstecz. Dni bez skanu (scan_history
+  + `last_seen`) idą do serii jako luka, nie zero.
+- **`docs/trend.html`** — nowy wykres pod reaktywacjami: liczba + średnia 7 dni
+  na lewej osi, udział w rynku (ukryty do kliknięcia w legendę) na prawej.
+  Zakresy osi liczone z danych, żeby dwuosiowy wykres nie wychodził płaski.
+
 ### Dodane (2026-09-01) — zakładka „Okazje" (ranking rabatu vs mediana grupy)
 Nowa podstrona `docs/okazje.html` rankinguje aktywne oferty wg odchylenia ceny
 za m² od mediany **najwęższej porównywalnej grupy**, a nie całego miasta — surowe

@@ -553,6 +553,35 @@ class SonarMieszkaniowy:
         if updated:
             print(f"   🎯 Uzupełniono precyzję adresu dla {updated} ofert")
 
+    def _backfill_promoted_from_url(self):
+        """Uzupełnia flagę `promoted` ofertom sprzed wdrożenia detekcji — bez sieci.
+
+        Sygnał wyróżnienia jest już w bazie: pełny URL oferty z parametrem
+        atrybucji OLX (`search_reason=search|promoted`) zapisujemy od dawna, więc
+        stan „promowana teraz" da się odtworzyć bez czekania na kolejny skan.
+        Dla ofert bez pola `promoted` odczytujemy je z URL-a
+        (`OLXScraper._is_promoted_href`). Aktywnym, aktualnie wyróżnionym ofertom
+        dokładamy dzisiejszą datę do `promoted_dates`, żeby wykres miał pierwszy
+        punkt od razu — głębiej wstecz wyróżnień NIE DA SIĘ odtworzyć (to stan
+        chwilowy na listingu, nie ślad w ofercie), więc seedujemy tylko „dziś".
+        Idempotentne: rusza tylko dla ofert bez pola `promoted`.
+        """
+        today = datetime.now(self.tz).strftime('%Y-%m-%d')
+        filled = 0
+        for offer in self.database['offers']:
+            if 'promoted' in offer:
+                continue
+            promoted = bool(offer.get('active')
+                            and OLXScraper._is_promoted_href(offer.get('url', '')))
+            offer['promoted'] = promoted
+            dates = offer.setdefault('promoted_dates', [])
+            if promoted and today not in dates:
+                dates.append(today)
+            offer['promoted_count'] = len(dates)
+            filled += 1
+        if filled:
+            print(f"   ⭐ Backfill promowanych: uzupełniono {filled} ofert z URL-a")
+
     def _address_from_title(self, raw_offer: Dict, full_text: str):
         """Adres z TYTUŁU ogłoszenia — pierwszeństwo przed treścią (2026-08-06).
 
@@ -915,7 +944,9 @@ class SonarMieszkaniowy:
         if coords:
             address_dict['coords'] = coords
         # Brak coords → offer_id zapisze się do bazy BEZ coords → map_generator włączy do unlocalised
-        
+
+        promoted = bool(raw_offer.get('promoted'))
+
         return {
             'id': offer_id,
             'url': raw_offer['url'],
@@ -938,11 +969,38 @@ class SonarMieszkaniowy:
             'first_seen': datetime.now(self.tz).isoformat(),
             'last_seen': datetime.now(self.tz).isoformat(),
             'active': True,
-            'days_active': 0
+            'days_active': 0,
+            # Płatne wyróżnienie na listingu OLX (scraper._is_promoted_href).
+            # `promoted` = stan z OSTATNIEGO skanu, `promoted_dates` = dni, w
+            # których widzieliśmy ofertę jako promowaną (max 1/dzień) — z tego
+            # trend_generator buduje dzienny szereg „ile ofert jest promowanych".
+            'promoted': promoted,
+            'promoted_dates': [datetime.now(self.tz).strftime('%Y-%m-%d')] if promoted else [],
+            'promoted_count': 1 if promoted else 0,
         }
     
     # FIX 2026-06-12: usunięto _find_existing_offer (liniowy skan bazy per oferta) —
     # run_scan używa teraz indeksu cid_index {CID3 → oferta} budowanego raz.
+
+    def _track_promoted(self, existing: Dict, promoted: bool) -> bool:
+        """Zapisuje płatne wyróżnienie oferty na listingu OLX — max 1 dzień/wpis.
+
+        `promoted` = flaga z bieżącego skanu (scraper czyta ją z parametru
+        atrybucji w href kafelka). Aktualizuje stan bieżący i dopisuje dzisiejszą
+        datę do `promoted_dates`, jeśli jeszcze jej tam nie ma. Skanujemy 3×
+        dziennie, więc dzień z choć jednym promowanym wystąpieniem liczy się raz.
+        Zwraca True, gdy dopisano nowy dzień.
+        """
+        existing['promoted'] = bool(promoted)
+        if not promoted:
+            return False
+        today = datetime.now(self.tz).strftime('%Y-%m-%d')
+        dates = existing.setdefault('promoted_dates', [])
+        if today in dates:
+            return False
+        dates.append(today)
+        existing['promoted_count'] = len(dates)
+        return True
 
     def _update_existing_offer(self, existing: Dict, new_data: Dict):
         """Aktualizuje istniejące ogłoszenie z inteligentnym zarządzaniem ceną."""
@@ -961,6 +1019,9 @@ class SonarMieszkaniowy:
         # tylko dla ogłoszeń dodanych po tej zmianie.
         if new_data.get('title'):
             existing['title'] = new_data['title']
+
+        # Śledź płatne wyróżnienie na listingu (dotyczy każdej oferty)
+        self._track_promoted(existing, new_data.get('promoted', False))
 
         # FIX 2026-05-24: jeśli slug w URL się zmienił (sprzedawca edytował tytuł),
         # zaktualizuj id i url na świeżą wersję, ale tylko gdy CID3 się zgadza.
@@ -1220,7 +1281,8 @@ class SonarMieszkaniowy:
                 print(f"⚠️ Błąd obliczania days_active dla oferty {offer.get('id')}: {e}")
                 offer['days_active'] = 0
     
-    def _reconcile_presence(self, current_offer_ids: List[str], skipped_offer_ids: List[str] = None):
+    def _reconcile_presence(self, current_offer_ids: List[str], skipped_offer_ids: List[str] = None,
+                            promoted_cids: set = None):
         """
         Aktualizuje obecność ofert i zwraca KANDYDATÓW do dezaktywacji — oferty
         aktywne w bazie, nieobecne w listingu przez ≥ MISSING_STREAK_THRESHOLD
@@ -1235,12 +1297,16 @@ class SonarMieszkaniowy:
         Args:
             current_offer_ids: ID ofert przetworzonych w tym skanie (nowe + zaktualizowane)
             skipped_offer_ids: ID ofert pominiętych przez inteligentne skanowanie (ta sama cena)
+            promoted_cids: CID3 ofert płatnie wyróżnionych na listingu w TYM skanie
+                           (ratunek dla ofert skipped — nie przechodzą _update_existing_offer,
+                           więc flaga promowania inaczej by dla nich znikała)
 
         Returns:
             Lista ofert-kandydatów do sprawdzenia linku i ewentualnej dezaktywacji.
         """
         if skipped_offer_ids is None:
             skipped_offer_ids = []
+        promoted_cids = promoted_cids or set()
 
         # Wszystkie oferty które są obecne w listingu = przetworzone + pominięte
         # FIX 2026-05-24: porównanie po CID3-IDxxxx zamiast pełnego slugu
@@ -1267,6 +1333,10 @@ class SonarMieszkaniowy:
                         reactivated_from_skipped += 1
                     # Aktualizuj last_seen dla skipped ofert
                     offer['last_seen'] = now
+                    # Wyróżnienie — skipped omija _update_existing_offer, więc bez
+                    # tego flaga promowania nigdy nie odświeżyłaby się dla ofert
+                    # bez zmiany ceny.
+                    self._track_promoted(offer, offer_cid in promoted_cids)
             elif offer.get('active'):
                 # Nieobecna, ale wciąż aktywna → policz chybienie.
                 # Dezaktywacja NIE tu — dopiero po progu i sprawdzeniu linku.
@@ -1309,6 +1379,9 @@ class SonarMieszkaniowy:
     def _deactivate_offer(self, offer: Dict, now_iso: str):
         """Dezaktywuje ofertę potwierdzoną jako zniknięta z OLX."""
         offer['active'] = False
+        # Nie ma jej na listingu → nie jest już promowana. Historia dni
+        # (promoted_dates) zostaje — z niej liczy się szereg czasowy.
+        offer['promoted'] = False
         offer['verified_inactive_at'] = now_iso
         offer.pop('missing_streak', None)
 
@@ -1710,10 +1783,19 @@ class SonarMieszkaniowy:
             # Oznacz nieaktywne (ale pominij oferty które były skipped - one są nadal aktywne)
             # UWAGA: raw_offers nie mają klucza 'id', trzeba go wyciągnąć z URL
             skipped_ids = [
-                offer['url'].split('/')[-1].split('.')[0] 
-                for offer in raw_offers 
+                offer['url'].split('/')[-1].split('.')[0]
+                for offer in raw_offers
                 if offer.get('skipped', False)
             ]
+
+            # CID3 ofert płatnie wyróżnionych na listingu w TYM skanie — ratunek
+            # dla ofert skipped, które nie przechodzą _update_existing_offer.
+            promoted_cids = {
+                extract_cid(offer['url'])
+                for offer in raw_offers
+                if offer.get('promoted')
+            }
+            print(f"   ⭐ Promowane na listingu: {len(promoted_cids)} ofert")
 
             # ZABEZPIECZENIE: Ochrona przed masową dezaktywacją przy blokadzie OLX
             # (Cloudflare, rate limit, pusta odpowiedź, itp.)
@@ -1744,7 +1826,8 @@ class SonarMieszkaniowy:
                     'skipped_blocked': True,
                 }
             else:
-                candidates = self._reconcile_presence(current_offer_ids, skipped_ids)
+                candidates = self._reconcile_presence(current_offer_ids, skipped_ids,
+                                                      promoted_cids=promoted_cids)
                 verification_stats = self._verify_and_deactivate(candidates)
                 deactivated_count = verification_stats['confirmed_inactive']
             
@@ -1764,6 +1847,7 @@ class SonarMieszkaniowy:
             self._migrate_legacy_addresses()
             self._demote_non_street_pins()
             self._backfill_address_precision()
+            self._backfill_promoted_from_url()
             self._clean_geocoding_cache()
             self._downgrade_street_level_pins()
             

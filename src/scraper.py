@@ -10,7 +10,7 @@ import random
 import re
 import json
 from typing import List, Dict, Optional
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse, parse_qs
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 
@@ -70,7 +70,48 @@ class OLXScraper:
             'fetched_new': 0,
             'fetched_price_changed': 0
         }
-    
+
+        # Detekcja płatnych wyróżnień (patrz _is_promoted_href). Liczniki są
+        # narastające dla całego scrape'u — `attributed` = ile kafelków niosło
+        # w ogóle parametr `search_reason`. attributed == 0 przy niepustym
+        # listingu znaczy, że OLX zmienił format atrybucji i metryka
+        # promowanych po cichu spadłaby do zera.
+        self.promoted_stats = {'promoted': 0, 'attributed': 0, 'cards': 0}
+
+    @staticmethod
+    def _is_promoted_href(url: str) -> bool:
+        """Czy kafelek listingu to PŁATNIE PROMOWANE ogłoszenie?
+
+        OLX doszywa do href-a karty parametr atrybucji kliknięcia
+        `search_reason=search|promoted` (organiczne: `search|organic`).
+        To najpewniejszy sygnał wyróżnienia, jaki mamy w HTML listingu —
+        generuje go serwer OLX, nie zależy od klas CSS ani `data-testid`,
+        które OLX przemebluje co kilka miesięcy. Sygnał był już w naszej bazie
+        (zapisujemy pełny URL z query stringiem) — 98 aktywnych ofert miało
+        `search|promoted` w chwili wdrożenia, więc detektor zweryfikowano na
+        realnych danych bez requestu do OLX.
+        """
+        if '?' not in (url or ''):
+            return False
+        try:
+            reasons = parse_qs(urlparse(url).query).get('search_reason', [])
+        except ValueError:
+            return False
+        return any('promoted' in r.lower() for r in reasons)
+
+    @staticmethod
+    def _has_promoted_badge(container) -> bool:
+        """Zapasowy detektor wyróżnienia — plakietka na karcie ogłoszenia.
+
+        Używany TYLKO gdy href nie niesie `search_reason` (np. OLX zmieni
+        format atrybucji). Celowo wąski: sam `data-testid`, bez szukania
+        tekstu „Wyróżnione" w treści karty — tytuł ogłoszenia potrafi
+        zawierać takie słowo i robiłby fałszywe trafienia.
+        """
+        if container is None:
+            return False
+        return bool(container.find(attrs={'data-testid': 'adCard-featured'}))
+
     def _extract_price_number(self, price_raw: str) -> Optional[int]:
         """
         Wyciąga samą liczbę z tekstu ceny.
@@ -144,27 +185,39 @@ class OLXScraper:
         Wyciąga wszystkie oferty z pojedynczej strony.
         
         Returns:
-            Lista Dict z kluczami: url, title, description_snippet, price_raw
+            Lista Dict z kluczami: url, title, description_snippet, price_raw, promoted
         """
         offers = []
-        seen_urls = set()  # Deduplikacja
-        
+        by_url = {}  # clean_url → oferta (deduplikacja + podbicie flagi promowania)
+
         # Nowa strategia: znajdź wszystkie linki do /d/oferta/ i wyciągnij dane z kontekstu
         all_links = soup.find_all('a', href=lambda x: x and '/d/oferta/' in str(x))
-        
+
         for link_tag in all_links:
             try:
                 # URL ogłoszenia
                 url = link_tag.get('href', '')
                 if not url.startswith('http'):
                     url = urljoin(self.BASE_URL, url)
-                
+
                 # Deduplikacja - normalizuj URL (bez query params)
                 clean_url = url.split('?')[0]
-                if clean_url in seen_urls:
+
+                # Płatne wyróżnienie — z parametru atrybucji w href karty
+                promoted = self._is_promoted_href(url)
+                self.promoted_stats['cards'] += 1
+                if 'search_reason=' in url:
+                    self.promoted_stats['attributed'] += 1
+
+                if clean_url in by_url:
+                    # Ta sama oferta drugi raz na stronie (blok promowanych NAD
+                    # listingiem + wystąpienie organiczne). Jedno promowane
+                    # wystąpienie wystarczy, żeby uznać ofertę za wyróżnioną.
+                    if promoted and not by_url[clean_url]['promoted']:
+                        by_url[clean_url]['promoted'] = True
+                        self.promoted_stats['promoted'] += 1
                     continue
-                seen_urls.add(clean_url)
-                
+
                 # Znajdź kontener ogłoszenia - idź w górę maksymalnie 6 poziomów
                 container = None
                 title_tag = None
@@ -194,18 +247,27 @@ class OLXScraper:
                 # Minimum validation - tytuł musi mieć >5 znaków
                 if len(title) < 5:
                     continue
-                
-                offers.append({
+
+                # Fallback plakietki tylko gdy href nie niesie atrybucji
+                if not promoted and 'search_reason=' not in url:
+                    promoted = self._has_promoted_badge(container)
+
+                offer = {
                     'url': url,
                     'title': title,
                     'description_snippet': "",
-                    'price_raw': price_raw
-                })
-                
+                    'price_raw': price_raw,
+                    'promoted': promoted
+                }
+                offers.append(offer)
+                by_url[clean_url] = offer
+                if promoted:
+                    self.promoted_stats['promoted'] += 1
+
             except (AttributeError, TypeError, KeyError) as e:
                 print(f"⚠️ Błąd parsowania ogłoszenia: {e}")
                 continue
-        
+
         return offers
     
     def _get_next_page_url(self, soup: BeautifulSoup, current_page: int) -> Optional[str]:
@@ -394,6 +456,13 @@ class OLXScraper:
         
         print(f"\n✅ Scraping zakończony: {len(all_offers)} ofert z {page_num} stron")
         print(f"   📈 Zaoszczędzono {self.stats['skipped_same_price']} requestów!")
+
+        ps = self.promoted_stats
+        promoted_now = sum(1 for o in all_offers if o.get('promoted'))
+        print(f"   ⭐ Promowane (płatne wyróżnienie): {promoted_now} ofert")
+        if ps['cards'] and not ps['attributed']:
+            print("   🚨 UWAGA: żaden kafelek nie miał parametru search_reason "
+                  "— OLX zmienił atrybucję, detekcja promowanych może nie działać!")
         return all_offers
     
     def fetch_offer_details(self, url: str) -> Optional[Dict]:
