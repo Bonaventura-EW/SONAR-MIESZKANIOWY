@@ -149,6 +149,23 @@ def display_title(offer):
     return slug[:1].upper() + slug[1:] if slug else ''
 
 
+def coord_group_key(coords):
+    """Klucz grupowania markerów: zaokrąglone współrzędne, nie tekst adresu.
+
+    FIX 2026-09-01: kilka ofert pod tym samym punktem (fallback geokodera do środka
+    ulicy albo warianty zapisu tej samej nazwy: „Wolińskiego"/„Henryka Wolińskiego"/
+    „Wolinskiego") dostawało IDENTYCZNE lat/lon, ale RÓŻNY tekst adresu — więc lądowały
+    w osobnych grupach `markers_dict` i frontend rysował je dokładnie jeden na drugim
+    (klikalny był tylko wierzchni). Grupujemy po zaokrąglonych do 6 miejsc coords
+    (~0.1 m), żeby trafiły do jednej grupy i istniejący spiralny offset w
+    `createMarkerGroup` (docs/assets/script.js) je rozsunął — wszystkie klikalne.
+    Propagacja z SONAR-POKOJOWY (manifest 2026-08-31-coincident-marker-stacks).
+    """
+    lat = round(float(coords['lat']), 6)
+    lon = round(float(coords['lon']), 6)
+    return f"{lat:.6f},{lon:.6f}"
+
+
 def get_price_range(price):
     """Przypisz cenę do zakresu"""
     for key, range_info in PRICE_RANGES.items():
@@ -299,8 +316,12 @@ def generate_map_data(input_file, output_file):
             })
             continue
         
-        # Klucz grupowania: pełen adres
-        key = address_full
+        # Klucz grupowania: zaokrąglone współrzędne (NIE tekst adresu) — inaczej
+        # oferty o identycznym punkcie, ale różnym zapisie adresu nakładają się na
+        # mapie. Szczegóły w coord_group_key(). Etykietę adresu każda oferta niesie
+        # własną (offer_data['address']), więc różne warianty w jednej grupie nadal
+        # pokazują w popupie/wyszukiwarce swój prawdziwy adres.
+        key = coord_group_key(coords)
         
         # Przygotuj ofertę do frontendu
         price_data = offer.get('price', {})
@@ -339,6 +360,11 @@ def generate_map_data(input_file, output_file):
         offer_data = {
             'id': offer.get('id'),
             'url': offer.get('url'),
+            # Własny adres oferty. Odkąd grupujemy markery po współrzędnych, a nie po
+            # tekście adresu, jedna grupa może mieszać warianty zapisu tej samej ulicy
+            # — popup, wyszukiwarka i market_analysis czytają ten adres per-oferta,
+            # a nie reprezentanta grupy (marker['address']).
+            'address': address_full,
             # FIX 2026-08-09: tytuł ogłoszenia w popupie mapy. Oferty sprzed tej
             # zmiany nie mają go w bazie — dla nich odtwarzamy nazwę ze slugu URL,
             # brzydszą (bez polskich znaków), ale zawsze jakąś.
@@ -380,16 +406,24 @@ def generate_map_data(input_file, output_file):
     # 3. Stwórz listę markerów
     markers = []
     
-    for address, items in markers_dict.items():
+    for _key, items in markers_dict.items():
         # Weź współrzędne z pierwszej oferty
         coords = items[0]['coords']
-        
-        # Zbierz wszystkie oferty dla tego adresu
+
+        # Zbierz wszystkie oferty dla tego punktu
         offers_list = [item['offer'] for item in items]
-        
+
+        # Adres reprezentanta grupy (pole `marker['address']`) — używane tam, gdzie
+        # nie ma jeszcze per-ofertowego adresu (stary frontend/fallback). Preferuj
+        # wariant z numerem domu (precision 'exact'), bo najlepiej identyfikuje punkt;
+        # w ostateczności pierwszy z brzegu.
+        exact = next((it for it in items if it['offer'].get('precision') == 'exact'
+                      or it['offer'].get('has_number')), None)
+        address = (exact or items[0])['address']
+
         # Sprawdź czy są aktywne oferty
         has_active = any(o['active'] for o in offers_list)
-        
+
         markers.append({
             'coords': coords,
             'address': address,

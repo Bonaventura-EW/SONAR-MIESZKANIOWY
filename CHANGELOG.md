@@ -37,6 +37,28 @@ domyślnie ukryte, ale nie usunięte: checkbox przywraca je z ostrzeżeniem i
 powodem. Fałszywy alarm psuje zaufanie do rankingu bardziej niż przeoczenie,
 które i tak łapie próg cenowy — dlatego regex jest celowo wąski.
 
+### Naprawione (2026-09-01) — markery grupowane po współrzędnych, nie po tekście adresu (propagacja z SONAR-POKOJOWY)
+Kilka ofert pod tym samym punktem mapy dostaje identyczne `lat/lon`, ale różny
+zapis adresu (fallback geokodera do środka ulicy albo warianty tej samej nazwy:
+`Wolińskiego` / `Henryka Wolińskiego` / `Wolinskiego`, `Zalewskiego` /
+`Zalewskiego 2p`). `map_generator.py` grupował markery po **tekście adresu**
+(`key = address_full`), więc te oferty lądowały w osobnych grupach `markers_dict`
+i frontend rysował je dokładnie jeden na drugim — klikalny był tylko wierzchni.
+Na naszych danych: **263 takie punkty, 586 nakładających się markerów**.
+
+Grupujemy teraz po zaokrąglonych do 6 miejsc współrzędnych
+(`coord_group_key`, ~0.1 m) — jedna grupa na punkt, a istniejący spiralny offset
+w `createMarkerGroup` (`docs/assets/script.js`) rozsuwa oferty, więc wszystkie są
+klikalne (markerów: 1523 → 1203). Że jedna grupa może mieszać warianty zapisu
+tej samej ulicy, każda oferta niesie teraz **własny adres** (`offer.address`):
+popup, wyszukiwarka na mapie i `market_analysis.html` czytają adres konkretnej
+oferty, a `marker.address` jest już tylko reprezentantem grupy (preferuje wariant
+z numerem domu). Kształt markera dalej liczy się per-oferta z `precision`, więc
+„stos" mieszający pinezki dokładne i przybliżone rysuje się poprawnie.
+Propagacja manifestu `2026-08-31-coincident-marker-stacks` (commit brata
+`5582713`); u nas to adaptacja do renderu „marker-na-ofertę", nie portu ich
+pojedynczej pinezki z licznikiem.
+
 ### Naprawione (2026-08-19) — checkout w Actions na GITHUB_TOKEN (koniec awarii po wygaśnięciu PAT)
 Wygaśnięcie sekretu `PAT_TOKEN` (18.08 ok. południa) wywaliło **wszystkie**
 workflow na kroku `actions/checkout`: `fatal: could not read Username for

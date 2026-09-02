@@ -322,6 +322,11 @@ function createMarkerGroup(baseCoords, address, offers, isActive, batches) {
     const baseOffset = 0.0001;
     const total = offers.length;
     offers.forEach((offer, index) => {
+        // Backend grupuje markery po współrzędnych, więc pod jednym punktem mogą być
+        // różne warianty zapisu tej samej ulicy. Popup i wyszukiwarka mają pokazywać
+        // adres KONKRETNEJ oferty (offer.address), a nie reprezentanta grupy; stare
+        // data.json bez per-ofertowego adresu spada na wspólny `address`.
+        const offerAddress = offer.address || address;
         const priceRange    = offer.price_range;
         const color         = mapData.price_ranges[priceRange]?.color || '#808080';
         const isNew         = offer.is_new === true;
@@ -369,7 +374,7 @@ function createMarkerGroup(baseCoords, address, offers, isActive, batches) {
         // KLUCZOWA OPTYMALIZACJA: popup z funkcją — HTML tworzony przy kliknięciu.
         // offset podnosi popup nad bąbel kropli / kwadrat (jak stary popupAnchor).
         const markerObj = (hasNumber ? new PinMarker(coords, markerOpts) : new SquareMarker(coords, markerOpts))
-            .bindPopup(() => createPopupContent(address, [offer]), {
+            .bindPopup(() => createPopupContent(offerAddress, [offer]), {
                 maxWidth: 400,
                 offset:   hasNumber ? L.point(0, -44) : L.point(0, -14)
             });
@@ -382,7 +387,7 @@ function createMarkerGroup(baseCoords, address, offers, isActive, batches) {
         batches[key].push(markerObj);
 
         allMarkers.push({
-            marker: markerObj, address,
+            marker: markerObj, address: offerAddress,
             offers: [offer], priceRange,
             isActive, hasNumber,
             primaryTag:         offer.tags?.primary || 'pokoj',

@@ -46,14 +46,12 @@ NIE improwizujesz szeroko — cofasz się i piszesz o tym w komentarzu do issue.
    - co dokładnie zmieniłeś u nas i czym to się różni od wersji brata,
    - wynik testów/builda,
    - **checklist do przeglądu** dla człowieka.
-7. **Log:** dopisz do `decisions.jsonl` linię ze zdarzeniem implementacji
-   (`artifact` = `pr#<n>`), nie ruszając wcześniejszego wpisu decyzji.
-8. Zdejmij `propagate:go`, dodaj `propagate:drafted` (żeby nie odpalić ponownie).
+7. Zdejmij `propagate:go`, dodaj `propagate:drafted` (żeby nie odpalić ponownie).
 
 ## Twarde zasady
 
 - **NIGDY** `git push --force`, **NIGDY** merge, **NIGDY** zmiana w
-  `.github/**`, `.claude/**`, ani w `.propagation/**` poza dopisaniem do rejestru.
+  `.github/**`, `.claude/**`, ani w `.propagation/**`.
 - PR zawsze `--draft`. Ostatni krok (review + merge) należy do człowieka.
 - Minimalny, przeglądalny diff. Nie refaktoruj przy okazji rzeczy spoza zadania.
 - Jeśli nie potrafisz zrobić tego bezpiecznie — zostaw issue z komentarzem, nie PR.
