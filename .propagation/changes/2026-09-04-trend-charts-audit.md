@@ -10,7 +10,7 @@ how:         Jedna wspólna oś dni dla wszystkich metryk (`_window`) plus maska
 surface:     src/trend_generator.py, docs/trend.html, tests/test_trend_generator.py
 generality:  family
 propagate:   yes
-commit:      HEAD
+commit:      625229d
 ---
 
 # Kontekst
