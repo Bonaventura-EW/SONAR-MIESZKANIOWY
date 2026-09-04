@@ -1,88 +1,5 @@
 [
   {
-    "timestamp": "2026-08-11T16:32:26.012343+02:00",
-    "status": "completed",
-    "phases": {
-      "scraping": {
-        "duration": 0.2,
-        "details": {
-          "offers_found": 0,
-          "max_pages": 50
-        }
-      },
-      "processing": {
-        "duration": 0.0,
-        "details": {
-          "processed": 0,
-          "no_address_kept": 0,
-          "skipped_no_address": 0,
-          "skipped_no_price": 0,
-          "skipped_no_coords": 0,
-          "skipped_duplicate": 0,
-          "skipped_removed": 0
-        }
-      },
-      "geocoding": {
-        "duration": 0,
-        "details": {
-          "geocoded_addresses": 0
-        }
-      }
-    },
-    "stats": {
-      "raw_offers": 0,
-      "processed": 0,
-      "new": 0,
-      "updated": 0,
-      "reactivated": 0,
-      "total_in_db": 3047,
-      "active": 705,
-      "inactive": 2342,
-      "skipped_no_address": 0,
-      "skipped_no_price": 0,
-      "skipped_no_coords": 0,
-      "skipped_duplicate": 0,
-      "skipped_removed": 0,
-      "disappeared": 0,
-      "verification": {
-        "verified": 0,
-        "reactivated": 0,
-        "confirmed_inactive": 0,
-        "errors": 0,
-        "skipped_blocked": true
-      },
-      "map_quality": {
-        "active": 705,
-        "on_map": 607,
-        "off_map": 98,
-        "counts": {
-          "no_address": 45,
-          "not_a_street": 43,
-          "area_only": 5,
-          "no_coords": 5
-        },
-        "precision": {
-          "exact": 240,
-          "street": 367,
-          "none": 98
-        }
-      }
-    },
-    "errors": [
-      {
-        "timestamp": "2026-08-11T16:32:26.218224+02:00",
-        "message": "Scraper zwrócił 0 ofert (baza: 705 aktywnych) — prawdopodobna blokada OLX/Cloudflare. Dezaktywacja pominięta."
-      }
-    ],
-    "end_timestamp": "2026-08-11T16:32:29.190629+02:00",
-    "total_duration": 3.18,
-    "performance": {
-      "pages_scanned": 50,
-      "geocoding_duration": 0,
-      "scraping_per_page": 0.0
-    }
-  },
-  {
     "timestamp": "2026-08-11T16:34:29.199553+02:00",
     "status": "completed",
     "phases": {
@@ -8231,6 +8148,89 @@
       "geocoding_per_address": 0.06,
       "scraping_per_page": 1.02,
       "processing_success_rate": 87.4
+    }
+  },
+  {
+    "timestamp": "2026-09-04T18:53:25.121784+02:00",
+    "status": "completed",
+    "phases": {
+      "scraping": {
+        "duration": 46.02,
+        "details": {
+          "offers_found": 788,
+          "max_pages": 50
+        }
+      },
+      "processing": {
+        "duration": 49.85,
+        "details": {
+          "processed": 695,
+          "no_address_kept": 58,
+          "skipped_no_address": 0,
+          "skipped_no_price": 0,
+          "skipped_no_coords": 0,
+          "skipped_duplicate": 93,
+          "skipped_removed": 0
+        }
+      },
+      "geocoding": {
+        "duration": 49.73,
+        "details": {
+          "geocoded_addresses": 695
+        }
+      }
+    },
+    "stats": {
+      "raw_offers": 788,
+      "processed": 695,
+      "new": 9,
+      "updated": 686,
+      "reactivated": 4,
+      "total_in_db": 3948,
+      "active": 785,
+      "inactive": 3163,
+      "skipped_no_address": 0,
+      "skipped_no_price": 0,
+      "skipped_no_coords": 0,
+      "skipped_duplicate": 93,
+      "skipped_removed": 0,
+      "disappeared": 3,
+      "verification": {
+        "checked": 44,
+        "confirmed_inactive": 3,
+        "stale_inactive": 0,
+        "still_alive": 41,
+        "errors": 0,
+        "circuit_broken": false,
+        "candidates": 44
+      },
+      "map_quality": {
+        "active": 785,
+        "on_map": 679,
+        "off_map": 106,
+        "counts": {
+          "no_address": 54,
+          "not_a_street": 43,
+          "area_only": 7,
+          "no_coords": 2
+        },
+        "precision": {
+          "exact": 249,
+          "street": 430,
+          "none": 106
+        }
+      }
+    },
+    "errors": [],
+    "end_timestamp": "2026-09-04T18:56:15.543165+02:00",
+    "total_duration": 170.42,
+    "performance": {
+      "offers_per_second": 4.62,
+      "pages_scanned": 50,
+      "geocoding_duration": 49.73,
+      "geocoding_per_address": 0.07,
+      "scraping_per_page": 0.92,
+      "processing_success_rate": 88.2
     }
   }
 ]
