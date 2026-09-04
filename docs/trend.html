@@ -141,10 +141,20 @@
             Wykres startuje <strong>16.05.2026</strong> — wcześniejsze dane są zaniżone (parser adresów odrzucał wtedy
             setki ofert na skan, więc nigdy nie trafiły do bazy). MAX/MIN/zakres liczone automatycznie; zmiany 6M/1Y
             pojawią się, gdy uzbieramy dłuższą historię.
+            <br><strong>Wykres kończy się na ostatniej ZAMKNIĘTEJ dobie</strong>, nie na dziś: skanujemy 3&times;
+            dziennie, a dzień liczy oferty widziane w jego skanach, więc trwająca doba rośnie z każdym przebiegiem
+            (03.09 szło kolejno 686 → 717 → 748 → 767). Rysowana jako pełna dawała w nagłówku „1D&nbsp;−84" rano
+            i „−8" wieczorem — tego samego dnia. Z tego samego powodu <strong>doba z niepełną liczbą skanów</strong>
+            (awaria Actions, blokada OLX) jest luką w wykresie: widzi tylko wycinek listingu i leży średnio
+            17 ofert poniżej sąsiadów.
             <br><strong>Rozbicie</strong> dzieli tę samą liczbę na dwa pasma: ogłoszenia świeże (dół) i takie, które
             wróciły na rynek po realnej nieobecności (góra) — suma pasm to dokładnie linia Indeksu. Oferta wchodzi
             do pasma „recykling" w dniu swojego powrotu i zostaje tam do końca życia. Rozbicie zaczyna się od dnia,
             od którego <strong>mierzymy</strong> powroty (patrz wykres reaktywacji niżej), a nie od początku wykresu.
+            <br><strong>Udział recyklingu jest jeszcze zaniżony</strong> i rośnie z samej konstrukcji: o ofertach,
+            które wróciły przed startem pomiaru, nic nie wiemy, więc siedzą w paśmie „świeże" aż do swojego kolejnego
+            powrotu. Pasmo dochodzi do prawdy w miarę wymiany ogłoszeń na rynku (oferta żyje ~30 dni), więc dzisiejszy
+            procent czytaj jako dolne oszacowanie, a nie jako trend.
         </div>
 
         <div class="card" style="margin-top:22px">
@@ -154,10 +164,15 @@
         </div>
 
         <div class="foot">
-            <strong>Skąd dane:</strong> dla każdego dnia liczba ofert, które tego dnia zniknęły z rynku
-            (oferta nieaktywna, jej <code>last_seen</code> = ten dzień). Czerwona linia to dzienny odpływ,
-            pomarańczowa to średnia krocząca z 7 dni — wygładza dzienny szum i pokazuje trend nasilenia znikania.
-            Ten sam start <strong>16.05.2026</strong> i to samo źródło co Indeks powyżej.
+            <strong>Skąd dane:</strong> dla każdego dnia liczba ofert, które tego dnia <strong>wyszły z Indeksu</strong> —
+            ostatni dzień, w którym ogłoszenie się do niego liczyło. Obejmuje jedno i drugie: zniknięcie z rynku
+            na dobre oraz początek realnej nieobecności, z której oferta później wróci (te powroty widać na wykresie
+            reaktywacji niżej). Dzięki temu <code>Indeks(D) = Indeks(D−1) + napływ(D) − odpływ(D−1)</code> zgadza się
+            co do sztuki — wcześniej liczyliśmy tylko potwierdzone dezaktywacje, więc świeże dni dojrzewały jeszcze
+            2–3 doby wstecz (01.09 pokazywał kolejno 6 → 40 → 43), a wyjścia na czas nieobecności nie liczyły się
+            wcale. Czerwona linia to dzienny odpływ, pomarańczowa to średnia krocząca z 7 dni.
+            Wykres kończy się <strong>dobę przed Indeksem</strong>: na ostatnim dniu koniec okresu życia znaczy tylko
+            „to nasza najświeższa obserwacja", a nie zniknięcie oferty.
         </div>
 
         <div class="card" style="margin-top:22px">
@@ -170,7 +185,10 @@
             <strong>Skąd dane:</strong> dla każdego dnia liczba ofert, które tego dnia pojawiły się
             po raz pierwszy (<code>first_seen</code> = ten dzień) &mdash; <strong>bez</strong> reaktywacji.
             Zielona linia to dzienny napływ świeżych ogłoszeń, jasna to średnia krocząca z 7 dni.
-            Ten sam start <strong>16.05.2026</strong> i to samo źródło co Indeks powyżej.
+            Ten sam start <strong>16.05.2026</strong> i to samo źródło co Indeks powyżej &mdash; ale sam
+            <strong>16.05 jest luką</strong>: tego dnia wróciło do bazy 97 ofert, które parser adresów odrzucał
+            wcześniej (sąsiednie dni: 16&ndash;26). To zaległość naszego pipeline'u, nie napływ z rynku, a stała
+            jako „rekord" tego wykresu.
         </div>
 
         <div class="card" style="margin-top:22px">
@@ -183,6 +201,9 @@
             <strong>Skąd dane:</strong> suma nowych ofert (<code>first_seen</code>) i powrotów danego dnia &mdash;
             łączny „dopływ" ogłoszeń na rynek. Ma tę samą maskę co wykres reaktywacji: dni bez pomiaru powrotów
             zostają puste, bo bez nich ten wykres byłby po prostu kopią „Nowych ofert" pod cudzą etykietą.
+            <strong>Uwaga na średnie:</strong> ten wykres liczy ją na krótszym oknie niż „Nowe oferty" (powroty
+            mierzymy od 11.08), więc różnica między liczbami w nagłówkach obu wykresów NIE jest liczbą powrotów
+            &mdash; okno każdej średniej jest wypisane obok niej.
         </div>
 
         <div class="card" style="margin-top:22px">
@@ -275,8 +296,30 @@
             deltaBox.appendChild(wrap);
         });
 
+        const BOXES = ['chart', 'chart2', 'chart3', 'chart4', 'chart5', 'chart6'];
+
+        function fillBoxes(text) {
+            BOXES.forEach(function (id) {
+                const box = document.getElementById(id);
+                if (!box) return;
+                box.textContent = '';
+                const note = document.createElement('div');
+                note.className = 'loading';
+                note.textContent = text;
+                box.appendChild(note);
+            });
+        }
+
+        // Biblioteka wykresów idzie z CDN. Gdy nie dojedzie, pierwszy
+        // `new ApexCharts` wywala cały skrypt i WSZYSTKIE sześć kontenerów
+        // zostaje na „Ładowanie danych…" bez słowa wyjaśnienia.
+        if (typeof ApexCharts === 'undefined') {
+            fillBoxes('Nie udało się wczytać biblioteki wykresów (CDN). Odśwież stronę.');
+            return;
+        }
+
         if (!RAW.length) {
-            document.getElementById('chart').innerHTML = '<div class="loading">Brak danych w serii.</div>';
+            fillBoxes('Brak danych w serii.');
             return;
         }
 
@@ -365,6 +408,13 @@
         const FRESH = '#16a34a', RECYCLED = '#f59e0b';
         let idxChart = null, idxMode = 0;
 
+        function lastMeasured(pairs) {
+            for (let i = pairs.length - 1; i >= 0; i--) {
+                if (pairs[i][1] != null) return pairs[i][1];
+            }
+            return 0;
+        }
+
         function legendChip(color, label) {
             const chip = document.createElement('span');
             chip.className = 'ci';
@@ -411,8 +461,10 @@
             const legend = document.getElementById('idxLegend');
             legend.textContent = '';
             if (idxMode === 1 && bands) {
-                const fresh = bands.new[bands.new.length - 1][1];
-                const recycled = bands.react[bands.react.length - 1][1];
+                // Ostatni dzień pasm może być luką (niepełne pokrycie skanami) —
+                // do podsumowania bierzemy ostatni ZMIERZONY.
+                const fresh = lastMeasured(bands.new);
+                const recycled = lastMeasured(bands.react);
                 const total = fresh + recycled;
                 const pct = total ? Math.round(100 * recycled / total) : 0;
                 legend.appendChild(legendChip(FRESH, 'Nowe (świeże) — dół'));
@@ -470,6 +522,12 @@
             const rate = document.createElement('b');
             rate.textContent = String(metric.rate).replace('.', ',') + '/dzień';
             el.appendChild(rate);
+            // Okno średniej bywa różne na różnych wykresach (powroty mierzymy
+            // krócej niż nowe oferty), więc piszemy je wprost — inaczej czytelnik
+            // odejmie „34,5" od „46,5" i wyjdzie mu liczba powrotów z sufitu.
+            if (metric.rate_days) {
+                el.appendChild(document.createTextNode(' (ost. ' + metric.rate_days + ' dni)'));
+            }
             el.appendChild(document.createTextNode(', rekord '));
             const rec = document.createElement('b');
             rec.textContent = String(metric.max_day);
@@ -588,6 +646,34 @@
             const spanCount = _span(pr.daily, 0.6, 0.4);
             const spanShare = _span(pr.share, 0.6, 0.4);
 
+            // Metryka zbiera się od dnia wdrożenia, więc na starcie ma kilka
+            // punktów. Przy tak krótkim zakresie ApexCharts rozbija oś typu
+            // `datetime` na GODZINY (12:00, 14:00…) i powtarza tę samą datę
+            // kilkanaście razy — mimo `tickAmount` i wymuszonego formatu
+            // (sprawdzone na 3.49.1). Do czasu uzbierania dwóch tygodni
+            // rysujemy więc oś kategorii z gotowymi etykietami dni.
+            const SHORT_HISTORY_DAYS = 15;
+            const shortHistory = pr.daily.length < SHORT_HISTORY_DAYS;
+            const dayLabel = function (ms) {
+                const dt = new Date(ms);
+                return ('0' + dt.getDate()).slice(-2) + ' ' +
+                       PL_LOCALE.options.shortMonths[dt.getMonth()];
+            };
+            const axisBase = { axisBorder: { show: false }, axisTicks: { color: '#e5e7eb' } };
+            const promoXAxis = shortHistory
+                ? Object.assign({ type: 'category', categories: pr.daily.map(function (p) { return dayLabel(p[0]); }),
+                                  labels: { style: { colors: '#6b7280' } } }, axisBase)
+                : Object.assign({ type: 'datetime',
+                                  labels: {
+                                      datetimeUTC: false, style: { colors: '#6b7280' },
+                                      datetimeFormatter: { year: 'yyyy', month: "MMM 'yy", day: 'dd MMM', hour: 'HH:mm' }
+                                  } }, axisBase);
+            // Oś kategorii indeksuje punkty po kolei, więc serie idą jako gołe
+            // wartości; przy `datetime` zostają parami [ms, wartość].
+            const promoSeries = function (pairs) {
+                return shortHistory ? pairs.map(function (p) { return p[1]; }) : pairs;
+            };
+
             const optsP = {
                 chart: {
                     type: 'line', height: 380, background: 'transparent',
@@ -605,22 +691,16 @@
                     }
                 },
                 series: [
-                    { name: 'Promowane danego dnia', data: pr.daily },
-                    { name: 'Średnia 7 dni', data: pr.avg },
-                    { name: 'Udział w rynku', data: pr.share }
+                    { name: 'Promowane danego dnia', data: promoSeries(pr.daily) },
+                    { name: 'Średnia 7 dni', data: promoSeries(pr.avg) },
+                    { name: 'Udział w rynku', data: promoSeries(pr.share) }
                 ],
                 colors: ['#d97706', '#fbbf24', '#7c3aed'],
                 stroke: { curve: ['straight', 'smooth', 'smooth'], width: [2, 3, 2], dashArray: [0, 0, 5] },
                 dataLabels: { enabled: false },
                 markers: { size: 0, hover: { size: 5 } },
                 grid: { borderColor: '#e5e7eb', strokeDashArray: 4, xaxis: { lines: { show: true } }, yaxis: { lines: { show: true } } },
-                xaxis: {
-                    type: 'datetime', axisBorder: { show: false }, axisTicks: { color: '#e5e7eb' },
-                    labels: {
-                        datetimeUTC: false, style: { colors: '#6b7280' },
-                        datetimeFormatter: { year: 'yyyy', month: "MMM 'yy", day: 'dd MMM', hour: 'HH:mm' }
-                    }
-                },
+                xaxis: promoXAxis,
                 yaxis: [
                     {
                         seriesName: 'Promowane danego dnia', min: spanCount.min, max: spanCount.max, tickAmount: 4,
@@ -639,7 +719,8 @@
                 ],
                 legend: { labels: { colors: '#6b7280' }, markers: { radius: 12 }, itemMargin: { horizontal: 10 } },
                 tooltip: {
-                    shared: true, x: { format: 'dd.MM.yyyy' },
+                    shared: true,
+                    x: shortHistory ? {} : { format: 'dd.MM.yyyy' },
                     y: [
                         { formatter: function (v) { return v == null ? '—' : (v + ' ofert'); } },
                         { formatter: function (v) { return v == null ? '—' : (String(v).replace('.', ',') + ' ofert'); } },
