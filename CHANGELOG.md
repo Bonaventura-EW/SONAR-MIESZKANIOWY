@@ -10,6 +10,69 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Naprawione (2026-09-04) — zakładka Indeks: dzień bieżący, bilans napływ/odpływ, pokrycie skanami
+Audyt logiki wszystkich sześciu wykresów na `trend.html`. Strona pokazywała
+**„1D: −78"** i 691 aktywnych ofert, podczas gdy ostatnia zamknięta doba miała
+769 — plus cztery wykresy przepływu spadały na prawej krawędzi do zera.
+
+- **Dzień bieżący liczony jak pełny** (`trend_generator._scan_coverage`).
+  Od naprawy z 02.09 okres życia kończy się na `last_seen`, więc dzień liczy
+  oferty widziane w JEGO skanach — a doba się dopiero zbiera. Snapshoty
+  `trend_data.json` z gita: 03.09 szedł 686 → 717 → 748 → 767 przez kolejne
+  przebiegi, nagłówek pokazywał „1D −84" rano i „−8" wieczorem tego samego dnia.
+  Wszystkie wykresy kończą się teraz na ostatniej **zamkniętej** dobie
+  (`current` 691 → 769, `1D` −78 → −6, `1M` −89 → −41).
+- **Dni o niepełnym pokryciu skanami** szły do serii jak zwykłe dni. Zmierzone
+  na 18/19/31.08 (po 2 przebiegi zamiast 3, w tym 18.08 tylko 05:30 i 09:56):
+  Indeks leży wtedy średnio **17,5 oferty poniżej** średniej sąsiadów, przy
+  +7,1 dla dni pełnych — oferty urodzone i zmarłe w nieobserwowanym oknie
+  dostają daty z sąsiedniego dnia. Maska `null` obejmuje teraz nie tylko dobę
+  bez skanu, ale każdą niepełną — we wszystkich metrykach naraz.
+  Fałszywy „rekord odpływu 64 (18.08)" zniknął (jest 71 z 02.09).
+- **Odpływ nie domykał się z Indeksem.** Liczył wyłącznie potwierdzone
+  dezaktywacje po `last_seen`, więc (a) świeże dni dojrzewały 2–3 doby wstecz
+  (01.09: 6 → 40 → 43), (b) wyjścia na czas nieobecności nie liczyły się wcale,
+  choć powroty normalnie zasilały „Reaktywacje" i „Napływ całkowity". Za
+  12.08–03.09 dawało to napływ 46,6/dzień wobec odpływu 40,3/dzień, czyli
+  **+146 ofert**, podczas gdy Indeks urósł o 5. Odpływ to teraz **wyjście
+  z Indeksu** (koniec odcinka życia), a napływ czyta starty tych samych
+  odcinków (`_entry_days`) zamiast `reactivation_log` — bilans
+  `Indeks(D) = Indeks(D−1) + napływ(D) − odpływ(D−1)` zgadza się co do sztuki
+  (zweryfikowane na całej bazie: 0 rozjazdów).
+- **Dzień zniknięcia liczony przez `int(gap_h // 24)`** (`_absence_intervals`).
+  Skany chodzą 9:17/15:17/21:17, więc powrót bywa o pół doby wcześniej w dobie
+  niż ostatnie widzenie i dzielenie całkowite gubiło całą dobę nieobecności —
+  **78 z 245** realnych powrotów w bazie (32%). Przy przerwie 24–48 h przerwa
+  znikała zupełnie: oferta była naraz „wróciła na rynek" i „ani na chwilę nie
+  zniknęła". `at` niesie pełny timestamp, a `gap_h` dokładną różnicę, więc
+  odtworzenie jest bezstratne (Indeks był zawyżony o ~2 oferty na 35 dniach).
+- **„Znika średnio 26,1/dzień"** było średnią po 111 dniach obejmujących trzy
+  różne reżimy dezaktywacji i nie opisywało żadnego realnego okresu. Średnie
+  liczą się teraz z ostatnich 30 zmierzonych dni (43,4/dzień), a przy każdej
+  liczbie stoi jej okno — bo powroty mierzymy od 11.08, więc `rate` z dwóch
+  wykresów **nie jest** addytywne.
+- **„Nowe oferty: rekord 97 (16.05)"** to zaległość parsera adresów, nie napływ
+  z rynku: tego dnia wróciło do bazy 97 ofert odrzucanych wcześniej (sąsiednie
+  dni: 16–26) — te same setki, przez które odcinamy historię sprzed
+  `RELIABLE_START`. Dzień jest teraz luką na wykresie napływu (do Indeksu
+  oferty wchodzą normalnie, bo żyły na OLX).
+- **Zmiany 1M/6M/1Y po zmianie czasu.** `compute_deltas` odejmowało
+  `N × 86 400 000 ms`, a punkty stoją w południe czasu lokalnego — po zmianie
+  czasu cel lądował o 11:00 i `_value_at_or_before` brał dzień wcześniejszy
+  (1M mierzyło 31 dni). Liczymy w dniach kalendarza; test regresyjny idzie
+  przez zmianę czasu 28.03.2027 w `Europe/Warsaw`.
+- **Frontend** (`docs/trend.html`): pad biblioteki wykresów z CDN wywalał cały
+  skrypt na pierwszym `new ApexCharts` i wszystkie sześć kontenerów zostawało
+  na „Ładowanie danych…" bez słowa wyjaśnienia — jest komunikat. Wykres
+  promowanych przy krótkiej historii rysował oś w GODZINACH (12:00, 14:00…,
+  ta sama data kilkanaście razy) mimo `tickAmount` i wymuszonego formatu —
+  do 15 dni idzie oś kategorii z gotowymi etykietami dni. Legenda pasm brała
+  ostatni punkt serii, także gdy był luką. Opisy pod wykresami zaktualizowane
+  o nowe definicje.
+
+Testy: 488 ✅ (nowe: `TestScanCoverage`, bilans napływ/odpływ, dokładny dzień
+zniknięcia, okno średniej, zmiana czasu w `compute_deltas`).
+
 ### Naprawione (2026-09-02) — Indeks liczył o ~25% za dużo (kolejka weryfikacji rosła szybciej, niż ją drenowaliśmy)
 Pierwszy wykres na zakładce Indeks pokazywał 02.09 **1019 ofert i „rekord dziś"**,
 podczas gdy scraper zbierał z listingu OLX ~774 oferty na skan — i to od trzech
