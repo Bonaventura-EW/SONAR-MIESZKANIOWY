@@ -35,6 +35,9 @@ never_touch:
 # MODELE: decyzje = Sonnet (claude-sonnet-5), programowanie = Opus (claude-opus-4-8).
 default_autonomy: ask
 
+# 2026-09-09 distill-policy: żadna kategoria nie osiąga progu awansu
+# (≥8 rozstrzygniętych) — feature ma 2, bugfix ma 3 rozstrzygnięte wpisy.
+# Za mało danych — obie kategorie zostają na "ask". Zobacz PR dla scorecardu.
 categories: {}
   # css-refactor:   draft
   # a11y-fix:       draft
@@ -42,6 +45,8 @@ categories: {}
 
 # Reguły destylowane z Twoich decyzji — dopisuje je skill `distill-policy`
 # przez PR, który zatwierdzasz. Ręcznie też możesz.
-learned_rules: []
+learned_rules:
+  - "Feature: propozycje rozszerzające już istniejący, architektonicznie analogiczny moduł (nie budowa od zera) są przyjmowane bez zastrzeżeń — dowody: issue#39 (2026-08-26-promoted-listings-metric, rozszerzenie trend_generator.py o serię promoted), issue#40 (2026-08-27-okazje-tab, rozszerzenie area_parser.py/area_price_generator.py o ranking per-ofertę). 2/2 accepted, 0 odrzuceń."
+  - "Bugfix: propozycje poparte bezpośrednim pomiarem/weryfikacją problemu w kodzie lub danych TEGO repo (nie hipotetycznym transferem z brata) są przyjmowane — dowody: issue#38/pr#42 (2026-08-31-coincident-marker-stacks, zmierzone 255 grup kolizji / 1517 ofert, po fixie 0 kolizji), issue#45 (2026-09-03-measured-index-history, potwierdzone dwoma własnymi łatkami symptomów CHANGELOG 2026-09-02 i 2026-09-04), issue#46 (2026-09-06-odpornosc-skanu, zweryfikowane bezpośrednio w scraper.py:170-181/318-324 i main.py:1094-1104). 3/3 accepted, 0 odrzuceń."
   #  - "Nie propaguj niczego, co rusza moduł auth (dotąd 0/6 przyjętych)."
   #  - "Zmiany typu css-refactor przyjmowane w 11/12 → kandydat do awansu na 'draft'."
