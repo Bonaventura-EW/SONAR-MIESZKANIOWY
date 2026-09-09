@@ -38,6 +38,7 @@ from cid import extract_cid
 from offer_tagger import build_tags, title_from_url
 from atomic_json import atomic_write_json
 import reactivation_log
+import index_history
 import paths
 
 
@@ -1929,7 +1930,18 @@ class SonarMieszkaniowy:
             
             active = sum(1 for o in self.database['offers'] if o['active'])
             inactive = len(self.database['offers']) - active
-            
+
+            # ŹRÓDŁO PRAWDY Indeksu podaży: zapisujemy ZMIERZONY stan bazy po
+            # skanie, zamiast rekonstruować go wstecz z first_seen/last_seen
+            # (rekonstrukcja zawyża przeszłość i myli kierunek trendu — patrz
+            # index_history.py / trend_generator.measured_series). Skan częściowy
+            # (blokada OLX) nie obniża dnia — record() bierze maksimum. Zapis nie
+            # może wywalić skanu, więc łapiemy wszystko.
+            try:
+                index_history.record(active, timestamp=now.isoformat())
+            except Exception as e:  # noqa: BLE001
+                print(f"   ⚠️ Nie zapisano index_history: {e}")
+
             self.scan_logger.log_stats({
                 'raw_offers': len(raw_offers),
                 'processed': len(processed_offers),

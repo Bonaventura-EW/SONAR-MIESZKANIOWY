@@ -135,18 +135,20 @@
         </div>
 
         <div class="foot">
-            <strong>Skąd dane:</strong> dzienna rekonstrukcja z <code>data/offers.json</code> — dla każdego dnia
-            liczba ofert, które tego dnia „żyły" (<code>first_seen &le; dzień &le; last_seen</code>). Każdy punkt = jeden dzień.
-            To analog indeksu podaży z betonometr.pl — pokazuje, ile żywych ofert wynajmu mieszkań w Lublinie jest na rynku.
-            Wykres startuje <strong>16.05.2026</strong> — wcześniejsze dane są zaniżone (parser adresów odrzucał wtedy
-            setki ofert na skan, więc nigdy nie trafiły do bazy). MAX/MIN/zakres liczone automatycznie; zmiany 6M/1Y
-            pojawią się, gdy uzbieramy dłuższą historię.
-            <br><strong>Wykres kończy się na ostatniej ZAMKNIĘTEJ dobie</strong>, nie na dziś: skanujemy 3&times;
-            dziennie, a dzień liczy oferty widziane w jego skanach, więc trwająca doba rośnie z każdym przebiegiem
-            (03.09 szło kolejno 686 → 717 → 748 → 767). Rysowana jako pełna dawała w nagłówku „1D&nbsp;−84" rano
-            i „−8" wieczorem — tego samego dnia. Z tego samego powodu <strong>doba z niepełną liczbą skanów</strong>
-            (awaria Actions, blokada OLX) jest luką w wykresie: widzi tylko wycinek listingu i leży średnio
-            17 ofert poniżej sąsiadów.
+            <strong>Skąd dane:</strong> <strong>zmierzony</strong> stan bazy zapisywany po każdym skanie
+            (<code>data/index_history.json</code>) — ile ofert ma <code>active=true</code> po przebiegu.
+            Każdy punkt = jeden dzień; wartość dnia to maksimum z jego skanów, więc skan częściowy (blokada OLX)
+            nie zaniża historii. To analog indeksu podaży z betonometr.pl — pokazuje, ile żywych ofert wynajmu
+            mieszkań w Lublinie jest na rynku. Wcześniej Indeks był <em>rekonstruowany</em> wstecz z
+            <code>first_seen</code>/<code>last_seen</code>, ale oferta z przerwą w życiu ma w bazie jeden ciągły
+            przedział, więc rekonstrukcja zawyżała przeszłość i sztucznie zaniżała prawy koniec — myląc kierunek
+            trendu. Wykres startuje <strong>16.05.2026</strong> (historię sprzed wdrożenia pomiaru odtworzono
+            ze starszych rewizji <code>data/scan_history.json</code>); MAX/MIN/zakres liczone automatycznie,
+            zmiany 6M/1Y pojawią się, gdy uzbieramy dłuższą historię.
+            <br><strong>Dzień trwający rośnie do wieczora:</strong> skanujemy 3&times; dziennie, a punkt to
+            dzienne maksimum, więc licznik na mapie (stan po OSTATNIM skanie) bywa o kilka ofert niższy — przesunięcie
+            jest w każdym dniu takie samo, więc kształt i kierunek trendu są nietknięte. <strong>Doba bez ani jednego
+            skanu</strong> (awaria Actions) jest luką w wykresie zamiast zmyślonego zera.
             <br><strong>Rozbicie</strong> dzieli tę samą liczbę na dwa pasma: ogłoszenia świeże (dół) i takie, które
             wróciły na rynek po realnej nieobecności (góra) — suma pasm to dokładnie linia Indeksu. Oferta wchodzi
             do pasma „recykling" w dniu swojego powrotu i zostaje tam do końca życia. Rozbicie zaczyna się od dnia,
