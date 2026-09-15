@@ -9,6 +9,7 @@ import time
 import random
 import re
 import json
+from datetime import datetime, timezone
 from typing import List, Dict, Optional
 from urllib.parse import urljoin, urlparse, parse_qs
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -68,7 +69,8 @@ class OLXScraper:
         self.stats = {
             'skipped_same_price': 0,
             'fetched_new': 0,
-            'fetched_price_changed': 0
+            'fetched_price_changed': 0,
+            'fetched_stale_address': 0
         }
 
         # Detekcja płatnych wyróżnień (patrz _is_promoted_href). Liczniki są
@@ -295,7 +297,80 @@ class OLXScraper:
                     return urljoin(self.BASE_URL, link['href'])
         
         return None
-    
+
+    # ROTACYJNE ODŚWIEŻANIE OPISÓW — propagacja z SONAR-POKOJOWY (2026-09-15,
+    # manifest 2026-09-07-address-precision-upgrade). Inteligentne skanowanie
+    # pomija pobranie szczegółów, gdy cena listingowa się nie zmieniła — dobre
+    # dla obciążenia, ale ślepe na edycje niewidoczne w cenie (np. dopisany numer
+    # budynku do opisu). Bez wymuszonego re-fetchu taka oferta ma marker na
+    # środku ulicy (precision='street') do końca życia ogłoszenia, bo treść w
+    # bazie nigdy się nie odświeża. Logika "czy nowy adres jest lepszy" już
+    # istnieje w main.py (_update_existing_offer / new_looks_better) — brakowało
+    # tylko świeżej treści na wejściu.
+    #
+    # Budżet i próg wieku PRZELICZONE z naszej bazy (2026-09-15: 440 aktywnych
+    # ofert z precision='street', z czego 101 ma first_seen >30 dni) — NIE są
+    # przepisane 1:1 z brata (u niego 505 rekordów). Koszt per-ofertę do
+    # zmierzenia po wdrożeniu (brat: szacunek przed wdrożeniem mylił się 12×).
+    STALE_REFRESH_BUDGET = 35
+    STALE_REFRESH_MIN_AGE_DAYS = 3
+
+    def _promote_stale_imprecise(self, offers_to_skip: List[Dict],
+                                  offers_to_fetch: List[Dict]) -> List[Dict]:
+        """Przenosi najstarsze oferty z markerem 'street' ze 'skip' do 'fetch'.
+
+        Bierzemy TYLKO oferty z precision='street' (marker na środku ulicy) —
+        te z 'exact' nie mają czego zyskać, a 'none' i tak nie mają adresu do
+        doprecyzowania z tego samego, niezmienionego tekstu. Kolejność: od
+        najdawniej realnie pobieranych (`details_fetched_at`), limit
+        STALE_REFRESH_BUDGET na skan.
+
+        Returns: nowa lista offers_to_skip (bez awansowanych ofert).
+        """
+        if not offers_to_skip:
+            return offers_to_skip
+
+        now = datetime.now(timezone.utc)
+        candidates = []
+        for idx, item in enumerate(offers_to_skip):
+            existing = item.get('existing') or {}
+            precision = (existing.get('address') or {}).get('precision')
+            if precision != 'street':
+                continue
+            raw_ts = existing.get('details_fetched_at')
+            try:
+                age_days = (now - datetime.fromisoformat(raw_ts)).total_seconds() / 86400
+            except (TypeError, ValueError):
+                # Brak/zepsuty znacznik (rekordy sprzed wprowadzenia pola) = najstarsze.
+                age_days = float('inf')
+            if age_days < self.STALE_REFRESH_MIN_AGE_DAYS:
+                continue
+            # idx w kluczu sortowania: stabilna kolejność przy remisie wieku
+            candidates.append((-age_days, idx, item))
+
+        if not candidates:
+            return offers_to_skip
+
+        candidates.sort(key=lambda c: (c[0], c[1]))
+        promoted_idx = set()
+        for _, idx, item in candidates[:self.STALE_REFRESH_BUDGET]:
+            promoted_idx.add(idx)
+            offer, existing = item['offer'], item['existing']
+            # SIATKA BEZPIECZEŃSTWA: adres z bazy jedzie z ofertą jako cache, tak
+            # jak przy zwykłej reaktywacji (main.py `cached_address`). Świeży
+            # parsing i tak wygrywa, gdy jest dokładniejszy — o to chodzi w całej
+            # rotacji — ale gdy wynajmujący USUNIE adres z opisu, oferta bez cache
+            # poleciałaby do warstwy „bez lokacji" mimo że nadal wisi na OLX.
+            if existing.get('address'):
+                offer['cached_address'] = existing['address']
+            if existing.get('coordinates'):
+                offer['cached_coordinates'] = existing['coordinates']
+            offers_to_fetch.append({'offer': offer, 'reason': 'stale_address'})
+
+        self.stats['fetched_stale_address'] = len(promoted_idx)
+        self.stats['skipped_same_price'] -= len(promoted_idx)
+        return [item for idx, item in enumerate(offers_to_skip) if idx not in promoted_idx]
+
     def scrape_all_pages(self, max_pages: int = 20) -> List[Dict]:
         """
         Scrapuje wszystkie strony z ofertami (z limitem max_pages).
@@ -390,12 +465,19 @@ class OLXScraper:
                         'reason': 'new'
                     })
                     self.stats['fetched_new'] += 1
-            
+
+            # Rotacyjne odświeżenie opisów ofert z nieprecyzyjnym markerem — bez tego
+            # dopisany po czasie numer budynku nigdy do nas nie dociera (patrz
+            # _promote_stale_imprecise).
+            offers_to_skip = self._promote_stale_imprecise(offers_to_skip, offers_to_fetch)
+
             print(f"\n📊 Inteligentne pobieranie:")
             print(f"   ⏭️  Pominięto (ta sama cena): {len(offers_to_skip)}")
             print(f"   🆕 Nowe oferty do pobrania: {self.stats['fetched_new']}")
             print(f"   💰 Zmieniona cena: {self.stats['fetched_price_changed']}")
-            
+            print(f"   🎯 Odświeżenie opisu (nieprecyzyjny adres): "
+                  f"{self.stats['fetched_stale_address']}")
+
             # Uzupełnij oferty pominięte danymi z istniejącej bazy
             for item in offers_to_skip:
                 offer = item['offer']
