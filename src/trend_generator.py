@@ -287,22 +287,30 @@ def _window(offers, scan_days=None):
 
     Wszystkie wykresy na zakładce liczą się na TEJ SAMEJ osi dni i z tą samą
     maską — dzięki temu suma pasm zgadza się z Indeksem, a odpływ z napływem.
+
+    FEATURE 2026-09-15 (propagacja z SONAR-POKOJOWY, issue#51): oś sięga do
+    `today`, nie do ostatniego PEŁNEGO dnia. Doba w toku ląduje w serii jako
+    `None` (luka) tak samo jak każdy inny dzień o niepełnym pokryciu — dawniej
+    była całkiem wycięta z zakresu, czyli chowana. Jej wartość osobno liczy
+    `build_partial`, żeby front mógł dorysować ją jako przerywaną linię zamiast
+    chować dzisiejszy stan na ~12 h dziennie.
     """
     spans, today = _offer_spans(offers)
     if not spans:
         return spans, [], frozenset()
-    incomplete, last_complete = _scan_coverage(_scan_counts(scan_days), today)
+    incomplete, _ = _scan_coverage(_scan_counts(scan_days), today)
     start = max(RELIABLE_START, min(start for _, start, _ in spans))
-    return spans, _daily_range(start, last_complete), incomplete
+    return spans, _daily_range(start, today), incomplete
 
 
 def build_series(offers, scan_days=None):
     """Dzienna seria [[ms, liczba_ofert_na_rynku], ...] od RELIABLE_START.
 
-    Dzień bez pełnego pokrycia skanami idzie do serii jako `None` — ApexCharts
-    rysuje w tym miejscu przerwę zamiast fałszywego załamania rynku (patrz
-    `_scan_coverage`). Seria kończy się na ostatnim PEŁNYM dniu, więc trwająca
-    doba nie jest pokazywana jako zamknięta.
+    Dzień bez pełnego pokrycia skanami — w tym doba w toku, na krawędzi
+    wykresu — idzie do serii jako `None`: ApexCharts rysuje w tym miejscu
+    przerwę zamiast fałszywego załamania rynku (patrz `_scan_coverage`).
+    Wartość doby w toku jest osobno w `build_partial` — front dorysowuje z niej
+    drugą, przerywaną serię od ostatniej domkniętej doby (issue propagacji #51).
     """
     spans, days, incomplete = _window(offers, scan_days)
     if not days:
@@ -311,6 +319,36 @@ def build_series(offers, scan_days=None):
              None if day in incomplete
              else sum(1 for _, start, end in spans if start <= day <= end)]
             for day in days]
+
+
+def build_partial(offers, scan_days=None):
+    """Wartość doby w toku (niepełne pokrycie skanami, na krawędzi wykresu).
+
+    Osobny kanał od `series`: doba w toku wchodzi tam jako `None`, więc delty,
+    przepływy i pasma jej nie widzą (świadomie — jeszcze się nie domknęła).
+    Front dorysowuje z tego drugą, przerywaną serię, żeby dzisiejszy stan nie
+    znikał na ~12 h dziennie, tylko był widoczny i wyraźnie oznaczony jako
+    prowizoryczny. Port z SONAR-POKOJOWY (manifest 2026-09-12-partial-day-dashed,
+    issue propagacji #51) — adaptacja do naszej rekonstrukcji z `_offer_spans`
+    (nie mamy `index_history.py`).
+
+    None, gdy ostatnia doba jest już domknięta — nie ma nic „w toku".
+    """
+    spans, today = _offer_spans(offers)
+    if not spans:
+        return None
+    counts = _scan_counts(scan_days)
+    _, last_complete = _scan_coverage(counts, today)
+    if today == last_complete:
+        return None
+    return {
+        'ts': _day_ms(today),
+        'value': sum(1 for _, start, end in spans if start <= today <= end),
+        'scans_done': counts.get(today, 0),
+        'scans_planned': SCANS_PER_DAY,
+        'day': today.isoformat(),
+        'day_label': today.strftime('%d.%m'),
+    }
 
 
 def _flow_metric(counts, days, skip_days=frozenset()):
@@ -727,6 +765,7 @@ def generate_trend_data(input_file=None, output_file=None) -> bool:
         'points': len(series),
         'deltas': compute_deltas(series),
         'series': series,
+        'partial': build_partial(offers, scan_counts),
         'outflow': build_outflow(offers, scan_counts),
         'inflow': build_inflow(offers, scan_counts),
         'bands': build_bands(offers, scan_counts),
@@ -744,6 +783,10 @@ def generate_trend_data(input_file=None, output_file=None) -> bool:
           f"odpływ: łącznie={of.get('total')}, "
           f"śr={of.get('rate')}/dzień (ost. {of.get('rate_days')} dni), "
           f"rekord={of.get('max_day')} ({of.get('max_label')})")
+    if out['partial']:
+        p = out['partial']
+        print(f"   doba w toku ({p['day_label']}): {p['value']} "
+              f"({p['scans_done']}/{p['scans_planned']} skanów)")
     if inf:
         print(f"   napływ: nowe {inf['new']['rate']}/dzień, "
               f"powroty {inf['react']['rate']}/dzień, "
