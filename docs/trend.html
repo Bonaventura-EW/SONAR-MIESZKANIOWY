@@ -45,6 +45,12 @@
         .idxBtn:disabled { opacity: 0.55; cursor: not-allowed; background: #f1f3f8; }
         .idxBtn:disabled:hover { background: #f1f3f8; }
         .idxNote { color: #6b7280; font-size: 12.5px; align-self: center; }
+        .partialBadge {
+            display: none; align-items: center; gap: 5px; margin-left: 10px;
+            color: #4338ca; background: #e0e7ff; border-radius: 8px;
+            padding: 2px 9px; font-size: 12.5px; font-weight: 600; vertical-align: middle;
+        }
+        .partialBadge.on { display: inline-flex; }
         .idxLegend { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 8px; }
         .idxLegend:empty { margin: 0; }
         .idxLegend .ci { display: flex; align-items: center; gap: 7px; color: #4b5563; font-size: 13px; }
@@ -123,7 +129,7 @@
     <main>
         <div class="card">
             <h2 id="title">Lublin &ndash; mieszkania: wynajem</h2>
-            <div class="sub"><span id="lastLabel">&mdash;</span> (<span id="curVal">&mdash;</span>)</div>
+            <div class="sub"><span id="lastLabel">&mdash;</span> (<span id="curVal">&mdash;</span>)<span class="partialBadge" id="partialBadge"></span></div>
             <div class="deltas" id="deltas"></div>
             <div class="idxToolbar">
                 <button id="idxSum" class="idxBtn on" type="button">📈 Suma aktywnych</button>
@@ -141,12 +147,14 @@
             Wykres startuje <strong>16.05.2026</strong> — wcześniejsze dane są zaniżone (parser adresów odrzucał wtedy
             setki ofert na skan, więc nigdy nie trafiły do bazy). MAX/MIN/zakres liczone automatycznie; zmiany 6M/1Y
             pojawią się, gdy uzbieramy dłuższą historię.
-            <br><strong>Wykres kończy się na ostatniej ZAMKNIĘTEJ dobie</strong>, nie na dziś: skanujemy 3&times;
-            dziennie, a dzień liczy oferty widziane w jego skanach, więc trwająca doba rośnie z każdym przebiegiem
-            (03.09 szło kolejno 686 → 717 → 748 → 767). Rysowana jako pełna dawała w nagłówku „1D&nbsp;−84" rano
-            i „−8" wieczorem — tego samego dnia. Z tego samego powodu <strong>doba z niepełną liczbą skanów</strong>
-            (awaria Actions, blokada OLX) jest luką w wykresie: widzi tylko wycinek listingu i leży średnio
-            17 ofert poniżej sąsiadów.
+            <br><strong>Doba w toku jest na wykresie jako przerywana linia</strong>, nie licząca się do niczego:
+            skanujemy 3&times; dziennie, a dzień liczy oferty widziane w jego skanach, więc trwająca doba rośnie
+            z każdym przebiegiem (03.09 szło kolejno 686 → 717 → 748 → 767). Licząc ją jak zamkniętą, nagłówek
+            pokazywał „1D&nbsp;−84" rano i „−8" wieczorem — tego samego dnia. Dlatego zmiany 1D/1M/6M/1Y i MAX/MIN
+            liczą się do <strong>ostatniej ZAMKNIĘTEJ doby</strong>, a przerywany odcinek z pionową kreską i podpisem
+            („X z 3 skanów") pokazuje tylko, gdzie dziś prowizorycznie stoi indeks. Z tego samego powodu
+            <strong>doba z niepełną liczbą skanów w środku historii</strong> (awaria Actions, blokada OLX) zostaje
+            zwykłą luką: widzi tylko wycinek listingu i leży średnio 17 ofert poniżej sąsiadów.
             <br><strong>Rozbicie</strong> dzieli tę samą liczbę na dwa pasma: ogłoszenia świeże (dół) i takie, które
             wróciły na rynek po realnej nieobecności (góra) — suma pasm to dokładnie linia Indeksu. Oferta wchodzi
             do pasma „recykling" w dniu swojego powrotu i zostaje tam do końca życia. Rozbicie zaczyna się od dnia,
@@ -326,6 +334,25 @@
         const cur = d.current, mx = d.max, mn = d.min;
         const unit = typeof d.unit === 'string' ? d.unit : 'ofert';
 
+        // --- doba w toku: przerywana linia od ostatniej domkniętej doby ---
+        // Wartość dnia, który jeszcze się skanuje, żyje osobno w d.partial
+        // (nie w RAW — tam jest luką), żeby delty/MAX/MIN dalej liczyły się
+        // tylko do ostatniej ZAMKNIĘTEJ doby (issue propagacji #51).
+        const partial = (d.partial && typeof d.partial.value === 'number') ? d.partial : null;
+        const badge = document.getElementById('partialBadge');
+        if (partial) {
+            badge.textContent = '🕓 doba w toku: ' + partial.value + ' (' +
+                partial.scans_done + '/' + partial.scans_planned + ' skanów)';
+            badge.classList.add('on');
+        }
+
+        function lastMeasuredPoint(series) {
+            for (let i = series.length - 1; i >= 0; i--) {
+                if (series[i][1] != null) return series[i];
+            }
+            return null;
+        }
+
         // Etykiety MAX/MIN/teraz potrafią się nakładać, gdy „teraz" = MAX lub MIN.
         // Wtedy pomijamy redundantną etykietę „teraz" — ta sama wartość jest już
         // na linii MAX/MIN i w nagłówku strony.
@@ -399,6 +426,37 @@
             }
         };
 
+        // Doba w toku dostaje drugą serię: krótki, przerywany odcinek od ostatniej
+        // ZMIERZONEJ wartości do dzisiejszej (prowizorycznej). Przy ~120 punktach
+        // × ~15px/dzień sam odcinek jest ledwo widoczny, więc dokłada się pionowa
+        // kreska (xaxis annotation) i podpis pokrycia skanami.
+        if (partial) {
+            const lastPt = lastMeasuredPoint(RAW);
+            const dashedData = lastPt ? [lastPt, [partial.ts, partial.value]] : [[partial.ts, partial.value]];
+            options.series = [
+                { name: 'Aktywne oferty', data: RAW },
+                { name: 'Doba w toku', data: dashedData }
+            ];
+            options.colors = ['#667eea', '#667eea'];
+            options.stroke = Object.assign({}, options.stroke, { width: [2, 2], dashArray: [0, 6] });
+            options.fill = Object.assign({}, options.fill, { type: ['gradient', 'solid'], opacity: [1, 0] });
+            options.markers = {
+                size: [0, 0],
+                discrete: [{ seriesIndex: 1, dataPointIndex: dashedData.length - 1,
+                             size: 5, fillColor: '#fff', strokeColor: '#667eea', strokeWidth: 2 }]
+            };
+            options.legend = { show: true, labels: { colors: '#6b7280' }, markers: { radius: 12 } };
+            options.annotations.xaxis = [{
+                x: partial.ts, borderColor: '#667eea', strokeDashArray: 4,
+                label: {
+                    text: partial.scans_done + ' z ' + partial.scans_planned + ' skanów',
+                    orientation: 'horizontal', offsetY: -4,
+                    style: { background: '#e0e7ff', color: '#3730a3', fontSize: '11px', fontWeight: 600,
+                             padding: { left: 5, right: 5, top: 2, bottom: 2 } }
+                }
+            }];
+        }
+
         // --- Indeks: przełącznik Suma <-> rozbicie na pasma (świeże / recykling) ---
         // Suma (tryb 0) = wykres pola powyżej. Rozbicie (tryb 1) = stacked area:
         // dół to oferty świeże, góra to te, które wróciły na rynek po realnej
@@ -441,6 +499,12 @@
                     type: 'gradient',
                     gradient: { shadeIntensity: 1, opacityFrom: 0.7, opacityTo: 0.35, stops: [0, 100] }
                 },
+                // Rozbicie nie ma osobnych danych dla doby w toku (bands nie liczy
+                // per-band wartości prowizorycznej) — resetujemy adnotacje/markery
+                // z trybu Suma, żeby dyskretny znacznik partial nie wskazywał
+                // przypadkowego punktu w seriach pasm.
+                markers: { size: 0, hover: { size: 5 } },
+                legend: { labels: { colors: '#6b7280' }, markers: { radius: 12 } },
                 annotations: {},
                 tooltip: {
                     shared: true, x: { format: 'dd.MM.yyyy' },

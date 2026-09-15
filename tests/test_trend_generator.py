@@ -27,6 +27,7 @@ def test_empty_input():
     assert gen.build_series([]) == []
     assert gen.build_outflow([]) is None
     assert gen.compute_deltas([]) == {}
+    assert gen.build_partial([]) is None
 
 
 def test_series_counts_living_offers_per_day():
@@ -373,13 +374,34 @@ class TestScanCoverage:
         assert days[date(2026, 5, 18)] is None
         assert days[date(2026, 5, 19)] == 1
 
-    def test_series_stops_at_the_last_complete_day(self):
-        """Trwająca doba nie jest pokazywana jako zamknięta — to ona dawała
-        „1D: −78" o poranku i „−8" wieczorem tego samego dnia."""
+    def test_series_shows_the_partial_day_as_a_gap(self):
+        """Trwająca doba nie jest pokazywana jako zamknięta w `series` — to ona
+        dawała „1D: −78" o poranku i „−8" wieczorem tego samego dnia. Zamiast
+        być całkiem wycięta (chowana), zostaje na osi jako luka — jej wartość
+        osobno niesie `build_partial` (issue propagacji #51)."""
         offers = [_offer('2026-05-16', '2026-05-20', True)]
         counts = self._full(*[date(2026, 5, d) for d in range(16, 20)])
         counts[date(2026, 5, 20)] = 1                 # dziś, po pierwszym skanie
-        assert max(_by_day(gen.build_series(offers, counts))) == date(2026, 5, 19)
+        days = _by_day(gen.build_series(offers, counts))
+        assert max(days) == date(2026, 5, 20)
+        assert days[date(2026, 5, 20)] is None
+        assert days[date(2026, 5, 19)] == 1
+
+    def test_partial_reports_the_in_progress_day_separately(self):
+        offers = [_offer('2026-05-16', '2026-05-20', True)]
+        counts = self._full(*[date(2026, 5, d) for d in range(16, 20)])
+        counts[date(2026, 5, 20)] = 1                 # dziś, po pierwszym z 3 skanów
+        partial = gen.build_partial(offers, counts)
+        assert partial['day'] == '2026-05-20'
+        assert partial['value'] == 1                  # oferta wciąż żyje
+        assert partial['scans_done'] == 1
+        assert partial['scans_planned'] == gen.SCANS_PER_DAY
+
+    def test_partial_is_none_when_the_last_day_is_already_complete(self):
+        offers = [_offer('2026-05-16', '2026-05-20', True)]
+        counts = self._full(*[date(2026, 5, d) for d in range(16, 21)])
+        assert gen.build_partial(offers, counts) is None
+        assert gen.build_partial([]) is None
 
     def test_first_day_of_the_log_is_never_partial(self):
         """Dziennik trzyma ostatnie ~100 przebiegów, więc najstarszy dzień bywa
@@ -428,6 +450,7 @@ def test_generate_writes_full_payload(tmp_path):
     assert data['current'] == 1 and data['max'] == 2 and data['min'] == 1
     assert data['last_label'] == '19.05.2026'
     assert data['outflow']['total'] == 1
+    assert data['partial'] is None                    # brak scan_history.json → pełne pokrycie
 
 
 def test_generate_returns_false_without_usable_offers(tmp_path):
