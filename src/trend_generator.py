@@ -649,6 +649,44 @@ def build_promoted(offers, series, scan_days=None):
     return metric
 
 
+def build_price_changes(offers, scan_days=None):
+    """Dzienna częstotliwość zmian cen: ile ofert danego dnia potaniało / podrożało.
+
+    Liczy ZDARZENIA (wpisy `price.price_changes`), nie oferty — dwie obniżki
+    jednej oferty tego samego dnia to dwa punkty. To świadomie inna zasada niż
+    odpływ/napływ (tam jedna oferta = jeden marker na mapie, więc dedup po
+    (oferta, dzień) jest konieczny): tu pytanie brzmi „ile było obniżek",
+    nie „ile ofert dziś potaniało" — skala złotówkowa zmian jest już na Top 5,
+    ten wykres pokazuje ich częstotliwość.
+
+    Źródło to `price.price_changes` (main.py: lista {old_price, new_price,
+    changed_at, trend}), które `top5_generator.py` już czyta do tego samego
+    celu — historia leży w bazie od pierwszego skanu, więc szereg liczy się
+    wstecz bez dodatkowych requestów. Nie ma tu odpowiednika `versions[]`
+    z SONAR-POKOJOWY (zmiana adresu tam zerowała historię cen): `extract_cid`
+    daje stabilne ID niezależne od adresu/slugu (CLAUDE.md pkt 1), więc
+    `price_changes` jednej oferty jest zawsze w jednym, ciągłym polu.
+    """
+    _, days, incomplete = _window(offers, scan_days)
+    if not days:
+        return None
+    window = set(days)
+
+    down_counts, up_counts = {}, {}
+    for o in offers:
+        for ch in (o.get('price', {}).get('price_changes') or []):
+            day = _safe_day(ch.get('changed_at'))
+            if day not in window:
+                continue
+            target = down_counts if ch.get('trend') == 'down' else up_counts
+            target[day] = target.get(day, 0) + 1
+
+    return {
+        'down': _flow_metric(down_counts, days, incomplete),
+        'up': _flow_metric(up_counts, days, incomplete),
+    }
+
+
 def _value_at_or_before(series, target_ms):
     """Ostatnia ZMIERZONA wartość nie później niż `target_ms` (luki pomijamy)."""
     best = None
@@ -731,6 +769,7 @@ def generate_trend_data(input_file=None, output_file=None) -> bool:
         'inflow': build_inflow(offers, scan_counts),
         'bands': build_bands(offers, scan_counts),
         'promoted': build_promoted(offers, series, scan_counts),
+        'price_changes': build_price_changes(offers, scan_counts),
     }
 
     atomic_write_json(output_file, out)
@@ -762,6 +801,11 @@ def generate_trend_data(input_file=None, output_file=None) -> bool:
               f"historia od {pr.get('start_label')}")
     else:
         print("   ⭐ promowane: brak danych (metryka zbiera się od pierwszego skanu po wdrożeniu)")
+    pc = out['price_changes']
+    if pc:
+        print(f"   💰 zmiany cen: obniżki śr={pc['down']['rate']}/dzień "
+              f"(łącznie {pc['down']['total']}), "
+              f"podwyżki śr={pc['up']['rate']}/dzień (łącznie {pc['up']['total']})")
     return True
 
 

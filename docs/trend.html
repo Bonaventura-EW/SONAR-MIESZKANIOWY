@@ -245,6 +245,27 @@
             wyróżnienia to stan chwilowy na listingu, nie ślad w ofercie, więc nie da się ich odtworzyć głębiej wstecz.
             Dni bez skanu (awaria Actions, blokada OLX) rysują się jako luka i nie wchodzą do średniej.
         </div>
+
+        <div class="card" style="margin-top:22px">
+            <h2>📉 Obniżki cen &ndash; ile ofert taniało dziennie</h2>
+            <div class="sub" id="downLabel">Dzienna liczba obniżek + średnia 7-dniowa</div>
+            <div id="chart7"><div class="loading">Ładowanie danych…</div></div>
+        </div>
+
+        <div class="card" style="margin-top:22px">
+            <h2>📈 Podwyżki cen &ndash; ile ofert drożało dziennie</h2>
+            <div class="sub" id="upLabel">Dzienna liczba podwyżek + średnia 7-dniowa</div>
+            <div id="chart8"><div class="loading">Ładowanie danych…</div></div>
+        </div>
+
+        <div class="foot">
+            <strong>Skąd dane:</strong> dla każdego dnia liczba ZDARZEŃ zmiany ceny (<code>price.price_changes</code>),
+            nie ofert &mdash; dwie obniżki tej samej oferty tego samego dnia liczą się jako dwa punkty. To pokazuje
+            <strong>częstotliwość</strong> zmian cen, czy rynek zaczyna z nich schodzić, a nie ich skalę złotówkową
+            (ta jest na stronie Top 5). Dwa osobne wykresy zamiast wspólnej osi: podwyżki są znacznie rzadsze
+            od obniżek i na wspólnej skali leżałyby płasko przy zerze. Dzień bez pełnego pokrycia skanami
+            jest luką, tak jak na pozostałych wykresach powyżej.
+        </div>
     </main>
 
     <script>
@@ -296,7 +317,7 @@
             deltaBox.appendChild(wrap);
         });
 
-        const BOXES = ['chart', 'chart2', 'chart3', 'chart4', 'chart5', 'chart6'];
+        const BOXES = ['chart', 'chart2', 'chart3', 'chart4', 'chart5', 'chart6', 'chart7', 'chart8'];
 
         function fillBoxes(text) {
             BOXES.forEach(function (id) {
@@ -734,6 +755,24 @@
             document.getElementById('chart6').innerHTML =
                 '<div class="loading">Metryka rusza od pierwszego skanu po wdrożeniu detekcji wyróżnień — ' +
                 'wykres pojawi się, gdy uzbieramy pierwszy dzień danych.</div>';
+        }
+
+        // --- częstotliwość zmian cen: obniżki i podwyżki, osobne wykresy ---
+        const pc = d.price_changes || {};
+        if (hasValues(pc.down)) {
+            setFlowLabel('downLabel', 'Tanieje średnio ', pc.down,
+                'Zielona = obniżki, jasna = trend 7 dni.');
+            renderFlowChart('chart7', pc.down, 'Obniżek danego dnia', ['#16a34a', '#86efac']);
+        } else {
+            noteInstead('chart7', 'Brak danych o obniżkach cen.');
+        }
+
+        if (hasValues(pc.up)) {
+            setFlowLabel('upLabel', 'Drożeje średnio ', pc.up,
+                'Czerwona = podwyżki, jasna = trend 7 dni.');
+            renderFlowChart('chart8', pc.up, 'Podwyżek danego dnia', ['#dc2626', '#fca5a5']);
+        } else {
+            noteInstead('chart8', 'Brak danych o podwyżkach cen.');
         }
     })();
     </script>
