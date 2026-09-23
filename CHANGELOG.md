@@ -10,6 +10,31 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Dodane (2026-09-22) — częstotliwość zmian cen (obniżki/podwyżki) na Indeksie
+Propagacja z SONAR-POKOJOWY (manifest `2026-09-15-price-change-series`, issue #54).
+Mieliśmy skalę złotówkową zmian cen (Top 5 największych obniżek/podwyżek), ale
+nie ich **częstotliwość** — a to ona mówi, czy rynek zaczyna schodzić z cen.
+
+- **`trend_generator.build_price_changes()`** grupuje `price.price_changes`
+  (już zbierane dla `top5_generator.py`) po dniu i kierunku, na wspólnej osi
+  z resztą zakładki (`_flow_metric`, jak `build_outflow`/`build_inflow`).
+  Liczy **zdarzenia**, nie oferty — dwie obniżki jednej oferty w jednym dniu
+  to dwa punkty, świadomie inaczej niż odpływ/napływ (tam dedup po
+  (oferta, dzień) jest konieczny, bo to metryki dla mapy). Dzień bez pełnego
+  pokrycia skanami jest luką, tak jak w pozostałych wykresach przepływu.
+  Prostsze niż u brata: nie mamy koncepcji `versions[]`/zerowania historii
+  cen przy zmianie adresu (`extract_cid` daje stabilne ID niezależne od
+  adresu — CLAUDE.md pkt 1), więc jedno pole wystarcza bez odtwarzania dat
+  z dwóch rozłącznych źródeł.
+- **`docs/trend.html`** — dwa nowe, osobne wykresy (obniżki/podwyżki) pod
+  wykresem promowanych ofert, tego samego kształtu co odpływ/napływ (linia
+  dzienna + średnia 7 dni). Osobne wykresy zamiast wspólnej osi: na naszych
+  danych podwyżki są ~5,6× rzadsze od obniżek i na wspólnej skali leżałyby
+  płasko przy zerze.
+- Pominięta część manifestu (`partial.now` z `build_partial()`, dodane
+  w PR#53/issue#51) — osobne rozszerzenie, do rozważenia w kolejnym kroku,
+  nie w tym PR-ze.
+
 ### Dodane (2026-09-15) — doba w toku na wykresie Indeksu: przerywana linia zamiast chowania
 Propagacja z SONAR-POKOJOWY (manifest `2026-09-12-partial-day-dashed`, issue
 propagacji #51) — odpowiedź brata na nasz własny audyt z 2026-09-04. Do dziś

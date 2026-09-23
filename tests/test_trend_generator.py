@@ -309,6 +309,48 @@ class TestBands:
         assert gen.build_bands([]) is None
 
 
+def _price_offer(first_seen, last_seen, changes, active=False):
+    """Oferta z `price.price_changes` — [(dzień, trend), ...] → wpisy zdarzeń."""
+    o = _offer(first_seen, last_seen, active)
+    o['price'] = {'price_changes': [
+        {'old_price': 2000, 'new_price': 1900 if trend == 'down' else 2100,
+         'changed_at': f'{day}T12:00:00+02:00', 'trend': trend}
+        for day, trend in changes
+    ]}
+    return o
+
+
+class TestPriceChanges:
+    def test_empty_input(self):
+        assert gen.build_price_changes([]) is None
+
+    def test_counts_events_not_offers(self):
+        """Dwie obniżki JEDNEJ oferty tego samego dnia to dwa punkty — świadomie
+        inna zasada niż odpływ/napływ (tam liczy się oferta, nie zdarzenie)."""
+        offers = [_price_offer('2026-05-16', '2026-05-20',
+                                [('2026-05-17', 'down'), ('2026-05-17', 'down')])]
+        down = _by_day(gen.build_price_changes(offers)['down']['daily'])
+        assert down[date(2026, 5, 17)] == 2
+
+    def test_splits_down_and_up_into_separate_series(self):
+        offers = [
+            _price_offer('2026-05-16', '2026-05-20', [('2026-05-17', 'down')]),
+            _price_offer('2026-05-16', '2026-05-20', [('2026-05-18', 'up')]),
+        ]
+        pc = gen.build_price_changes(offers)
+        down, up = _by_day(pc['down']['daily']), _by_day(pc['up']['daily'])
+        assert down[date(2026, 5, 17)] == 1 and down[date(2026, 5, 18)] == 0
+        assert up[date(2026, 5, 18)] == 1 and up[date(2026, 5, 17)] == 0
+
+    def test_incomplete_scan_day_is_masked(self):
+        offers = [_price_offer('2026-05-16', '2026-05-20', [('2026-05-18', 'down')])]
+        counts = {d: 3 for d in (date(2026, 5, 16), date(2026, 5, 17),
+                                  date(2026, 5, 19), date(2026, 5, 20))}
+        counts[date(2026, 5, 18)] = 1                  # tylko jeden przebieg
+        gap = date(2026, 5, 18)
+        assert _by_day(gen.build_price_changes(offers, counts)['down']['daily'])[gap] is None
+
+
 def _linear_series(start, count):
     """[[południe dnia, 100 + i], ...] — sztuczna, równo rosnąca seria."""
     return [[gen._day_ms(start + timedelta(days=i)), 100 + i] for i in range(count)]
