@@ -1,6 +1,6 @@
 name: Propagation Implement
 
-# ── ETAP IMPLEMENTACJI (Opus) ─────────────────────────────────────────
+# ── ETAP IMPLEMENTACJI (Sonnet) ────────────────────────────────────────
 # Wyzwalany, gdy issue dostanie etykietę `propagate:go`:
 #   - dla kategorii `draft` etykietę nakłada sam etap decyzji (autonomia),
 #   - dla kategorii `ask` etykietę nakłada CZŁOWIEK, gdy chce zbudować zmianę.
@@ -36,6 +36,6 @@ jobs:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
           prompt: "/implement-propagation issue #${{ github.event.issue.number }}"
           claude_args: |
-            --model claude-opus-4-8
+            --model claude-sonnet-5
             --max-turns 100
             --allowedTools "Read,Write,Edit,Bash"
