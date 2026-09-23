@@ -2,13 +2,20 @@
 """
 Generator trend_data.json dla SONAR MIESZKANIOWY
 
-Buduje DZIENNY szereg czasowy liczby aktywnych ofert mieszkań przez
-rekonstrukcję z data/offers.json: dla każdego dnia D liczy ile ofert "żyło"
-tego dnia (first_seen <= D <= last_seen; dla wciąż aktywnych granicą jest
-ostatni dzień skanu).
+Główny szereg „Indeksu podaży" (ile żywych ofert wynajmu mieszkań w Lublinie
+jest danego dnia na rynku) czytamy z data/index_history.json — MIERZONEGO stanu
+bazy zapisywanego po każdym skanie (patrz src/index_history.py). Wcześniej był
+REKONSTRUOWANY wstecz z data/offers.json (`build_series`), ale rekonstrukcja
+zawyża przeszłość i zaniża prawy koniec (oferta z przerwą w życiu ma w bazie
+jeden ciągły przedział first_seen..last_seen), więc wykres mylił kierunek trendu
+— port poprawki z siostrzanego SONAR POKOJOWY (manifest
+`2026-09-03-measured-index-history`).
 
-To "indeks podaży" w stylu betonometr.pl: ile żywych ofert wynajmu mieszkań
-w Lublinie jest danego dnia na rynku. Port strony `trend.html` z siostrzanego
+Rekonstrukcja (`build_series`) zostaje jako: (a) awaryjne źródło, gdy nie ma
+jeszcze zapisanej historii pomiaru, (b) źródło UDZIAŁU pasm świeże/recykling,
+który nakładamy na zmierzoną sumę (`build_bands(index_series=...)`), (c) baza
+wykresów przepływu (napływ/odpływ), które nadal liczą się z przedziałów życia.
+To "indeks podaży" w stylu betonometr.pl. Port strony `trend.html` z siostrzanego
 SONAR POKOJOWY.
 
 Dlaczego nie scan_history.json: tam trzymamy tylko metadane skanów (liczba
@@ -27,6 +34,7 @@ from pathlib import Path
 
 import paths
 import reactivation_log
+import index_history
 from atomic_json import atomic_write_json
 
 TITLE = "Lublin – mieszkania: wynajem"
@@ -297,7 +305,13 @@ def _window(offers, scan_days=None):
 
 
 def build_series(offers, scan_days=None):
-    """Dzienna seria [[ms, liczba_ofert_na_rynku], ...] od RELIABLE_START.
+    """REKONSTRUKCJA Indeksu: dzienna seria [[ms, liczba_ofert], ...] od RELIABLE_START.
+
+    UWAGA: to NIE jest już główne źródło Indeksu — patrz `measured_series`.
+    Rekonstrukcja zawyża przeszłość (oferta z przerwą w życiu ma jeden ciągły
+    przedział first_seen..last_seen), a zawyżenie maleje z wiekiem punktu, więc
+    prawy koniec sztucznie opada. Zostaje jako awaryjne źródło (świeży klon bez
+    zapisanej historii pomiaru) oraz podstawa UDZIAŁU pasm (`build_bands`).
 
     Dzień bez pełnego pokrycia skanami idzie do serii jako `None` — ApexCharts
     rysuje w tym miejscu przerwę zamiast fałszywego załamania rynku (patrz
@@ -311,6 +325,23 @@ def build_series(offers, scan_days=None):
              None if day in incomplete
              else sum(1 for _, start, end in spans if start <= day <= end)]
             for day in days]
+
+
+def measured_series(input_file=None):
+    """MIERZONY Indeks: dzienna seria [[ms, aktywne|None], ...] od RELIABLE_START.
+
+    Źródłem jest data/index_history.json — ile ofert miało `active=true` po skanie
+    danego dnia (patrz `index_history`). W przeciwieństwie do `build_series` stary
+    punkt nigdy się nie zmienia (rekonstrukcja rosła wstecz z każdym nowym skanem),
+    a prawy koniec nie opada sztucznie. `None` = dzień bez ani jednego skanu.
+
+    Pusta lista, gdy pliku nie ma (świeży klon) — wtedy `generate_trend_data`
+    spada na `build_series`. `input_file` służy do wskazania katalogu danych,
+    spójnie z `load_scan_counts`.
+    """
+    path = Path(input_file).parent / 'index_history.json' if input_file else None
+    return [[_day_ms(day), value]
+            for day, value in index_history.daily_series(start=RELIABLE_START, path=path)]
 
 
 def _flow_metric(counts, days, skip_days=frozenset()):
@@ -465,7 +496,7 @@ def build_inflow(offers, scan_days=None):
     }
 
 
-def build_bands(offers, scan_days=None):
+def build_bands(offers, scan_days=None, index_series=None):
     """Rozbicie indeksu na pasma: oferty świeże vs wracające z martwych.
 
     Oferta siedzi w paśmie „świeże" od pierwszego dnia życia, a do „recyklingu"
@@ -473,6 +504,14 @@ def build_bands(offers, scan_days=None):
     tam do końca. Suma pasm dzień po dniu = linia Indeksu (te same okresy
     życia), więc przełącznik na wykresie pokazuje rozbicie tej samej liczby,
     a nie inną metrykę.
+
+    `index_series` (opcjonalne): gdy główny Indeks jest MIERZONY, a nie
+    rekonstruowany (patrz `measured_series`), same liczby z rekonstrukcji
+    wystawałyby ponad linię — zawyżają przeszłość o kilkanaście procent. Wtedy
+    z rekonstrukcji bierzemy tylko UDZIAŁ recyklingu i nakładamy go na zmierzony
+    Indeks danego dnia, żeby suma pasm dalej równała się linii. Bez tego
+    argumentu (starsze wywołania, testy) pasma zwracają surowe liczby
+    rekonstrukcji — zgodne ze zrekonstruowanym `build_series`.
 
     Pasma zaczynają się dopiero od `measured_from`: wcześniej nie wiadomo,
     które oferty już wróciły z martwych, więc wykres pokazywałby rosnące pasmo
@@ -517,11 +556,28 @@ def build_bands(offers, scan_days=None):
 
     # Ta sama maska co w Indeksie — inaczej po przełączeniu na „Rozbij" dzień
     # z niepełnym pokryciem pokazywałby słupek tam, gdzie „Suma" ma przerwę.
-    def _masked(values):
-        return [[_day_ms(d), None if d in incomplete else v]
-                for d, v in zip(days, values)]
+    if index_series is None:
+        def _masked(values):
+            return [[_day_ms(d), None if d in incomplete else v]
+                    for d, v in zip(days, values)]
+        return {'new': _masked(fresh), 'react': _masked(recycled)}
 
-    return {'new': _masked(fresh), 'react': _masked(recycled)}
+    # Główny Indeks jest MIERZONY: bierzemy z rekonstrukcji wyłącznie udział
+    # recyklingu i skalujemy go na zmierzoną sumę dnia (suma pasm = linia).
+    idx = {ms: val for ms, val in index_series}
+    new_out, react_out = [], []
+    for d, f, r in zip(days, fresh, recycled):
+        ms = _day_ms(d)
+        value = idx.get(ms)
+        if d in incomplete or value is None:
+            new_out.append([ms, None])
+            react_out.append([ms, None])
+            continue
+        total = f + r
+        scaled = round(value * r / total) if total else 0
+        new_out.append([ms, value - scaled])
+        react_out.append([ms, scaled])
+    return {'new': new_out, 'react': react_out}
 
 
 def _scanned_days(offers):
@@ -694,9 +750,16 @@ def generate_trend_data(input_file=None, output_file=None) -> bool:
     offers = data.get('offers', [])
 
     scan_counts = load_scan_counts(input_file)
-    series = build_series(offers, scan_counts)
+    # Główny Indeks: MIERZONY stan bazy (index_history.json). Rekonstrukcja
+    # zostaje jako awaryjne źródło (świeży klon bez historii pomiaru) i baza
+    # udziału pasm. Nie mieszamy dwóch metod w jednej linii — bierzemy albo
+    # cały pomiar, albo całą rekonstrukcję (krok na złączeniu ~15% czytałby się
+    # jak zdarzenie rynkowe).
+    measured_index = measured_series(input_file)
+    index_source = 'measured' if measured_index else 'reconstructed'
+    series = measured_index or build_series(offers, scan_counts)
     if not series:
-        print("⚠️  Brak danych do rekonstrukcji — pomijam trend_data.json")
+        print("⚠️  Brak danych do Indeksu — pomijam trend_data.json")
         return False
 
     measured = [(ms, val) for ms, val in series if val is not None]
@@ -715,6 +778,9 @@ def generate_trend_data(input_file=None, output_file=None) -> bool:
         'generated_at': datetime.now().astimezone().isoformat(),
         'title': TITLE,
         'metric': 'active_daily',
+        # 'measured' = zapisany stan bazy (data/index_history.json),
+        # 'reconstructed' = awaryjna rekonstrukcja z offers.json (zawyża przeszłość)
+        'index_source': index_source,
         'unit': UNIT,
         'reliable_start': RELIABLE_START.isoformat(),
         'rate_window_days': FLOW_RATE_WINDOW_DAYS,
@@ -729,7 +795,7 @@ def generate_trend_data(input_file=None, output_file=None) -> bool:
         'series': series,
         'outflow': build_outflow(offers, scan_counts),
         'inflow': build_inflow(offers, scan_counts),
-        'bands': build_bands(offers, scan_counts),
+        'bands': build_bands(offers, scan_counts, index_series=series),
         'promoted': build_promoted(offers, series, scan_counts),
     }
 
@@ -738,8 +804,9 @@ def generate_trend_data(input_file=None, output_file=None) -> bool:
     inf = out['inflow'] or {}
     bands = out['bands'] or {}
     gaps = sum(1 for _, val in series if val is None)
-    print(f"✅ trend_data.json: {len(series)} dni od {RELIABLE_START} "
-          f"do {out['last_label']} ({gaps} dni niepełnych), "
+    src_label = 'mierzony' if index_source == 'measured' else 'rekonstrukcja (awaryjnie)'
+    print(f"✅ trend_data.json [{src_label}]: {len(series)} dni od {RELIABLE_START} "
+          f"do {out['last_label']} ({gaps} dni bez skanu), "
           f"teraz={current}, max={mx}, min={mn}; "
           f"odpływ: łącznie={of.get('total')}, "
           f"śr={of.get('rate')}/dzień (ost. {of.get('rate_days')} dni), "
