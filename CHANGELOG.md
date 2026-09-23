@@ -35,6 +35,71 @@ dziennie.
   liczy się bezpośrednio w `trend_generator` z tych samych odcinków życia co
   reszta metryk, zamiast z osobnego modułu jak u brata.
 
+### Dodane (2026-09-15) — rotacja re-fetchu dla ofert z zamrożonym adresem (propagacja z SONAR-POKOJOWY)
+Inteligentne skanowanie pomija pobranie szczegółów, gdy cena listingowa się nie
+zmieniła — dobre dla obciążenia, ale ślepe na edycje niewidoczne w cenie (np.
+wynajmujący dopisuje numer budynku do opisu tydzień po wystawieniu). Bez
+wymuszonego re-fetchu taka oferta miała marker na środku ulicy
+(`address.precision == 'street'`) do końca życia ogłoszenia — treść w bazie
+nigdy się nie odświeżała. Zmierzone na `data/offers.json` (2026-09-15): 440
+aktywnych ofert z precyzją `street`, z czego 101 ma `first_seen` starszy niż
+30 dni.
+
+- **`details_fetched_at`** — nowe pole na ofercie, nadpisywane WYŁĄCZNIE przy
+  realnym pobraniu szczegółów (`main._process_offer`/`_update_existing_offer`).
+  Oferta pominięta przez inteligentne skanowanie niesie `None` — nie resetuje
+  znacznika, więc rekord dalej liczy się jako zaległy.
+- **`scraper._promote_stale_imprecise`** — po podziale ofert na
+  `offers_to_fetch`/`offers_to_skip` przenosi najstarsze (po
+  `details_fetched_at`, próg 3 dni) oferty z `precision == 'street'` z powrotem
+  do `offers_to_fetch`, budżet **35/skan** (przeliczony z naszej bazy, nie
+  przepisany z brata — tam było 40 na 505 rekordów). Cache adresu/coords jedzie
+  z ofertą jako siatka bezpieczeństwa, gdyby świeży opis stracił adres wcale.
+  Logika „czy nowy adres jest lepszy" już istniała w `_update_existing_offer`
+  (`new_looks_better`/`street_upgraded`/`gained_coords`) — brakowało tylko
+  świeżej treści na wejściu, więc porównanie stosuje się bez zmian.
+- Koszt per-skan (rzędu +kilkudziesięciu sekund, jak u brata) do zmierzenia
+  po wdrożeniu — brat ostrzega, że jego szacunek przed wdrożeniem mylił się
+  12×. Manifest źródłowy:
+  `SONAR-POKOJOWY/.propagation/changes/2026-09-07-address-precision-upgrade.md`.
+### Naprawione (2026-09-09) — Indeks podaży: ZMIERZONY stan bazy zamiast rekonstrukcji z first_seen/last_seen
+Port poprawki z siostrzanego SONAR POKOJOWY (manifest
+`2026-09-03-measured-index-history`). Główny wykres „Indeksu podaży" liczył
+każdy dzień WSTECZ z bieżącego stanu bazy (`first_seen ≤ D ≤ last_seen`), a
+oferta z przerwą w życiu ma w bazie jeden ciągły przedział (dat deaktywacji nie
+zapisywaliśmy), więc była liczona jako żywa przez cały czas nieobecności.
+Zmierzone na naszej bazie względem `stats.active` ze `scan_history.json`:
+rekonstrukcja − pomiar to średnio **+121 ofert** w starszej tercji wykresu i
+**−33** w najświeższej — różnica maleje monotonicznie ku dziś, czyli klasyczny
+podpis tego błędu (prawy koniec zawsze sztucznie opadał, myląc kierunek trendu).
+Dwie nasze wcześniejsze łatki (CHANGELOG 2026-09-02 „Indeks o ~25% za dużo",
+2026-09-04 „1D −78 zamiast −6") leczyły OBJAWY tej samej przyczyny.
+
+- **Nowy `src/index_history.py`** — `data/index_history.json` zapisuje po każdym
+  skanie zmierzoną liczbę aktywnych ofert (`main.run_scan`). Wartość dnia to
+  MAKSIMUM z odczytów (skan częściowy nie obniża historii), dzień bez skanu = luka
+  (`None`), nie zmyślone zero. `save()` odmawia zastąpienia niepustej historii
+  pustką (ochrona przed ucięciem pliku/konfliktem gita), `record()` bierze
+  maksimum jak `atomic_json`.
+- **`trend_generator`**: `series` czyta teraz `measured_series()` (pomiar);
+  rekonstrukcja (`build_series`) zostaje jako awaryjne źródło przy świeżym klonie
+  bez historii oraz jako podstawa UDZIAŁU pasm świeże/recykling, który skalujemy
+  na zmierzoną sumę (`build_bands(index_series=…)`) — suma pasm dalej równa się
+  linii Indeksu (zweryfikowane: 0 rozjazdów). Nowe pole `index_source`
+  (`measured`/`reconstructed`). Wykresy przepływu (napływ/odpływ) bez zmian —
+  nadal liczą się z przedziałów życia.
+- **Backfill** (`src/backfill_index_history.py`): historię sprzed wdrożenia
+  (29.04–09.09.2026, 134 dni, 0 luk) odtworzono ze starszych rewizji
+  `data/scan_history.json` (rolling ~100 wpisów, ale commitowany po każdym
+  skanie). Wpisy mają `backfilled: true`.
+- **Frontend** (`docs/trend.html`): opis „Skąd dane" pod Indeksem zaktualizowany
+  (pomiar zamiast rekonstrukcji, dzień = maksimum z odczytów, offset licznika na
+  mapie).
+
+Testy: nowy `tests/test_index_history.py` (9) — maksimum z odczytów, odmowa
+kasowania historii, luki jako `None`, wybór pomiaru vs rekonstrukcji, skalowanie
+pasm do zmierzonej linii. Reszta suite bez zmian.
+
 ### Naprawione (2026-09-04) — zakładka Indeks: dzień bieżący, bilans napływ/odpływ, pokrycie skanami
 Audyt logiki wszystkich sześciu wykresów na `trend.html`. Strona pokazywała
 **„1D: −78"** i 691 aktywnych ofert, podczas gdy ostatnia zamknięta doba miała
