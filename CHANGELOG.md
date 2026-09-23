@@ -10,6 +10,31 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Dodane (2026-09-15) — doba w toku na wykresie Indeksu: przerywana linia zamiast chowania
+Propagacja z SONAR-POKOJOWY (manifest `2026-09-12-partial-day-dashed`, issue
+propagacji #51) — odpowiedź brata na nasz własny audyt z 2026-09-04. Do dziś
+`trend_generator` chował trwającą dobę CAŁKOWICIE (poza zakresem serii), co
+rozwiązywało fałszywy zjazd, ale zabierało dzisiejszy stan indeksu na ~12 h
+dziennie.
+
+- **`_window`** sięga teraz do `today`, nie do ostatniego PEŁNEGO dnia — doba
+  w toku ląduje w `series` jako `None` (luka), tak jak każdy inny dzień
+  o niepełnym pokryciu, zamiast być całkiem wycięta z osi. Delty, przepływy
+  i pasma dalej jej nie widzą (filtrują `None` przed wzięciem ostatniego
+  punktu) — to zachowanie nie wymagało zmian, bo już wcześniej było poprawne.
+- **`build_partial`** (nowa funkcja) liczy wartość doby w toku osobno —
+  ile ofert żyje dziś na rynku plus ile z zaplanowanych 3 skanów już się
+  odbyło — i wystawia ją w kluczu `partial` wyniku `generate_trend_data`.
+  `None`, gdy ostatnia doba jest już domknięta.
+- **`docs/trend.html`** dorysowuje z tego drugą, przerywaną serię od ostatniej
+  domkniętej doby do dziś, plus pionową kreskę z podpisem („X z 3 skanów")
+  i plakietkę „doba w toku" przy nagłówku — sam przerywany odcinek byłby
+  niewidoczny przy ~120 punktach na osi.
+- Adaptacja do naszej architektury: nie mamy `index_history.py` (Indeks nadal
+  jest rekonstrukcją z `_offer_spans`, issue#45 nieco wdrożone), więc `partial`
+  liczy się bezpośrednio w `trend_generator` z tych samych odcinków życia co
+  reszta metryk, zamiast z osobnego modułu jak u brata.
+
 ### Dodane (2026-09-15) — rotacja re-fetchu dla ofert z zamrożonym adresem (propagacja z SONAR-POKOJOWY)
 Inteligentne skanowanie pomija pobranie szczegółów, gdy cena listingowa się nie
 zmieniła — dobre dla obciążenia, ale ślepe na edycje niewidoczne w cenie (np.
