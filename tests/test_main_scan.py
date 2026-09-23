@@ -233,6 +233,50 @@ class TestPriceUpdateLogic:
         assert existing['price']['current'] == 2000  # podejrzana zmiana — ignorowana
 
 
+class TestDetailsFetchedAt:
+    """Propagacja z SONAR-POKOJOWY (issue #50): `details_fetched_at` musi się
+    ruszać TYLKO przy realnym pobraniu, inaczej rotacja re-fetchu w scraper.py
+    (`_promote_stale_imprecise`) nigdy nie uznałaby zaległego rekordu za stary —
+    zlałby się z `last_seen`, który aktualizuje się co skan niezależnie."""
+
+    def _existing(self, details_fetched_at=None):
+        return {
+            'id': 'x-CID3-IDabc', 'url': 'https://olx.pl/d/oferta/x-CID3-IDabc.html',
+            'active': True,
+            'price': {'current': 2000, 'history': [2000], 'source': 'JSON-LD (OLX)',
+                      'media_info': 'brak informacji'},
+            'address': {'full': 'Testowa 1', 'has_number': True, 'precision': 'street'},
+            'details_fetched_at': details_fetched_at,
+        }
+
+    def _new(self, details_fetched_at):
+        return {
+            'id': 'x-CID3-IDabc', 'url': 'https://olx.pl/d/oferta/x-CID3-IDabc.html',
+            'price': {'current': 2000, 'history': [2000], 'source': 'JSON-LD (OLX)',
+                      'media_info': 'brak informacji'},
+            'address': {'full': 'Testowa 1', 'has_number': True, 'precision': 'street'},
+            'details_fetched_at': details_fetched_at,
+        }
+
+    def test_real_fetch_overwrites_marker(self, agent):
+        existing = self._existing(details_fetched_at='2026-01-01T00:00:00+01:00')
+        agent._update_existing_offer(existing, self._new('2026-09-15T09:17:00+01:00'))
+        assert existing['details_fetched_at'] == '2026-09-15T09:17:00+01:00'
+
+    def test_skipped_offer_does_not_reset_marker(self, agent):
+        """new_data['details_fetched_at'] is None dla ofert pominiętych przez
+        inteligentne skanowanie (patrz _process_offer) — stary znacznik zostaje,
+        żeby rekord dalej liczył się jako zaległy dla rotacji."""
+        existing = self._existing(details_fetched_at='2026-01-01T00:00:00+01:00')
+        agent._update_existing_offer(existing, self._new(None))
+        assert existing['details_fetched_at'] == '2026-01-01T00:00:00+01:00'
+
+    def test_new_offer_never_fetched_before(self, agent):
+        existing = self._existing(details_fetched_at=None)
+        agent._update_existing_offer(existing, self._new('2026-09-15T09:17:00+01:00'))
+        assert existing['details_fetched_at'] == '2026-09-15T09:17:00+01:00'
+
+
 class _Resp:
     """Uproszczona odpowiedź HTTP do podmiany ImpersonatedSession.get."""
     def __init__(self, status_code, text=''):

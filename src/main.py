@@ -38,6 +38,7 @@ from cid import extract_cid
 from offer_tagger import build_tags, title_from_url
 from atomic_json import atomic_write_json
 import reactivation_log
+import index_history
 import paths
 
 
@@ -169,6 +170,9 @@ class SonarMieszkaniowy:
                 'address': existing_addr,
                 'address_full': existing_addr.get('full', '') if isinstance(existing_addr, dict) else '',
                 'coordinates': existing_coords,
+                # Kiedy ostatni raz REALNIE pobrano szczegóły (nie z cache) — patrz
+                # scraper._promote_stale_imprecise, rotacja re-fetchu dla street-precision.
+                'details_fetched_at': offer.get('details_fetched_at'),
             }
             
             if is_active:
@@ -972,6 +976,10 @@ class SonarMieszkaniowy:
                 'source': price_source  # Dodane: JSON-LD / Parser / HTML fallback
             },
             'description': full_text,
+            # Propagacja 2026-09-15 (SONAR-POKOJOWY): None dla ofert pominiętych przez
+            # inteligentne skanowanie (treść z cache, nic nowego do sparsowania) — tylko
+            # realne pobranie przesuwa znacznik, którego pilnuje rotacja w scraper.py.
+            'details_fetched_at': None if raw_offer.get('skipped') else datetime.now(self.tz).isoformat(),
             # Tagi liczone RAZ tutaj (kawalerka/pokój/mieszkanie) i zapisywane w
             # offers.json — map_generator tylko je odczytuje zamiast liczyć regexy
             # na każdym opisie przy każdej generacji.
@@ -1023,6 +1031,14 @@ class SonarMieszkaniowy:
 
         # Aktualizuj last_seen
         existing['last_seen'] = now
+
+        # Propagacja 2026-09-15 (SONAR-POKOJOWY): tylko realne pobranie nadpisuje
+        # details_fetched_at. Oferta pominięta przez inteligentne skanowanie niesie
+        # None (patrz _process_offer) — bez tej strażniczki last_seen/details_fetched_at
+        # zlałyby się w jedno i rotacja (scraper._promote_stale_imprecise) nigdy nie
+        # uznałaby rekordu za zaległy, bo widziałaby go jako "świeżo pobrany" co skan.
+        if new_data.get('details_fetched_at'):
+            existing['details_fetched_at'] = new_data['details_fetched_at']
 
         # FIX 2026-08-09: tytuł doklejamy też ofertom już w bazie (i odświeżamy,
         # gdy sprzedawca go zmienił) — inaczej popup pokazywałby prawdziwą nazwę
@@ -1929,7 +1945,18 @@ class SonarMieszkaniowy:
             
             active = sum(1 for o in self.database['offers'] if o['active'])
             inactive = len(self.database['offers']) - active
-            
+
+            # ŹRÓDŁO PRAWDY Indeksu podaży: zapisujemy ZMIERZONY stan bazy po
+            # skanie, zamiast rekonstruować go wstecz z first_seen/last_seen
+            # (rekonstrukcja zawyża przeszłość i myli kierunek trendu — patrz
+            # index_history.py / trend_generator.measured_series). Skan częściowy
+            # (blokada OLX) nie obniża dnia — record() bierze maksimum. Zapis nie
+            # może wywalić skanu, więc łapiemy wszystko.
+            try:
+                index_history.record(active, timestamp=now.isoformat())
+            except Exception as e:  # noqa: BLE001
+                print(f"   ⚠️ Nie zapisano index_history: {e}")
+
             self.scan_logger.log_stats({
                 'raw_offers': len(raw_offers),
                 'processed': len(processed_offers),
