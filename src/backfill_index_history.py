@@ -50,6 +50,7 @@ def main(sources):
     history = load()
     days = history["days"]
     seen_scans = set()
+    run_scans = {}
     added = 0
 
     for src in list(sources) + [paths.SCAN_HISTORY_JSON]:
@@ -73,7 +74,12 @@ def main(sources):
             except (ValueError, TypeError):
                 continue
             entry = days.get(day) or {"active": 0, "scans": 0, "backfilled": True}
-            entry["scans"] = entry.get("scans", 0) + 1
+            # FIX 2026-09-24: `scans` = max(zapisane, policzone w tym przebiegu),
+            # nie `+= 1`. Dzień zapisany już przez żywy skan (albo wcześniejszy
+            # backfill) dostawał te same skany drugi raz — ponowne uruchomienie
+            # dublowało licznik. Teraz skrypt jest idempotentny.
+            run_scans[day] = run_scans.get(day, 0) + 1
+            entry["scans"] = max(entry.get("scans", 0), run_scans[day])
             if active > entry.get("active", 0):
                 entry["active"] = active
                 entry["ts"] = ts
