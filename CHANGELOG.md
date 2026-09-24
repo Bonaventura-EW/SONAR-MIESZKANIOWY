@@ -10,6 +10,19 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Naprawione (2026-09-24) — dziura 10–22.09 na wykresie Indeksu
+Mierzony Indeks (#49) wszedł z `data/index_history.json` wygenerowanym backfillem
+w dniu powstania gałęzi (~09.09), a zmergowany został dopiero 23.09. Skany z
+10–22.09 szły normalnie, ale nikt ich nie dopisał do pliku — żywe `record()`
+działa dopiero od merge'a. Wykres rysował 13 dni jako `null` (przerwana linia).
+
+- Ponowny `backfill_index_history.py` z bieżącego `scan_history.json`
+  (100 skanów, pokrywa całą lukę) — 0 dni bez skanu, wpisy z `backfilled: true`.
+- **`backfill_index_history.py` jest teraz idempotentny**: `scans` =
+  max(zapisane, policzone w przebiegu) zamiast `+= 1`. Wcześniej dni zapisane już
+  przez żywy skan dostawały te same skany drugi raz (np. 24.09: 4 zamiast 2).
+  Lekcja: backfill danych na długo żyjącej gałęzi trzeba powtórzyć tuż przed merge'em.
+
 ### Dodane (2026-09-22) — częstotliwość zmian cen (obniżki/podwyżki) na Indeksie
 Propagacja z SONAR-POKOJOWY (manifest `2026-09-15-price-change-series`, issue #54).
 Mieliśmy skalę złotówkową zmian cen (Top 5 największych obniżek/podwyżek), ale
