@@ -10,6 +10,28 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Naprawione (2026-09-27) — poniedziałkowe dziury na wykresach przepływu (trend.html)
+Od 07.09 co poniedziałek (07/14/21.09) wykresy odpływu, napływu, promowanych
+i zmian cen miały przerwę. Nie brakowało danych: maska niepełnych dni
+(`_scan_coverage`) wymagała ≥3 skanów w dobie kalendarzowej, a GitHub opóźnia
+cron o godziny — w poniedziałki kończyły się tylko 2 przebiegi (np. 09:10
+i 16:13), a kolejny wpadał po północy (00:33). Doba była obserwowana co ~8–9 h.
+„Od 06.09", bo `scan_history.json` trzyma tylko ~100 ostatnich skanów
+(najstarszy 05.09) — starsze dni maska z założenia uznaje za pełne.
+
+- **Nowe kryterium pełności doby: ciągłość obserwacji.** Dzień jest pełny, gdy
+  w obrębie 00:00–24:00 nie ma nieobserwowanego odcinka > `MAX_SCAN_GAP_HOURS`
+  (12 h), licząc od ostatniego skanu poprzedniej doby do pierwszego po niej;
+  przerwę przez północ przycinamy do granic dnia. Doba bez skanu po niej
+  (dzisiejsza) dalej jest „w toku".
+- Próg 12 h, nie 10 h: zmierzone na 06–26.09 najdłuższe odcinki w dobie to
+  zwykle 7–9,4 h, ale 12.09 i 23.09 (po 5 skanów, pierwszy przed południem)
+  mają 10,9 i 11,8 h — przy 10 h stałyby się nowymi dziurami. Realna awaria
+  typu 18.08 (tylko 05:30 i 09:56) daje 14 h+ i nadal jest maskowana.
+- `load_scan_counts` zwraca `ScanCounts` (dict + `times`); goła mapa
+  {dzień: liczba} i zbiór dni (starsze wywołania, testy) działają po staremu
+  przez `SCANS_PER_DAY`.
+
 ### Naprawione (2026-09-24) — dziura 10–22.09 na wykresie Indeksu
 Mierzony Indeks (#49) wszedł z `data/index_history.json` wygenerowanym backfillem
 w dniu powstania gałęzi (~09.09), a zmergowany został dopiero 23.09. Skany z

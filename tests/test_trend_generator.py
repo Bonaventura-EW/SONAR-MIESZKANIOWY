@@ -511,6 +511,68 @@ def test_generate_raises_on_corrupted_input(tmp_path):
         gen.generate_trend_data(input_file=src, output_file=tmp_path / 'out.json')
 
 
+def _scan_log(*stamps):
+    """Dziennik skanów jak z `load_scan_counts`: 'MM-DD HH:MM' → ScanCounts."""
+    from datetime import datetime
+    times = [datetime.strptime(f'2026-{s}', '%Y-%m-%d %H:%M') for s in stamps]
+    counts = {}
+    for t in times:
+        counts[t.date()] = counts.get(t.date(), 0) + 1
+    return gen.ScanCounts(counts, times)
+
+
+class TestScanGapCoverage:
+    """FIX 2026-09-27: pełność doby = ciągłość obserwacji (MAX_SCAN_GAP_HOURS),
+    nie liczba przebiegów w dobie kalendarzowej. Poniedziałki 07/14/21.09 miały
+    po 2 skany (opóźniony cron, trzeci po północy) i rysowały się jako dziury."""
+
+    DAY = date(2026, 9, 14)
+
+    def _incomplete(self, log, today=date(2026, 9, 16)):
+        return gen._scan_coverage(log, today)[0]
+
+    def test_two_scans_with_short_gaps_is_complete(self):
+        # Realny poniedziałek 14.09: 23:27 → 09:10 → 16:13 → 00:33
+        log = _scan_log('09-12 12:00', '09-13 23:27', '09-14 09:10',
+                        '09-14 16:13', '09-15 00:33', '09-15 08:00', '09-16 08:00')
+        assert self.DAY not in self._incomplete(log)
+
+    def test_long_gap_inside_the_day_is_a_gap(self):
+        # 18.08-podobnie: rano dwa skany, potem cisza do następnego dnia
+        log = _scan_log('09-12 12:00', '09-13 23:27', '09-14 05:30',
+                        '09-14 09:56', '09-15 08:00', '09-16 08:00')
+        assert self.DAY in self._incomplete(log)
+
+    def test_gap_is_clipped_to_the_day(self):
+        """23:45 → 10:52 obciąża dzień 13.09 tylko kwadransem."""
+        log = _scan_log('09-12 12:00', '09-13 07:00', '09-13 14:00', '09-13 23:45',
+                        '09-14 10:52', '09-14 18:00', '09-15 02:00', '09-16 08:00')
+        assert date(2026, 9, 13) not in self._incomplete(log)
+        assert self.DAY not in self._incomplete(log)          # 10,9 h < 12 h
+
+    def test_day_without_a_scan_after_it_is_in_progress(self):
+        log = _scan_log('09-13 07:00', '09-13 14:00', '09-13 21:00',
+                        '09-14 07:00', '09-14 14:00', '09-14 21:00')
+        assert self.DAY in self._incomplete(log, today=self.DAY)
+
+    def test_monday_is_not_a_gap_in_flow_charts(self):
+        offers = [_offer('2026-09-12', '2026-09-16', True)]
+        log = _scan_log('09-12 12:00', '09-13 23:27', '09-14 09:10',
+                        '09-14 16:13', '09-15 00:33', '09-15 08:00',
+                        '09-15 16:00', '09-16 00:10', '09-16 08:00')
+        assert _by_day(gen.build_outflow(offers, log)['daily'])[self.DAY] is not None
+
+    def test_load_scan_counts_carries_scan_times(self, tmp_path):
+        (tmp_path / 'scan_history.json').write_text(json.dumps([
+            {'timestamp': '2026-09-14T09:10:00+02:00', 'status': 'completed'},
+            {'timestamp': '2026-09-14T12:00:00+02:00', 'status': 'error'},
+            {'timestamp': '2026-09-14T16:13:00+02:00', 'status': 'warning'},
+        ]), encoding='utf-8')
+        log = gen.load_scan_counts(tmp_path / 'offers.json')
+        assert log == {self.DAY: 2}
+        assert [t.hour for t in log.times] == [9, 16]         # czas lokalny, error pominięty
+
+
 class TestSpansEndAtLastSeen:
     """Okres życia kończy się na `last_seen` — także dla ofert `active=True`.
 
