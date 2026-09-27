@@ -75,6 +75,19 @@ OUTFLOW_ARTIFACT_DAYS = frozenset({date(2026, 8, 11)})
 # średnio 17,5 oferty POD średnią sąsiednich dni, przy +7,1 dla dni pełnych.
 SCANS_PER_DAY = 3
 
+# FIX 2026-09-27: dzień jest PEŁNY, gdy w jego obrębie (00:00–24:00) nie ma
+# nieobserwowanego odcinka dłuższego niż tyle godzin — licząc też przerwę od
+# ostatniego skanu poprzedniej doby i do pierwszego skanu następnej. Liczenie
+# przebiegów w dobie kalendarzowej (`SCANS_PER_DAY`) robiło lukę z każdego
+# poniedziałku: GitHub opóźnia cron o godziny, więc 07/14/21.09 skończyły się
+# tylko 2 skany (np. 09:10 i 16:13), a kolejny wpadał po północy (00:33) —
+# doba była obserwowana co ~8–9 h, a wykresy przepływu rysowały dziurę.
+# Zmierzone na 06–26.09: najdłuższy odcinek w dobie to zwykle 7–9,4 h, dwa razy
+# 10,9 / 11,8 h (12 i 23.09 — pierwszy skan dopiero przed południem, ale 5
+# przebiegów). 10 h robiłoby z nich nowe dziury, stąd 12 h. Realna awaria
+# (18.08: tylko 05:30 i 09:56) daje 14 h+ i dalej jest luką.
+MAX_SCAN_GAP_HOURS = 12
+
 # Ile ostatnich ZMIERZONYCH dni wchodzi do średniej „X/dzień" pod wykresami
 # przepływu. Średnia po całej historii mieszała trzy różne reżimy dezaktywacji
 # (przed 12.08, weryfikacja linków, `MAX_MISSING_DAYS` od 02.09) i nie opisywała
@@ -248,13 +261,28 @@ def build_spans(offers):
     return [(start, end) for _, start, end in spans], today
 
 
+class ScanCounts(dict):
+    """{dzień: liczba zakończonych skanów} + `times` — posortowane chwile skanów.
+
+    Zwykły dict (tak go czytają generatory i testy), ale niesie też znaczniki
+    czasu, na których `_scan_coverage` sprawdza przerwy między skanami.
+    """
+
+    def __init__(self, counts=(), times=()):
+        super().__init__(counts)
+        self.times = sorted(times)
+
+
 def _scan_counts(scan_days):
     """Wejście generatorów → {dzień: liczba zakończonych skanów}.
 
     Przyjmuje mapę z `load_scan_counts`, ale też goły zbiór dni — tak wołają
     starsze testy i taki kształt miał kiedyś ten argument. Zbiór nie niesie
     liczby przebiegów, więc zakładamy dla niego pełne pokrycie.
+    `ScanCounts` przechodzi bez zmian — inaczej zgubiłby `times`.
     """
+    if isinstance(scan_days, ScanCounts):
+        return scan_days
     if isinstance(scan_days, Mapping):
         return {day: count for day, count in scan_days.items() if day}
     return {day: SCANS_PER_DAY for day in (scan_days or ())}
@@ -277,17 +305,49 @@ def _scan_coverage(counts, today):
 
     Pierwszy dzień dziennika pomijamy: historia trzyma ostatnie ~100 przebiegów,
     więc bywa ucięta w połowie doby i taki dzień wyglądałby na niepełny.
+
+    FIX 2026-09-27: gdy znamy chwile skanów (`ScanCounts.times`, czyli dane
+    z `load_scan_counts`), o pełności decyduje ciągłość obserwacji, nie liczba
+    przebiegów w dobie kalendarzowej — patrz `_day_is_covered`
+    i `MAX_SCAN_GAP_HOURS`. Goła mapa {dzień: liczba} (starsze wywołania,
+    testy) dalej idzie przez próg `SCANS_PER_DAY`.
     """
     if not counts:
         return frozenset(), today
     window = _daily_range(min(counts) + timedelta(days=1), today)
-    incomplete = frozenset(day for day in window
-                           if counts.get(day, 0) < SCANS_PER_DAY)
+    times = getattr(counts, 'times', None)
+    if times:
+        incomplete = frozenset(day for day in window
+                               if not _day_is_covered(day, times))
+    else:
+        incomplete = frozenset(day for day in window
+                               if counts.get(day, 0) < SCANS_PER_DAY)
     last_complete = next((day for day in reversed(window)
                           if day not in incomplete), None)
     # Same niepełne dni w oknie dziennika (albo okno puste) = nie ma czym ciąć;
     # zostawiamy zakres bez zmian, żeby awaria dziennika nie skasowała wykresu.
     return incomplete, last_complete or today
+
+
+def _day_is_covered(day, times):
+    """Czy doba `day` była obserwowana bez przerwy dłuższej niż MAX_SCAN_GAP_HOURS.
+
+    Łańcuch: ostatni skan PRZED dobą → skany w dobie → pierwszy skan PO niej;
+    każdą przerwę przycinamy do granic doby (23:45 → 10:52 obciąża następny
+    dzień 10,9 h, a poprzedni tylko 15 min). Brak skanu po dobie (doba w toku)
+    albo przed nią (początek dziennika) = niepełna. `times` to posortowane,
+    naiwne czasy lokalne (jak `_safe_day`).
+    """
+    day_start = datetime.combine(day, datetime.min.time())
+    day_end = day_start + timedelta(days=1)
+    before = [t for t in times if t < day_start]
+    after = [t for t in times if t >= day_end]
+    if not before or not after:
+        return False
+    chain = [before[-1]] + [t for t in times if day_start <= t < day_end] + [after[0]]
+    limit = timedelta(hours=MAX_SCAN_GAP_HOURS)
+    return all(min(b, day_end) - max(a, day_start) <= limit
+               for a, b in zip(chain, chain[1:]))
 
 
 def _window(offers, scan_days=None):
@@ -644,21 +704,23 @@ def load_scan_counts(input_file) -> dict:
     działają, tylko bez maski).
     """
     path = Path(input_file).parent / 'scan_history.json'
-    counts = {}
+    counts, times = {}, []
     try:
         with open(path, 'r', encoding='utf-8') as f:
             history = json.load(f)
     except (OSError, json.JSONDecodeError):
-        return counts
+        return ScanCounts()
     if isinstance(history, dict):
         history = history.get('scans', [])
     for scan in history or []:
         if scan.get('status') not in ('completed', 'warning'):
             continue
-        d = _safe_day(scan.get('timestamp'))
-        if d:
-            counts[d] = counts.get(d, 0) + 1
-    return counts
+        dt = _safe_dt(scan.get('timestamp'))
+        if dt:
+            counts[dt.date()] = counts.get(dt.date(), 0) + 1
+            # Czas lokalny ścienny — ta sama doba, co `_safe_day`.
+            times.append(dt.replace(tzinfo=None))
+    return ScanCounts(counts, times)
 
 
 def load_scan_days(input_file) -> set:
