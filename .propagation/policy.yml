@@ -35,11 +35,11 @@ never_touch:
 # MODELE: decyzje = Sonnet (claude-sonnet-5), programowanie = Opus (claude-opus-4-8).
 default_autonomy: ask
 
-# 2026-09-22 distill-policy: żadna kategoria nadal nie osiąga progu awansu
-# (≥8 rozstrzygniętych) — feature ma 4 rozstrzygnięcia, bugfix ma 5
-# (obie 100% accepted, 0 odrzuceń, 0 odrzuceń bezpieczeństwa). Bugfix
-# najbliżej progu. Za mało danych — obie kategorie zostają na "ask".
-# Poprzedni stan (2026-09-09): feature 2, bugfix 3. Zobacz PR dla scorecardu.
+# 2026-09-29 distill-policy: feature ma 7 rozstrzygniętych wpisów, 100%
+# accepted, 0 odrzuceń bezpieczeństwa — TUŻ pod progiem awansu (≥8). Bugfix
+# ma 4 rozstrzygnięcia (100% accepted) — za mało danych. Żadna kategoria nie
+# awansuje w tym przebiegu. Poprzedni stan (2026-09-22): feature 4, bugfix 5.
+# Zobacz PR dla scorecardu.
 categories: {}
   # css-refactor:   draft
   # a11y-fix:       draft
@@ -48,7 +48,7 @@ categories: {}
 # Reguły destylowane z Twoich decyzji — dopisuje je skill `distill-policy`
 # przez PR, który zatwierdzasz. Ręcznie też możesz.
 learned_rules:
-  - "Feature: propozycje rozszerzające już istniejący, architektonicznie analogiczny moduł (nie budowa od zera) są przyjmowane bez zastrzeżeń — dowody: issue#39 (promoted-listings-metric, rozszerzenie trend_generator.py), issue#40 (okazje-tab, rozszerzenie area_parser.py/area_price_generator.py), issue#47 (refresh-from-listing-card, rozszerzenie istniejącego badge'a na mapie), issue#54 (price-change-series, rozszerzenie trend_generator.py o kolejny build_*). 4/4 accepted, 0 odrzuceń."
-  - "Bugfix: propozycje poparte bezpośrednim pomiarem/weryfikacją problemu w kodzie lub danych TEGO repo (nie hipotetycznym transferem z brata) są przyjmowane — dowody: issue#38/pr#42 (coincident-marker-stacks, zmierzone 255 grup kolizji / 1517 ofert), issue#45 (measured-index-history, potwierdzone dwoma własnymi łatkami symptomów), issue#46 (odpornosc-skanu, zweryfikowane w scraper.py/main.py), issue#50 (address-precision-upgrade, zmierzone 106 zamrożonych ofert), issue#51 (partial-day-dashed, zbudowane na architekturze z dobrym track-recordem). 5/5 accepted, 0 odrzuceń."
+  - "Feature: propozycje rozszerzające już istniejący, architektonicznie analogiczny moduł (nie budowa od zera) są przyjmowane bez zastrzeżeń — dowody: issue#39 (promoted-listings-metric), issue#40 (okazje-tab), issue#47 (refresh-from-listing-card), issue#51 (partial-day-dashed), issue#54 (price-change-series), issue#58 (apexcharts-month-bands, kosmetyka), issue#59 (origin-filter-checkboxes). 7/7 accepted, 0 odrzuceń — najbliższa awansu kategoria w repo (7/8)."
+  - "Bugfix: propozycje poparte bezpośrednim pomiarem/weryfikacją problemu w kodzie lub danych TEGO repo (nie hipotetycznym transferem z brata) są przyjmowane — dowody: issue#38/pr#42 (coincident-marker-stacks, zmierzone 255 grup kolizji / 1517 ofert), issue#45 (measured-index-history, potwierdzone dwoma własnymi łatkami symptomów), issue#46 (odpornosc-skanu, zweryfikowane w scraper.py/main.py), issue#50 (address-precision-upgrade, zmierzone 106 zamrożonych ofert). 4/4 accepted, 0 odrzuceń."
   #  - "Nie propaguj niczego, co rusza moduł auth (dotąd 0/6 przyjętych)."
   #  - "Zmiany typu css-refactor przyjmowane w 11/12 → kandydat do awansu na 'draft'."
