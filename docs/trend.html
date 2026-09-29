@@ -410,6 +410,32 @@
             }
         };
 
+        // Naprzemienne pasy miesięcy w tle (co drugi miesiąc, akcent marki) na
+        // głównym wykresie Indeksu — granice miesięcy widać bez wczytywania się
+        // w podpisy osi X na szeregu 100+ dni. Tylko wypełnienie, bez separatorów
+        // i etykiet; parzyste miesiące zostają bez pasa.
+        function _monthBandsXaxis(daily) {
+            if (!daily || !daily.length) return [];
+            const domainMin = daily[0][0], domainMax = daily[daily.length - 1][0];
+            const bands = [];
+            let cur = new Date(domainMin);
+            cur.setDate(1); cur.setHours(0, 0, 0, 0);
+            let i = 0;
+            while (cur.getTime() <= domainMax) {
+                const next = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+                if (i % 2 === 1) {
+                    bands.push({
+                        x: Math.max(cur.getTime(), domainMin),
+                        x2: Math.min(next.getTime(), domainMax),
+                        fillColor: '#667eea', opacity: 0.07, borderColor: 'transparent'
+                    });
+                }
+                cur = next;
+                i++;
+            }
+            return bands;
+        }
+
         const options = {
             chart: {
                 type: 'area', height: 520, background: 'transparent',
@@ -443,6 +469,7 @@
             yaxis: { labels: { style: { colors: '#6b7280' }, formatter: function (v) { return Math.round(v); } }, tickAmount: 5 },
             tooltip: { x: { format: 'dd.MM.yyyy' }, y: { formatter: function (v) { return v + ' ' + unit; } } },
             annotations: {
+                xaxis: _monthBandsXaxis(RAW),
                 yaxis: yAnnotations,
                 points: [
                     { x: d.max_ts, y: mx, marker: { size: 5, fillColor: '#dc2626', strokeColor: '#fff', strokeWidth: 1 } },
@@ -471,7 +498,10 @@
                              size: 5, fillColor: '#fff', strokeColor: '#667eea', strokeWidth: 2 }]
             };
             options.legend = { show: true, labels: { colors: '#6b7280' }, markers: { radius: 12 } };
-            options.annotations.xaxis = [{
+            // Scalamy z pasami miesięcy ustawionymi wyżej (.concat), nie nadpisujemy —
+            // przypisanie zamiast merge potrafi po cichu skasować wcześniejszą adnotację
+            // xaxis bez błędu w konsoli.
+            options.annotations.xaxis = (options.annotations.xaxis || []).concat([{
                 x: partial.ts, borderColor: '#667eea', strokeDashArray: 4,
                 label: {
                     text: partial.scans_done + ' z ' + partial.scans_planned + ' skanów',
@@ -479,7 +509,7 @@
                     style: { background: '#e0e7ff', color: '#3730a3', fontSize: '11px', fontWeight: 600,
                              padding: { left: 5, right: 5, top: 2, bottom: 2 } }
                 }
-            }];
+            }]);
         }
 
         // --- Indeks: przełącznik Suma <-> rozbicie na pasma (świeże / recykling) ---
@@ -527,10 +557,11 @@
                 // Rozbicie nie ma osobnych danych dla doby w toku (bands nie liczy
                 // per-band wartości prowizorycznej) — resetujemy adnotacje/markery
                 // z trybu Suma, żeby dyskretny znacznik partial nie wskazywał
-                // przypadkowego punktu w seriach pasm.
+                // przypadkowego punktu w seriach pasm. Pasy miesięcy zostają —
+                // liczone od zakresu dat pasm, nie zależą od partial.
                 markers: { size: 0, hover: { size: 5 } },
                 legend: { labels: { colors: '#6b7280' }, markers: { radius: 12 } },
-                annotations: {},
+                annotations: { xaxis: _monthBandsXaxis(bands.new) },
                 tooltip: {
                     shared: true, x: { format: 'dd.MM.yyyy' },
                     y: { formatter: function (v) { return v == null ? '—' : (v + ' ' + unit); } }

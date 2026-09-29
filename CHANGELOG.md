@@ -10,6 +10,23 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Dodane (2026-09-29) — naprzemienne pasy miesięcy na wykresie Indeksu (propagacja #58)
+Subtelne, naprzemienne pasy tła co drugi miesiąc na głównym wykresie Indeksu
+(`trend.html`, oba tryby: Suma i Rozbicie) — na szeregu 100+ dni granice
+miesięcy było trudno wyłapać z samych podpisów osi X. Propagacja z
+SONAR-POKOJOWY (`_monthBandsXaxis()`, kolor marki `#667eea` przy 7% opacity,
+bez separatorów/etykiet).
+
+- Przy okazji naprawiony realny wariant pułapki opisanej w manifeście brata:
+  adnotacja doby w toku (`options.annotations.xaxis = [...]`) **nadpisywała**,
+  a nie scalała, wcześniej ustawioną tablicę `xaxis` — z pasami miesięcy
+  ustawionymi jako pierwsze zniknęłyby one po cichu w dni z dobą w toku (czyli
+  większość dni). Teraz `.concat()`.
+- `stackedOptions()` (tryb Rozbicie) miał świadomy pełny reset `annotations: {}`
+  przy przełączeniu na pasma świeże/recykling — zamieniony na
+  `{ xaxis: _monthBandsXaxis(bands.new) }`, żeby pasy miesięcy przetrwały
+  przełącznik.
+
 ### Naprawione (2026-09-27) — poniedziałkowe dziury na wykresach przepływu (trend.html)
 Od 07.09 co poniedziałek (07/14/21.09) wykresy odpływu, napływu, promowanych
 i zmian cen miały przerwę. Nie brakowało danych: maska niepełnych dni
