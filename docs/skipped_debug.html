@@ -196,13 +196,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         
         <div class="stat-card area_only">
           <div class="label">Obszar zamiast punktu</div>
-          <div class="value">6</div>
+          <div class="value">5</div>
           <div class="sub">osiedle lub dzielnica — znamy okolicę, nie budynek</div>
         </div>
         
         <div class="stat-card no_coords">
           <div class="label">Brak współrzędnych</div>
-          <div class="value">2</div>
+          <div class="value">3</div>
           <div class="sub">realna ulica, ale geokoder nie dał punktu</div>
         </div>
         
@@ -221,11 +221,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   </div>
 
   
-  <p class="reconciliation ok">
-    ✅ <strong>719</strong> ofert aktywnych =
-    <strong>620</strong> na mapie +
-    <strong>99</strong> bez pinezki (bez adresu 63 + nie ulica 28 + obszar 6 + brak współrzędnych 2)
-    
+  <p class="reconciliation broken">
+    ⚠️ <strong>727</strong> ofert aktywnych =
+    <strong>628</strong> na mapie +
+    <strong>99</strong> bez pinezki (bez adresu 63 + nie ulica 28 + obszar 5 + brak współrzędnych 3)
+     — mapa pokazuje 639 ofert i 88 bez lokacji — bilans policzono na innym stanie bazy
   </p>
 
   <p style="margin: 0 0 16px; padding: 10px 14px; background: #eff6ff; border-left: 3px solid #3b82f6; border-radius: 4px; font-size: 13px; color: #1e3a8a;">
@@ -237,23 +237,23 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   <div class="filter-bar">
     <label for="category-filter">Kategoria:</label>
     <select id="category-filter">
-      <option value="all">Wszystkie (108 próbek)</option><option value="no_address">Bez adresu (na stronie, bez pinezki) (25)</option><option value="not_a_street">Etykieta nie jest ulicą (25)</option><option value="area_only">Obszar zamiast punktu (6)</option><option value="no_coords">Brak współrzędnych (2)</option><option value="duplicate">Duplikaty (50)</option><option value="no_price">Brak ceny (0)</option>
+      <option value="all">Wszystkie (108 próbek)</option><option value="no_address">Bez adresu (na stronie, bez pinezki) (25)</option><option value="not_a_street">Etykieta nie jest ulicą (25)</option><option value="area_only">Obszar zamiast punktu (5)</option><option value="no_coords">Brak współrzędnych (3)</option><option value="duplicate">Duplikaty (50)</option><option value="no_price">Brak ceny (0)</option>
     </select>
     <label for="search-input">Szukaj:</label>
     <input type="text" id="search-input" placeholder="filtruj po tytule/opisie/URL...">
-    <span class="timestamp">Aktualizacja: 2026-10-10 15:49</span>
+    <span class="timestamp">Aktualizacja: 2026-10-11 00:39</span>
   </div>
 
   <div class="offer-list" id="offer-list">
     
-    <div class="offer" data-category="duplicate" data-search="wynajmę mieszkanie, ul. pogodna 50a lublin, od juz, запрошую! вільно вже зараз ">
+    <div class="offer" data-category="duplicate" data-search="apartament  30 m do wynajęcia ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Wynajmę mieszkanie, ul. Pogodna 50A Lublin, od juz, Запрошую! Вільно вже зараз</div>
+        <div class="offer-title">Apartament  30 m do wynajęcia</div>
         
       </div>
       
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Pogodna 50A"</span></div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Nałęczowska 18"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -263,49 +263,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Wynajmę mieszkanie, ul. Pogodna 50A Lublin, od juz, Запрошую! Вільно вже зараз</strong>
-              <a href="https://www.olx.pl/d/oferta/wynajme-mieszkanie-ul-pogodna-50a-lublin-od-juz-CID3-ID1ckqyg.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-mieszkanie-ul-pogodna-50a-lublin-od-juz-CID3-ID1ckqyg.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Pogodna 50A · cena: 1900 zł</div>
+              <strong>Apartament  30 m do wynajęcia</strong>
+              <a href="https://www.olx.pl/d/oferta/apartament-30-m-do-wynajecia-CID3-ID1cpXe7.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/apartament-30-m-do-wynajecia-CID3-ID1cpXe7.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Nałęczowska 18 · cena: 2200 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: wynajme-mieszkanie-ul-pogodna-50a-lublin-od-juz-CID3-ID1ckqyg</strong>
-              <a href="https://www.olx.pl/d/oferta/wynajme-mieszkanie-ul-pogodna-50a-lublin-od-juz-CID3-ID1ckqyg.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-mieszkanie-ul-pogodna-50a-lublin-od-juz-CID3-ID1ckqyg.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Pogodna 50A · cena: 1900 zł</div>
-            </div>
-          </div>
-        </div>
-        
-    </div>
-    
-    <div class="offer" data-category="duplicate" data-search="wynajmę nową, klimatyczną kawalerkę ul.kwarcowa ">
-      <div class="offer-header">
-        <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Wynajmę nową, klimatyczną kawalerkę ul.Kwarcowa</div>
-        
-      </div>
-      
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Kwarcowej"</span></div>
-      
-        <div class="duplicate-compare">
-          <div class="duplicate-compare-title">
-            🔗 Porównaj oferty
-            <span class="similarity-pill">100.0% podobne</span>
-          </div>
-          <div class="duplicate-compare-grid">
-            <div class="duplicate-side this">
-              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Wynajmę nową, klimatyczną kawalerkę ul.Kwarcowa</strong>
-              <a href="https://www.olx.pl/d/oferta/wynajme-nowa-klimatyczna-kawalerke-ul-kwarcowa-CID3-ID1cDJ0s.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-nowa-klimatyczna-kawalerke-ul-kwarcowa-CID3-ID1cDJ0s.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Kwarcowej · cena: 2100 zł</div>
-            </div>
-            <div class="duplicate-arrow">≈</div>
-            <div class="duplicate-side original">
-              <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: wynajme-nowa-klimatyczna-kawalerke-ul-kwarcowa-CID3-ID1cDJ0s</strong>
-              <a href="https://www.olx.pl/d/oferta/wynajme-nowa-klimatyczna-kawalerke-ul-kwarcowa-CID3-ID1cDJ0s.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-nowa-klimatyczna-kawalerke-ul-kwarcowa-CID3-ID1cDJ0s.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Kwarcowej · cena: 2100 zł</div>
+              <strong>ID: apartament-30-m-do-wynajecia-CID3-ID1cpXe7</strong>
+              <a href="https://www.olx.pl/d/oferta/apartament-30-m-do-wynajecia-CID3-ID1cpXe7.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/apartament-30-m-do-wynajecia-CID3-ID1cpXe7.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Nałęczowska 18 · cena: 2200 zł</div>
             </div>
           </div>
         </div>
@@ -345,14 +312,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="kawalerka w centrum na wynajem- ul. probostwo, lublin ">
+    <div class="offer" data-category="duplicate" data-search="mieszkanie do wynajęcia dostępne od zaraz ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Kawalerka w centrum na wynajem- ul. Probostwo, Lublin</div>
+        <div class="offer-title">Mieszkanie do wynajęcia dostępne od zaraz</div>
         
       </div>
       
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Probostwo 17B"</span></div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Kwiatowej 17"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -362,30 +329,30 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Kawalerka w centrum na wynajem- ul. Probostwo, Lublin</strong>
-              <a href="https://www.olx.pl/d/oferta/kawalerka-w-centrum-na-wynajem-ul-probostwo-lublin-CID3-ID1cFVHW.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-w-centrum-na-wynajem-ul-probostwo-lublin-CID3-ID1cFVHW.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Probostwo 17B · cena: 1600 zł</div>
+              <strong>Mieszkanie do wynajęcia dostępne od zaraz</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-dostepne-od-zaraz-CID3-ID1cCSCa.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-dostepne-od-zaraz-CID3-ID1cCSCa.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Kwiatowej 17 · cena: 1900 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: kawalerka-w-centrum-na-wynajem-ul-probostwo-lublin-CID3-ID1cFVHW</strong>
-              <a href="https://www.olx.pl/d/oferta/kawalerka-w-centrum-na-wynajem-ul-probostwo-lublin-CID3-ID1cFVHW.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-w-centrum-na-wynajem-ul-probostwo-lublin-CID3-ID1cFVHW.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Probostwo 17B · cena: 1600 zł</div>
+              <strong>ID: mieszkanie-do-wynajecia-dostepne-od-zaraz-CID3-ID1cCSCa</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-dostepne-od-zaraz-CID3-ID1cCSCa.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-dostepne-od-zaraz-CID3-ID1cCSCa.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Kwiatowej 17 · cena: 1900 zł</div>
             </div>
           </div>
         </div>
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="mieszkanie do wynajęcia narutowicza ">
+    <div class="offer" data-category="duplicate" data-search="kawalerka po generalnym remoncie | centrum lublina | nowe agd i blisko umcs i kul ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Mieszkanie do wynajęcia Narutowicza</div>
+        <div class="offer-title">Kawalerka po generalnym remoncie | Centrum Lublina | Nowe AGD I Blisko UMCS i KUL</div>
         
       </div>
       
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Narutowicza"</span></div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Nowe"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -395,30 +362,30 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Mieszkanie do wynajęcia Narutowicza</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-narutowicza-CID3-ID1aBCCG.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-narutowicza-CID3-ID1aBCCG.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Narutowicza · cena: 1300 zł</div>
+              <strong>Kawalerka po generalnym remoncie | Centrum Lublina | Nowe AGD I Blisko UMCS i KUL</strong>
+              <a href="https://www.olx.pl/d/oferta/kawalerka-po-generalnym-remoncie-centrum-lublina-nowe-agd-i-blisko-umcs-i-kul-CID3-ID1bYmZZ.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-po-generalnym-remoncie-centrum-lublina-nowe-agd-i-blisko-umcs-i-kul-CID3-ID1bYmZZ.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Nowe · cena: 2400 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: mieszkanie-do-wynajecia-narutowicza-CID3-ID1aBCCG</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-narutowicza-CID3-ID1aBCCG.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-narutowicza-CID3-ID1aBCCG.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">adres: Narutowicza · cena: 1300 zł</div>
+              <strong>ID: kawalerka-po-generalnym-remoncie-centrum-lublina-nowe-agd-i-blisko-umcs-i-kul-CID3-ID1bYmZZ</strong>
+              <a href="https://www.olx.pl/d/oferta/kawalerka-po-generalnym-remoncie-centrum-lublina-nowe-agd-i-blisko-umcs-i-kul-CID3-ID1bYmZZ.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-po-generalnym-remoncie-centrum-lublina-nowe-agd-i-blisko-umcs-i-kul-CID3-ID1bYmZZ.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Nowe · cena: 2400 zł</div>
             </div>
           </div>
         </div>
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="# **przytulna, w pełni wyposażona kawalerka 28 m² z balkonem – gotowa do zamieszkania!** lsm/rury ">
+    <div class="offer" data-category="duplicate" data-search="nowoczesne mieszkanie | lublin, ul. wolińskiego 1b | nowe budownictwo ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title"># **Przytulna, w pełni wyposażona kawalerka 28 m² z balkonem – Gotowa do zamieszkania!** LSM/Rury</div>
+        <div class="offer-title">Nowoczesne mieszkanie | Lublin, ul. Wolińskiego 1B | Nowe budownictwo</div>
         
       </div>
       
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Wileńska 7"</span></div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Wolińskiego 1B"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -428,82 +395,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong># **Przytulna, w pełni wyposażona kawalerka 28 m² z balkonem – Gotowa do zamieszkania!** LSM/Rury</strong>
-              <a href="https://www.olx.pl/d/oferta/przytulna-w-pelni-wyposazona-kawalerka-28-m-z-balkonem-gotowa-do-zamieszkania-lsm-rury-CID3-ID1cBcwb.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/przytulna-w-pelni-wyposazona-kawalerka-28-m-z-balkonem-gotowa-do-zamieszkania-lsm-rury-CID3-ID1cBcwb.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Wileńska 7 · cena: 1800 zł</div>
+              <strong>Nowoczesne mieszkanie | Lublin, ul. Wolińskiego 1B | Nowe budownictwo</strong>
+              <a href="https://www.olx.pl/d/oferta/nowoczesne-mieszkanie-lublin-ul-wolinskiego-1b-nowe-budownictwo-CID3-ID1cCzqB.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/nowoczesne-mieszkanie-lublin-ul-wolinskiego-1b-nowe-budownictwo-CID3-ID1cCzqB.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Wolińskiego 1B · cena: 2500 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: przytulna-w-pelni-wyposazona-kawalerka-28-m-z-balkonem-gotowa-do-zamieszkania-lsm-rury-CID3-ID1cBcwb</strong>
-              <a href="https://www.olx.pl/d/oferta/przytulna-w-pelni-wyposazona-kawalerka-28-m-z-balkonem-gotowa-do-zamieszkania-lsm-rury-CID3-ID1cBcwb.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/przytulna-w-pelni-wyposazona-kawalerka-28-m-z-balkonem-gotowa-do-zamieszkania-lsm-rury-CID3-ID1cBcwb.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Wileńska 7 · cena: 1800 zł</div>
-            </div>
-          </div>
-        </div>
-        
-    </div>
-    
-    <div class="offer" data-category="duplicate" data-search="mieszkanie na wynajem ">
-      <div class="offer-header">
-        <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Mieszkanie na wynajem</div>
-        
-      </div>
-      
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Wileńskiej"</span></div>
-      
-        <div class="duplicate-compare">
-          <div class="duplicate-compare-title">
-            🔗 Porównaj oferty
-            <span class="similarity-pill">100.0% podobne</span>
-          </div>
-          <div class="duplicate-compare-grid">
-            <div class="duplicate-side this">
-              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Mieszkanie na wynajem</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-na-wynajem-CID3-ID1cChSg.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-na-wynajem-CID3-ID1cChSg.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Wileńskiej · cena: 2000 zł</div>
-            </div>
-            <div class="duplicate-arrow">≈</div>
-            <div class="duplicate-side original">
-              <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: mieszkanie-na-wynajem-CID3-ID1cChSg</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-na-wynajem-CID3-ID1cChSg.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-na-wynajem-CID3-ID1cChSg.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Wileńskiej · cena: 2000 zł</div>
-            </div>
-          </div>
-        </div>
-        
-    </div>
-    
-    <div class="offer" data-category="duplicate" data-search="nowe mieszkanie w centrum lublina na wynajem lubomelska, medyczny, umcs, kul ">
-      <div class="offer-header">
-        <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">NOWE mieszkanie w centrum Lublina na wynajem Lubomelska, Medyczny, UMCS, KUL</div>
-        
-      </div>
-      
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Lubomelskiej"</span></div>
-      
-        <div class="duplicate-compare">
-          <div class="duplicate-compare-title">
-            🔗 Porównaj oferty
-            <span class="similarity-pill">100.0% podobne</span>
-          </div>
-          <div class="duplicate-compare-grid">
-            <div class="duplicate-side this">
-              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>NOWE mieszkanie w centrum Lublina na wynajem Lubomelska, Medyczny, UMCS, KUL</strong>
-              <a href="https://www.olx.pl/d/oferta/nowe-mieszkanie-w-centrum-lublina-na-wynajem-lubomelska-medyczny-umcs-kul-CID3-ID1chkMs.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/nowe-mieszkanie-w-centrum-lublina-na-wynajem-lubomelska-medyczny-umcs-kul-CID3-ID1chkMs.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Lubomelskiej · cena: 2750 zł</div>
-            </div>
-            <div class="duplicate-arrow">≈</div>
-            <div class="duplicate-side original">
-              <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: nowe-mieszkanie-w-centrum-lublina-na-wynajem-lubomelska-medyczny-umcs-kul-CID3-ID1chkMs</strong>
-              <a href="https://www.olx.pl/d/oferta/nowe-mieszkanie-w-centrum-lublina-na-wynajem-lubomelska-medyczny-umcs-kul-CID3-ID1chkMs.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/nowe-mieszkanie-w-centrum-lublina-na-wynajem-lubomelska-medyczny-umcs-kul-CID3-ID1chkMs.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Lubomelskiej · cena: 2750 zł</div>
+              <strong>ID: nowoczesne-mieszkanie-lublin-ul-wolinskiego-1b-nowe-budownictwo-CID3-ID1cCzqB</strong>
+              <a href="https://www.olx.pl/d/oferta/nowoczesne-mieszkanie-lublin-ul-wolinskiego-1b-nowe-budownictwo-CID3-ID1cCzqB.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/nowoczesne-mieszkanie-lublin-ul-wolinskiego-1b-nowe-budownictwo-CID3-ID1cCzqB.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">adres: Wolińskiego 1B · cena: 2500 zł</div>
             </div>
           </div>
         </div>
@@ -535,7 +436,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
               <strong>ID: kawalerka-do-wynajecia-w-scislym-centrum-lublina-CID3-ID17Tm29</strong>
-              <a href="https://www.olx.pl/d/oferta/kawalerka-do-wynajecia-w-scislym-centrum-lublina-CID3-ID17Tm29.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-do-wynajecia-w-scislym-centrum-lublina-CID3-ID17Tm29.html?search_reason=search%7Corganic ↗</a>
+              <a href="https://www.olx.pl/d/oferta/kawalerka-do-wynajecia-w-scislym-centrum-lublina-CID3-ID17Tm29.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-do-wynajecia-w-scislym-centrum-lublina-CID3-ID17Tm29.html?search_reason=search%7Cpromoted ↗</a>
               <div class="meta">adres: Narutowicza · cena: 2200 zł</div>
             </div>
           </div>
@@ -543,14 +444,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="okazja! mieszkanie do wynajęcia - w centrum miasta, świeżo po remoncie ">
+    <div class="offer" data-category="duplicate" data-search="mieszkanie do wynajęcia dostępne od zaraz ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">OKAZJA! Mieszkanie do wynajęcia - w centrum miasta, świeżo po remoncie</div>
+        <div class="offer-title">Mieszkanie do wynajęcia dostępne od zaraz</div>
         
       </div>
       
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Granicznej"</span></div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Kwiatowej 17"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -560,30 +461,30 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>OKAZJA! Mieszkanie do wynajęcia - w centrum miasta, świeżo po remoncie</strong>
-              <a href="https://www.olx.pl/d/oferta/okazja-mieszkanie-do-wynajecia-w-centrum-miasta-swiezo-po-remoncie-CID3-ID1c8BJe.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/okazja-mieszkanie-do-wynajecia-w-centrum-miasta-swiezo-po-remoncie-CID3-ID1c8BJe.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Granicznej · cena: 2300 zł</div>
+              <strong>Mieszkanie do wynajęcia dostępne od zaraz</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-dostepne-od-zaraz-CID3-ID1cCSCa.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-dostepne-od-zaraz-CID3-ID1cCSCa.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Kwiatowej 17 · cena: 1900 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: okazja-mieszkanie-do-wynajecia-w-centrum-miasta-swiezo-po-remoncie-CID3-ID1c8BJe</strong>
-              <a href="https://www.olx.pl/d/oferta/okazja-mieszkanie-do-wynajecia-w-centrum-miasta-swiezo-po-remoncie-CID3-ID1c8BJe.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/okazja-mieszkanie-do-wynajecia-w-centrum-miasta-swiezo-po-remoncie-CID3-ID1c8BJe.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Granicznej · cena: 2300 zł</div>
+              <strong>ID: mieszkanie-do-wynajecia-dostepne-od-zaraz-CID3-ID1cCSCa</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-dostepne-od-zaraz-CID3-ID1cCSCa.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-dostepne-od-zaraz-CID3-ID1cCSCa.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Kwiatowej 17 · cena: 1900 zł</div>
             </div>
           </div>
         </div>
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="mieszkanie dla studentek/studentów/osób pracujących   blisko umcs,kul do wynajęcia ">
+    <div class="offer" data-category="duplicate" data-search="mieszkanie do wynajecia ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Mieszkanie dla studentek/studentów/osób pracujących   blisko UMCS,KUL do wynajęcia</div>
+        <div class="offer-title">Mieszkanie do wynajecia</div>
         
       </div>
       
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Popiełuszki"</span></div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Skrzatow 2/57"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -593,280 +494,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Mieszkanie dla studentek/studentów/osób pracujących   blisko UMCS,KUL do wynajęcia</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-dla-studentek-studentow-osob-pracujacych-blisko-umcs-kul-do-wynajecia-CID3-ID1cHw1f.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-dla-studentek-studentow-osob-pracujacych-blisko-umcs-kul-do-wynajecia-CID3-ID1cHw1f.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Popiełuszki · cena: 2200 zł</div>
+              <strong>Mieszkanie do wynajecia</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-CID3-ID1cyQgw.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-CID3-ID1cyQgw.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">parsed: Skrzatow 2/57 · cena: 1950 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: mieszkanie-dla-studentek-studentow-osob-pracujacych-blisko-umcs-kul-do-wynajecia-CID3-ID1cHw1f</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-dla-studentek-studentow-osob-pracujacych-blisko-umcs-kul-do-wynajecia-CID3-ID1cHw1f.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-dla-studentek-studentow-osob-pracujacych-blisko-umcs-kul-do-wynajecia-CID3-ID1cHw1f.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">adres: Popiełuszki · cena: 2200 zł</div>
-            </div>
-          </div>
-        </div>
-        
-    </div>
-    
-    <div class="offer" data-category="duplicate" data-search="mieszkanie do wynajęcia  os. czuby ul.bursztynowa ">
-      <div class="offer-header">
-        <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Mieszkanie do wynajęcia  os. Czuby ul.Bursztynowa</div>
-        
-      </div>
-      
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Bursztynowej 1"</span></div>
-      
-        <div class="duplicate-compare">
-          <div class="duplicate-compare-title">
-            🔗 Porównaj oferty
-            <span class="similarity-pill">100.0% podobne</span>
-          </div>
-          <div class="duplicate-compare-grid">
-            <div class="duplicate-side this">
-              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Mieszkanie do wynajęcia  os. Czuby ul.Bursztynowa</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-os-czuby-ul-bursztynowa-CID3-ID1akRsw.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-os-czuby-ul-bursztynowa-CID3-ID1akRsw.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">parsed: Bursztynowej 1 · cena: 1700 zł</div>
-            </div>
-            <div class="duplicate-arrow">≈</div>
-            <div class="duplicate-side original">
-              <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: mieszkanie-do-wynajecia-os-czuby-ul-bursztynowa-CID3-ID1akRsw</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-os-czuby-ul-bursztynowa-CID3-ID1akRsw.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-os-czuby-ul-bursztynowa-CID3-ID1akRsw.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Bursztynowej 1 · cena: 1700 zł</div>
-            </div>
-          </div>
-        </div>
-        
-    </div>
-    
-    <div class="offer" data-category="duplicate" data-search="do wynajęcia 2 pokoje, 39m2,kalinowszczyzna niepodległości, od zaraz ">
-      <div class="offer-header">
-        <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">do wynajęcia 2 pokoje, 39m2,Kalinowszczyzna Niepodległości, od zaraz</div>
-        
-      </div>
-      
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Niepodległości"</span></div>
-      
-        <div class="duplicate-compare">
-          <div class="duplicate-compare-title">
-            🔗 Porównaj oferty
-            <span class="similarity-pill">100.0% podobne</span>
-          </div>
-          <div class="duplicate-compare-grid">
-            <div class="duplicate-side this">
-              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>do wynajęcia 2 pokoje, 39m2,Kalinowszczyzna Niepodległości, od zaraz</strong>
-              <a href="https://www.olx.pl/d/oferta/do-wynajecia-2-pokoje-39m2-kalinowszczyzna-niepodleglosci-od-zaraz-CID3-ID1cvuU7.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/do-wynajecia-2-pokoje-39m2-kalinowszczyzna-niepodleglosci-od-zaraz-CID3-ID1cvuU7.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">parsed: Niepodległości · cena: 1450 zł</div>
-            </div>
-            <div class="duplicate-arrow">≈</div>
-            <div class="duplicate-side original">
-              <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: do-wynajecia-2-pokoje-39m2-kalinowszczyzna-niepodleglosci-od-zaraz-CID3-ID1cvuU7</strong>
-              <a href="https://www.olx.pl/d/oferta/do-wynajecia-2-pokoje-39m2-kalinowszczyzna-niepodleglosci-od-zaraz-CID3-ID1cvuU7.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/do-wynajecia-2-pokoje-39m2-kalinowszczyzna-niepodleglosci-od-zaraz-CID3-ID1cvuU7.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">adres: Niepodległości · cena: 1450 zł</div>
-            </div>
-          </div>
-        </div>
-        
-    </div>
-    
-    <div class="offer" data-category="duplicate" data-search="mieszkanie do wynajęcia przy ul. gęsiej ">
-      <div class="offer-header">
-        <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Mieszkanie do wynajęcia przy ul. Gęsiej</div>
-        
-      </div>
-      
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Gęsiej 21"</span></div>
-      
-        <div class="duplicate-compare">
-          <div class="duplicate-compare-title">
-            🔗 Porównaj oferty
-            <span class="similarity-pill">100.0% podobne</span>
-          </div>
-          <div class="duplicate-compare-grid">
-            <div class="duplicate-side this">
-              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Mieszkanie do wynajęcia przy ul. Gęsiej</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-przy-ul-gesiej-CID3-ID1cpdHB.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-przy-ul-gesiej-CID3-ID1cpdHB.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Gęsiej 21 · cena: 1990 zł</div>
-            </div>
-            <div class="duplicate-arrow">≈</div>
-            <div class="duplicate-side original">
-              <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: mieszkanie-do-wynajecia-przy-ul-gesiej-CID3-ID1cpdHB</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-przy-ul-gesiej-CID3-ID1cpdHB.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-przy-ul-gesiej-CID3-ID1cpdHB.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Gęsiej 21 · cena: 1990 zł</div>
-            </div>
-          </div>
-        </div>
-        
-    </div>
-    
-    <div class="offer" data-category="duplicate" data-search="mieszkanie na wynajem puławska/wieniawa ">
-      <div class="offer-header">
-        <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Mieszkanie na wynajem Puławska/Wieniawa</div>
-        
-      </div>
-      
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Puławskiej"</span></div>
-      
-        <div class="duplicate-compare">
-          <div class="duplicate-compare-title">
-            🔗 Porównaj oferty
-            <span class="similarity-pill">100.0% podobne</span>
-          </div>
-          <div class="duplicate-compare-grid">
-            <div class="duplicate-side this">
-              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Mieszkanie na wynajem Puławska/Wieniawa</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-na-wynajem-pulawska-wieniawa-CID3-ID1cG0AE.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-na-wynajem-pulawska-wieniawa-CID3-ID1cG0AE.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">parsed: Puławskiej · cena: 2300 zł</div>
-            </div>
-            <div class="duplicate-arrow">≈</div>
-            <div class="duplicate-side original">
-              <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: mieszkanie-na-wynajem-pulawska-wieniawa-CID3-ID1cG0AE</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-na-wynajem-pulawska-wieniawa-CID3-ID1cG0AE.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-na-wynajem-pulawska-wieniawa-CID3-ID1cG0AE.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">adres: Puławskiej · cena: 2300 zł</div>
-            </div>
-          </div>
-        </div>
-        
-    </div>
-    
-    <div class="offer" data-category="duplicate" data-search="słoneczna  kawalerka na czechowie, osiedle paderewskiego ">
-      <div class="offer-header">
-        <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Słoneczna  kawalerka na Czechowie, osiedle Paderewskiego</div>
-        
-      </div>
-      
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Osiedle Paderewskiego"</span></div>
-      
-        <div class="duplicate-compare">
-          <div class="duplicate-compare-title">
-            🔗 Porównaj oferty
-            <span class="similarity-pill">100.0% podobne</span>
-          </div>
-          <div class="duplicate-compare-grid">
-            <div class="duplicate-side this">
-              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Słoneczna  kawalerka na Czechowie, osiedle Paderewskiego</strong>
-              <a href="https://www.olx.pl/d/oferta/sloneczna-kawalerka-na-czechowie-osiedle-paderewskiego-CID3-ID1bRcnq.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/sloneczna-kawalerka-na-czechowie-osiedle-paderewskiego-CID3-ID1bRcnq.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Osiedle Paderewskiego · cena: 1650 zł</div>
-            </div>
-            <div class="duplicate-arrow">≈</div>
-            <div class="duplicate-side original">
-              <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: sloneczna-kawalerka-na-czechowie-osiedle-paderewskiego-CID3-ID1bRcnq</strong>
-              <a href="https://www.olx.pl/d/oferta/sloneczna-kawalerka-na-czechowie-osiedle-paderewskiego-CID3-ID1bRcnq.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/sloneczna-kawalerka-na-czechowie-osiedle-paderewskiego-CID3-ID1bRcnq.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Osiedle Paderewskiego · cena: 1650 zł</div>
-            </div>
-          </div>
-        </div>
-        
-    </div>
-    
-    <div class="offer" data-category="duplicate" data-search="mieszkanie 4 pokojowe (60,45 m²) - ul. józefa sowińskiego 7a ">
-      <div class="offer-header">
-        <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Mieszkanie 4 pokojowe (60,45 m²) - ul. Józefa Sowińskiego 7A</div>
-        
-      </div>
-      
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Józefa Sowińskiego 7A"</span></div>
-      
-        <div class="duplicate-compare">
-          <div class="duplicate-compare-title">
-            🔗 Porównaj oferty
-            <span class="similarity-pill">100.0% podobne</span>
-          </div>
-          <div class="duplicate-compare-grid">
-            <div class="duplicate-side this">
-              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Mieszkanie 4 pokojowe (60,45 m²) - ul. Józefa Sowińskiego 7A</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-4-pokojowe-60-45-m-ul-jozefa-sowinskiego-7a-CID3-ID1cALvr.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-4-pokojowe-60-45-m-ul-jozefa-sowinskiego-7a-CID3-ID1cALvr.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Józefa Sowińskiego 7A · cena: 2500 zł</div>
-            </div>
-            <div class="duplicate-arrow">≈</div>
-            <div class="duplicate-side original">
-              <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: mieszkanie-4-pokojowe-60-45-m-ul-jozefa-sowinskiego-7a-CID3-ID1cALvr</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-4-pokojowe-60-45-m-ul-jozefa-sowinskiego-7a-CID3-ID1cALvr.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-4-pokojowe-60-45-m-ul-jozefa-sowinskiego-7a-CID3-ID1cALvr.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">adres: Józefa Sowińskiego 7A · cena: 2500 zł</div>
-            </div>
-          </div>
-        </div>
-        
-    </div>
-    
-    <div class="offer" data-category="duplicate" data-search="wynajmę | lublin, wrotków, diamentowa 27a | politechnika | 40 mkw | 2 nieprzechodnie pokoje i osobna kuchnia ">
-      <div class="offer-header">
-        <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Wynajmę | Lublin, Wrotków, Diamentowa 27a | Politechnika | 40 mkw | 2 nieprzechodnie pokoje i osobna kuchnia</div>
-        
-      </div>
-      
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Diamentowa 27a"</span></div>
-      
-        <div class="duplicate-compare">
-          <div class="duplicate-compare-title">
-            🔗 Porównaj oferty
-            <span class="similarity-pill">100.0% podobne</span>
-          </div>
-          <div class="duplicate-compare-grid">
-            <div class="duplicate-side this">
-              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Wynajmę | Lublin, Wrotków, Diamentowa 27a | Politechnika | 40 mkw | 2 nieprzechodnie pokoje i osobna kuchnia</strong>
-              <a href="https://www.olx.pl/d/oferta/wynajme-lublin-wrotkow-diamentowa-27a-politechnika-40-mkw-2-nieprzechodnie-pokoje-i-osobna-kuchnia-CID3-ID1cwwTl.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-lublin-wrotkow-diamentowa-27a-politechnika-40-mkw-2-nieprzechodnie-pokoje-i-osobna-kuchnia-CID3-ID1cwwTl.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Diamentowa 27a · cena: 2900 zł</div>
-            </div>
-            <div class="duplicate-arrow">≈</div>
-            <div class="duplicate-side original">
-              <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: wynajme-lublin-wrotkow-diamentowa-27a-politechnika-40-mkw-2-nieprzechodnie-pokoje-i-osobna-kuchnia-CID3-ID1cwwTl</strong>
-              <a href="https://www.olx.pl/d/oferta/wynajme-lublin-wrotkow-diamentowa-27a-politechnika-40-mkw-2-nieprzechodnie-pokoje-i-osobna-kuchnia-CID3-ID1cwwTl.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-lublin-wrotkow-diamentowa-27a-politechnika-40-mkw-2-nieprzechodnie-pokoje-i-osobna-kuchnia-CID3-ID1cwwTl.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Diamentowa 27a · cena: 2900 zł</div>
-            </div>
-          </div>
-        </div>
-        
-    </div>
-    
-    <div class="offer" data-category="duplicate" data-search="mieszkanie 42 m2, mp, klimatyzacja ">
-      <div class="offer-header">
-        <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Mieszkanie 42 m2, MP, klimatyzacja</div>
-        
-      </div>
-      
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Lipca"</span></div>
-      
-        <div class="duplicate-compare">
-          <div class="duplicate-compare-title">
-            🔗 Porównaj oferty
-            <span class="similarity-pill">100.0% podobne</span>
-          </div>
-          <div class="duplicate-compare-grid">
-            <div class="duplicate-side this">
-              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Mieszkanie 42 m2, MP, klimatyzacja</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-42-m2-mp-klimatyzacja-CID3-ID1aChvm.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-42-m2-mp-klimatyzacja-CID3-ID1aChvm.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Lipca · cena: 2300 zł</div>
-            </div>
-            <div class="duplicate-arrow">≈</div>
-            <div class="duplicate-side original">
-              <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: mieszkanie-42-m2-mp-klimatyzacja-CID3-ID1aChvm</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-42-m2-mp-klimatyzacja-CID3-ID1aChvm.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-42-m2-mp-klimatyzacja-CID3-ID1aChvm.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Lipca · cena: 2300 zł</div>
+              <strong>ID: mieszkanie-do-wynajecia-CID3-ID1cyQgw</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-CID3-ID1cyQgw.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-CID3-ID1cyQgw.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">adres: Skrzatow 2/57 · cena: 1950 zł</div>
             </div>
           </div>
         </div>
@@ -906,14 +543,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="klimatyzacja - 2-pokojowe mieszkanie – osiedle prestige - czechów północny ">
+    <div class="offer" data-category="duplicate" data-search="mieszkanie do wynajęcia lsm ul. juranda ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">KLIMATYZACJA - 2-pokojowe mieszkanie – Osiedle Prestige - Czechów Północny</div>
+        <div class="offer-title">Mieszkanie do wynajęcia LSM ul. Juranda</div>
         
       </div>
       
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Osiedle Prestige"</span></div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Juranda"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -923,30 +560,30 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>KLIMATYZACJA - 2-pokojowe mieszkanie – Osiedle Prestige - Czechów Północny</strong>
-              <a href="https://www.olx.pl/d/oferta/klimatyzacja-2-pokojowe-mieszkanie-osiedle-prestige-czechow-polnocny-CID3-ID1bn1AS.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/klimatyzacja-2-pokojowe-mieszkanie-osiedle-prestige-czechow-polnocny-CID3-ID1bn1AS.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Osiedle Prestige · cena: 2650 zł</div>
+              <strong>Mieszkanie do wynajęcia LSM ul. Juranda</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-lsm-ul-juranda-CID3-ID1cizrI.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-lsm-ul-juranda-CID3-ID1cizrI.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Juranda · cena: 1800 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: klimatyzacja-2-pokojowe-mieszkanie-osiedle-prestige-czechow-polnocny-CID3-ID1bn1AS</strong>
-              <a href="https://www.olx.pl/d/oferta/klimatyzacja-2-pokojowe-mieszkanie-osiedle-prestige-czechow-polnocny-CID3-ID1bn1AS.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/klimatyzacja-2-pokojowe-mieszkanie-osiedle-prestige-czechow-polnocny-CID3-ID1bn1AS.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Osiedle Prestige · cena: 2650 zł</div>
+              <strong>ID: mieszkanie-do-wynajecia-lsm-ul-juranda-CID3-ID1cizrI</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-lsm-ul-juranda-CID3-ID1cizrI.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-lsm-ul-juranda-CID3-ID1cizrI.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">adres: Juranda · cena: 1800 zł</div>
             </div>
           </div>
         </div>
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="wynajem  mieszkania ul. wolińskiego lublin 2 pokoje ">
+    <div class="offer" data-category="duplicate" data-search="2-pokojowe mieszkanie na wynajem – spokojna okolica ul. grażyny ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Wynajem  mieszkania ul. Wolińskiego Lublin 2 pokoje</div>
+        <div class="offer-title">2-pokojowe mieszkanie na wynajem – spokojna okolica ul. Grażyny</div>
         
       </div>
       
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Wolińskiego"</span></div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Grażyny"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -956,30 +593,30 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Wynajem  mieszkania ul. Wolińskiego Lublin 2 pokoje</strong>
-              <a href="https://www.olx.pl/d/oferta/wynajem-mieszkania-ul-wolinskiego-lublin-2-pokoje-CID3-ID1cFWBI.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajem-mieszkania-ul-wolinskiego-lublin-2-pokoje-CID3-ID1cFWBI.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Wolińskiego · cena: 2500 zł</div>
+              <strong>2-pokojowe mieszkanie na wynajem – spokojna okolica ul. Grażyny</strong>
+              <a href="https://www.olx.pl/d/oferta/2-pokojowe-mieszkanie-na-wynajem-spokojna-okolica-ul-grazyny-CID3-ID1busLv.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/2-pokojowe-mieszkanie-na-wynajem-spokojna-okolica-ul-grazyny-CID3-ID1busLv.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Grażyny · cena: 2000 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: wynajem-mieszkania-ul-wolinskiego-lublin-2-pokoje-CID3-ID1cFWBI</strong>
-              <a href="https://www.olx.pl/d/oferta/wynajem-mieszkania-ul-wolinskiego-lublin-2-pokoje-CID3-ID1cFWBI.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajem-mieszkania-ul-wolinskiego-lublin-2-pokoje-CID3-ID1cFWBI.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Wolińskiego · cena: 2500 zł</div>
+              <strong>ID: 2-pokojowe-mieszkanie-na-wynajem-spokojna-okolica-ul-grazyny-CID3-ID1busLv</strong>
+              <a href="https://www.olx.pl/d/oferta/2-pokojowe-mieszkanie-na-wynajem-spokojna-okolica-ul-grazyny-CID3-ID1busLv.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/2-pokojowe-mieszkanie-na-wynajem-spokojna-okolica-ul-grazyny-CID3-ID1busLv.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">adres: Grażyny · cena: 2000 zł</div>
             </div>
           </div>
         </div>
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="wynajmę mieszkanie ">
+    <div class="offer" data-category="duplicate" data-search="mieszkanie 4 pokojowe (60,45 m²) - ul. józefa sowińskiego 7a ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Wynajmę mieszkanie</div>
+        <div class="offer-title">Mieszkanie 4 pokojowe (60,45 m²) - ul. Józefa Sowińskiego 7A</div>
         
       </div>
       
-      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Józefa Sowińskiego 7A"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -989,30 +626,30 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Wynajmę mieszkanie</strong>
-              <a href="https://www.olx.pl/d/oferta/wynajme-mieszkanie-CID3-ID1cCeVf.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-mieszkanie-CID3-ID1cCeVf.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed:  · cena: 2200 zł</div>
+              <strong>Mieszkanie 4 pokojowe (60,45 m²) - ul. Józefa Sowińskiego 7A</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-4-pokojowe-60-45-m-ul-jozefa-sowinskiego-7a-CID3-ID1cALvr.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-4-pokojowe-60-45-m-ul-jozefa-sowinskiego-7a-CID3-ID1cALvr.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Józefa Sowińskiego 7A · cena: 2500 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: wynajme-mieszkanie-CID3-ID1cCeVf</strong>
-              <a href="https://www.olx.pl/d/oferta/wynajme-mieszkanie-CID3-ID1cCeVf.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-mieszkanie-CID3-ID1cCeVf.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres:  · cena: 2200 zł</div>
+              <strong>ID: mieszkanie-4-pokojowe-60-45-m-ul-jozefa-sowinskiego-7a-CID3-ID1cALvr</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-4-pokojowe-60-45-m-ul-jozefa-sowinskiego-7a-CID3-ID1cALvr.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-4-pokojowe-60-45-m-ul-jozefa-sowinskiego-7a-CID3-ID1cALvr.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">adres: Józefa Sowińskiego 7A · cena: 2500 zł</div>
             </div>
           </div>
         </div>
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="mieszkanie bez czynszowe koło politechniki ">
+    <div class="offer" data-category="duplicate" data-search="3pokoje dziewanny 8;80m2,piętro 1 ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Mieszkanie bez czynszowe koło Politechniki</div>
+        <div class="offer-title">3pokoje Dziewanny 8;80m2,piętro 1</div>
         
       </div>
       
-      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Dziewanny"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -1022,30 +659,30 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Mieszkanie bez czynszowe koło Politechniki</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-bez-czynszowe-kolo-politechniki-CID3-ID1c927V.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-bez-czynszowe-kolo-politechniki-CID3-ID1c927V.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed:  · cena: 1700 zł</div>
+              <strong>3pokoje Dziewanny 8;80m2,piętro 1</strong>
+              <a href="https://www.olx.pl/d/oferta/3pokoje-dziewanny-880m2-pietro-1-CID3-ID1crGPy.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/3pokoje-dziewanny-880m2-pietro-1-CID3-ID1crGPy.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Dziewanny · cena: 3200 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: mieszkanie-bez-czynszowe-kolo-politechniki-CID3-ID1c927V</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-bez-czynszowe-kolo-politechniki-CID3-ID1c927V.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-bez-czynszowe-kolo-politechniki-CID3-ID1c927V.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres:  · cena: 1700 zł</div>
+              <strong>ID: 3pokoje-dziewanny-880m2-pietro-1-CID3-ID1crGPy</strong>
+              <a href="https://www.olx.pl/d/oferta/3pokoje-dziewanny-880m2-pietro-1-CID3-ID1crGPy.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/3pokoje-dziewanny-880m2-pietro-1-CID3-ID1crGPy.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Dziewanny · cena: 3200 zł</div>
             </div>
           </div>
         </div>
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="sowińskiego 3 - mieszkanie do wynajęcia (blisko umcs, kul, centrum) ">
+    <div class="offer" data-category="duplicate" data-search="kawalerka w nowym apartamentowcu przy ulicy nałęczowskiej 18 ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Sowińskiego 3 - mieszkanie do wynajęcia (blisko UMCS, KUL, Centrum)</div>
+        <div class="offer-title">kawalerka w nowym apartamentowcu przy ulicy Nałęczowskiej 18</div>
         
       </div>
       
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Sowińskiego 3"</span></div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Nałęczowskiej 18"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -1055,30 +692,30 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Sowińskiego 3 - mieszkanie do wynajęcia (blisko UMCS, KUL, Centrum)</strong>
-              <a href="https://www.olx.pl/d/oferta/sowinskiego-3-mieszkanie-do-wynajecia-blisko-umcs-kul-centrum-CID3-ID1brdFt.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/sowinskiego-3-mieszkanie-do-wynajecia-blisko-umcs-kul-centrum-CID3-ID1brdFt.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">parsed: Sowińskiego 3 · cena: 2300 zł</div>
+              <strong>kawalerka w nowym apartamentowcu przy ulicy Nałęczowskiej 18</strong>
+              <a href="https://www.olx.pl/d/oferta/kawalerka-w-nowym-apartamentowcu-przy-ulicy-naleczowskiej-18-CID3-ID1cp54L.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-w-nowym-apartamentowcu-przy-ulicy-naleczowskiej-18-CID3-ID1cp54L.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Nałęczowskiej 18 · cena: 2250 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: sowinskiego-3-mieszkanie-do-wynajecia-blisko-umcs-kul-centrum-CID3-ID1brdFt</strong>
-              <a href="https://www.olx.pl/d/oferta/sowinskiego-3-mieszkanie-do-wynajecia-blisko-umcs-kul-centrum-CID3-ID1brdFt.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/sowinskiego-3-mieszkanie-do-wynajecia-blisko-umcs-kul-centrum-CID3-ID1brdFt.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">adres: Sowińskiego 3 · cena: 2300 zł</div>
+              <strong>ID: kawalerka-w-nowym-apartamentowcu-przy-ulicy-naleczowskiej-18-CID3-ID1cp54L</strong>
+              <a href="https://www.olx.pl/d/oferta/kawalerka-w-nowym-apartamentowcu-przy-ulicy-naleczowskiej-18-CID3-ID1cp54L.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-w-nowym-apartamentowcu-przy-ulicy-naleczowskiej-18-CID3-ID1cp54L.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Nałęczowskiej 18 · cena: 2250 zł</div>
             </div>
           </div>
         </div>
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="nowoczesne mieszkanie na wynajem, ul. morwowa/wojciechowska ">
+    <div class="offer" data-category="duplicate" data-search="mieszkanie do wynajęcia przy ul. gęsiej ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Nowoczesne mieszkanie na wynajem, ul. Morwowa/Wojciechowska</div>
+        <div class="offer-title">Mieszkanie do wynajęcia przy ul. Gęsiej</div>
         
       </div>
       
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Morwowa"</span></div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Gęsiej 21"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -1088,181 +725,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Nowoczesne mieszkanie na wynajem, ul. Morwowa/Wojciechowska</strong>
-              <a href="https://www.olx.pl/d/oferta/nowoczesne-mieszkanie-na-wynajem-ul-morwowa-wojciechowska-CID3-ID1cjosU.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/nowoczesne-mieszkanie-na-wynajem-ul-morwowa-wojciechowska-CID3-ID1cjosU.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Morwowa · cena: 2900 zł</div>
+              <strong>Mieszkanie do wynajęcia przy ul. Gęsiej</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-przy-ul-gesiej-CID3-ID1cpdHB.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-przy-ul-gesiej-CID3-ID1cpdHB.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Gęsiej 21 · cena: 1990 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: nowoczesne-mieszkanie-na-wynajem-ul-morwowa-wojciechowska-CID3-ID1cjosU</strong>
-              <a href="https://www.olx.pl/d/oferta/nowoczesne-mieszkanie-na-wynajem-ul-morwowa-wojciechowska-CID3-ID1cjosU.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/nowoczesne-mieszkanie-na-wynajem-ul-morwowa-wojciechowska-CID3-ID1cjosU.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Morwowa · cena: 2900 zł</div>
-            </div>
-          </div>
-        </div>
-        
-    </div>
-    
-    <div class="offer" data-category="duplicate" data-search="mieszkanie 2 pokoje, od 01.10.26. poddasze ulica nadrzeczna 125 37 m2. 2100 z czynszem. blok ogrodzony z parkingiem. ">
-      <div class="offer-header">
-        <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Mieszkanie 2 pokoje, Od 01.10.26. Poddasze ulica Nadrzeczna 125 37 m2. 2100 z czynszem. Blok ogrodzony z parkingiem.</div>
-        
-      </div>
-      
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Nadrzeczna 125"</span></div>
-      
-        <div class="duplicate-compare">
-          <div class="duplicate-compare-title">
-            🔗 Porównaj oferty
-            <span class="similarity-pill">100.0% podobne</span>
-          </div>
-          <div class="duplicate-compare-grid">
-            <div class="duplicate-side this">
-              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Mieszkanie 2 pokoje, Od 01.10.26. Poddasze ulica Nadrzeczna 125 37 m2. 2100 z czynszem. Blok ogrodzony z parkingiem.</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-2-pokoje-od-01-10-26-poddasze-ulica-nadrzeczna-125-37-m2-2100-z-czynszem-blok-ogrodzony-z-parkingiem-CID3-ID1cobD3.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-2-pokoje-od-01-10-26-poddasze-ulica-nadrzeczna-125-37-m2-2100-z-czynszem-blok-ogrodzony-z-parkingiem-CID3-ID1cobD3.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Nadrzeczna 125 · cena: 2000 zł</div>
-            </div>
-            <div class="duplicate-arrow">≈</div>
-            <div class="duplicate-side original">
-              <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: mieszkanie-2-pokoje-od-01-10-26-poddasze-ulica-nadrzeczna-125-37-m2-2100-z-czynszem-blok-ogrodzony-z-parkingiem-CID3-ID1cobD3</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-2-pokoje-od-01-10-26-poddasze-ulica-nadrzeczna-125-37-m2-2100-z-czynszem-blok-ogrodzony-z-parkingiem-CID3-ID1cobD3.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-2-pokoje-od-01-10-26-poddasze-ulica-nadrzeczna-125-37-m2-2100-z-czynszem-blok-ogrodzony-z-parkingiem-CID3-ID1cobD3.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Nadrzeczna 125 · cena: 2000 zł</div>
-            </div>
-          </div>
-        </div>
-        
-    </div>
-    
-    <div class="offer" data-category="duplicate" data-search="śródmieście ul.lipowa ">
-      <div class="offer-header">
-        <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Śródmieście ul.Lipowa</div>
-        
-      </div>
-      
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Lipowej"</span></div>
-      
-        <div class="duplicate-compare">
-          <div class="duplicate-compare-title">
-            🔗 Porównaj oferty
-            <span class="similarity-pill">100.0% podobne</span>
-          </div>
-          <div class="duplicate-compare-grid">
-            <div class="duplicate-side this">
-              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Śródmieście ul.Lipowa</strong>
-              <a href="https://www.olx.pl/d/oferta/srodmiescie-ul-lipowa-CID3-ID17yCb7.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/srodmiescie-ul-lipowa-CID3-ID17yCb7.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">parsed: Lipowej · cena: 3000 zł</div>
-            </div>
-            <div class="duplicate-arrow">≈</div>
-            <div class="duplicate-side original">
-              <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: srodmiescie-ul-lipowa-CID3-ID17yCb7</strong>
-              <a href="https://www.olx.pl/d/oferta/srodmiescie-ul-lipowa-CID3-ID17yCb7.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/srodmiescie-ul-lipowa-CID3-ID17yCb7.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">adres: Lipowej · cena: 3000 zł</div>
-            </div>
-          </div>
-        </div>
-        
-    </div>
-    
-    <div class="offer" data-category="duplicate" data-search="mieszkanie na wynajem ul. jutrzenki ">
-      <div class="offer-header">
-        <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">mieszkanie na wynajem ul. Jutrzenki</div>
-        
-      </div>
-      
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Jutrzenki"</span></div>
-      
-        <div class="duplicate-compare">
-          <div class="duplicate-compare-title">
-            🔗 Porównaj oferty
-            <span class="similarity-pill">100.0% podobne</span>
-          </div>
-          <div class="duplicate-compare-grid">
-            <div class="duplicate-side this">
-              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>mieszkanie na wynajem ul. Jutrzenki</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-na-wynajem-ul-jutrzenki-CID3-ID1cjWjJ.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-na-wynajem-ul-jutrzenki-CID3-ID1cjWjJ.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">parsed: Jutrzenki · cena: 2800 zł</div>
-            </div>
-            <div class="duplicate-arrow">≈</div>
-            <div class="duplicate-side original">
-              <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: mieszkanie-na-wynajem-ul-jutrzenki-CID3-ID1cjWjJ</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-na-wynajem-ul-jutrzenki-CID3-ID1cjWjJ.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-na-wynajem-ul-jutrzenki-CID3-ID1cjWjJ.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">adres: Jutrzenki · cena: 2800 zł</div>
-            </div>
-          </div>
-        </div>
-        
-    </div>
-    
-    <div class="offer" data-category="duplicate" data-search="mieszkanie do wynajecia ">
-      <div class="offer-header">
-        <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Mieszkanie do wynajecia</div>
-        
-      </div>
-      
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Skrzatow 2/57"</span></div>
-      
-        <div class="duplicate-compare">
-          <div class="duplicate-compare-title">
-            🔗 Porównaj oferty
-            <span class="similarity-pill">100.0% podobne</span>
-          </div>
-          <div class="duplicate-compare-grid">
-            <div class="duplicate-side this">
-              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Mieszkanie do wynajecia</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-CID3-ID1cyQgw.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-CID3-ID1cyQgw.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Skrzatow 2/57 · cena: 1950 zł</div>
-            </div>
-            <div class="duplicate-arrow">≈</div>
-            <div class="duplicate-side original">
-              <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: mieszkanie-do-wynajecia-CID3-ID1cyQgw</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-CID3-ID1cyQgw.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-CID3-ID1cyQgw.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Skrzatow 2/57 · cena: 1950 zł</div>
-            </div>
-          </div>
-        </div>
-        
-    </div>
-    
-    <div class="offer" data-category="duplicate" data-search="mieszkanie dwupoziomowe na wynajem ">
-      <div class="offer-header">
-        <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Mieszkanie dwupoziomowe na wynajem</div>
-        
-      </div>
-      
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Osiedle Bazylianówka"</span></div>
-      
-        <div class="duplicate-compare">
-          <div class="duplicate-compare-title">
-            🔗 Porównaj oferty
-            <span class="similarity-pill">100.0% podobne</span>
-          </div>
-          <div class="duplicate-compare-grid">
-            <div class="duplicate-side this">
-              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Mieszkanie dwupoziomowe na wynajem</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-dwupoziomowe-na-wynajem-CID3-ID1c9Ayx.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-dwupoziomowe-na-wynajem-CID3-ID1c9Ayx.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">parsed: Osiedle Bazylianówka · cena: 3000 zł</div>
-            </div>
-            <div class="duplicate-arrow">≈</div>
-            <div class="duplicate-side original">
-              <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: mieszkanie-dwupoziomowe-na-wynajem-CID3-ID1c9Ayx</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-dwupoziomowe-na-wynajem-CID3-ID1c9Ayx.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-dwupoziomowe-na-wynajem-CID3-ID1c9Ayx.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">adres: Osiedle Bazylianówka · cena: 3000 zł</div>
+              <strong>ID: mieszkanie-do-wynajecia-przy-ul-gesiej-CID3-ID1cpdHB</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-przy-ul-gesiej-CID3-ID1cpdHB.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-przy-ul-gesiej-CID3-ID1cpdHB.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Gęsiej 21 · cena: 1990 zł</div>
             </div>
           </div>
         </div>
@@ -1296,6 +768,39 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
               <strong>ID: wynajme-mieszkanie-CID3-ID1cCeVf</strong>
               <a href="https://www.olx.pl/d/oferta/wynajme-mieszkanie-CID3-ID1cCeVf.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-mieszkanie-CID3-ID1cCeVf.html?search_reason=search%7Corganic ↗</a>
               <div class="meta">adres:  · cena: 2200 zł</div>
+            </div>
+          </div>
+        </div>
+        
+    </div>
+    
+    <div class="offer" data-category="duplicate" data-search="mieszkanie 3-pokojowe do wynajęcia ">
+      <div class="offer-header">
+        <span class="badge duplicate">duplikat</span>
+        <div class="offer-title">Mieszkanie 3-pokojowe do wynajęcia</div>
+        
+      </div>
+      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Koryznowej 2B"</span></div>
+      
+        <div class="duplicate-compare">
+          <div class="duplicate-compare-title">
+            🔗 Porównaj oferty
+            <span class="similarity-pill">100.0% podobne</span>
+          </div>
+          <div class="duplicate-compare-grid">
+            <div class="duplicate-side this">
+              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
+              <strong>Mieszkanie 3-pokojowe do wynajęcia</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-3-pokojowe-do-wynajecia-CID3-ID1ckgNq.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-3-pokojowe-do-wynajecia-CID3-ID1ckgNq.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Koryznowej 2B · cena: 1800 zł</div>
+            </div>
+            <div class="duplicate-arrow">≈</div>
+            <div class="duplicate-side original">
+              <div class="role-label">✅ Pozostawione na mapie</div>
+              <strong>ID: mieszkanie-3-pokojowe-do-wynajecia-CID3-ID1ckgNq</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-3-pokojowe-do-wynajecia-CID3-ID1ckgNq.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-3-pokojowe-do-wynajecia-CID3-ID1ckgNq.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Koryznowej 2B · cena: 1800 zł</div>
             </div>
           </div>
         </div>
@@ -1335,14 +840,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="kawalerka do wynajęcia - 32 m² ">
+    <div class="offer" data-category="duplicate" data-search="mieszkanie 2 pok. z balkonem, lublin, lsm balladyny, umcs, wszędzie blisko, cicho, 38m2 ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Kawalerka do wynajęcia - 32 m²</div>
+        <div class="offer-title">Mieszkanie 2 pok. z balkonem, Lublin, LSM Balladyny, UMCS, wszędzie blisko, cicho, 38m2</div>
         
       </div>
       
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Ogródkowa 3"</span></div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Balladyny"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -1352,30 +857,30 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Kawalerka do wynajęcia - 32 m²</strong>
-              <a href="https://www.olx.pl/d/oferta/kawalerka-do-wynajecia-32-m-CID3-ID1bZEDU.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-do-wynajecia-32-m-CID3-ID1bZEDU.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Ogródkowa 3 · cena: 1600 zł</div>
+              <strong>Mieszkanie 2 pok. z balkonem, Lublin, LSM Balladyny, UMCS, wszędzie blisko, cicho, 38m2</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-2-pok-z-balkonem-lublin-lsm-balladyny-umcs-wszedzie-blisko-cicho-38m2-CID3-ID1cncQQ.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-2-pok-z-balkonem-lublin-lsm-balladyny-umcs-wszedzie-blisko-cicho-38m2-CID3-ID1cncQQ.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Balladyny · cena: 1800 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: kawalerka-do-wynajecia-32-m-CID3-ID1bZEDU</strong>
-              <a href="https://www.olx.pl/d/oferta/kawalerka-do-wynajecia-32-m-CID3-ID1bZEDU.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-do-wynajecia-32-m-CID3-ID1bZEDU.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Ogródkowa 3 · cena: 1600 zł</div>
+              <strong>ID: mieszkanie-2-pok-z-balkonem-lublin-lsm-balladyny-umcs-wszedzie-blisko-cicho-38m2-CID3-ID1cncQQ</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-2-pok-z-balkonem-lublin-lsm-balladyny-umcs-wszedzie-blisko-cicho-38m2-CID3-ID1cncQQ.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-2-pok-z-balkonem-lublin-lsm-balladyny-umcs-wszedzie-blisko-cicho-38m2-CID3-ID1cncQQ.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Balladyny · cena: 1800 zł</div>
             </div>
           </div>
         </div>
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="wynajme piękne mieszkanie ul. abramowicka 2/22 po remoncie jak nowe jasne cieple kunickiego głuska ">
+    <div class="offer" data-category="duplicate" data-search="mieszkanie do wynajęcia dostępne od zaraz ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Wynajme piękne mieszkanie ul. Abramowicka 2/22 po remoncie jak nowe jasne cieple Kunickiego Głuska</div>
+        <div class="offer-title">Mieszkanie do wynajęcia dostępne od zaraz</div>
         
       </div>
       
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Abramowicka 2/22"</span></div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Kwiatowej 17"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -1385,30 +890,30 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Wynajme piękne mieszkanie ul. Abramowicka 2/22 po remoncie jak nowe jasne cieple Kunickiego Głuska</strong>
-              <a href="https://www.olx.pl/d/oferta/wynajme-piekne-mieszkanie-ul-abramowicka-2-22-po-remoncie-jak-nowe-jasne-cieple-kunickiego-gluska-CID3-ID1c2gT1.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-piekne-mieszkanie-ul-abramowicka-2-22-po-remoncie-jak-nowe-jasne-cieple-kunickiego-gluska-CID3-ID1c2gT1.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Abramowicka 2/22 · cena: 2000 zł</div>
+              <strong>Mieszkanie do wynajęcia dostępne od zaraz</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-dostepne-od-zaraz-CID3-ID1cCSCa.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-dostepne-od-zaraz-CID3-ID1cCSCa.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Kwiatowej 17 · cena: 1900 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: wynajme-piekne-mieszkanie-ul-abramowicka-2-22-po-remoncie-jak-nowe-jasne-cieple-kunickiego-gluska-CID3-ID1c2gT1</strong>
-              <a href="https://www.olx.pl/d/oferta/wynajme-piekne-mieszkanie-ul-abramowicka-2-22-po-remoncie-jak-nowe-jasne-cieple-kunickiego-gluska-CID3-ID1c2gT1.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-piekne-mieszkanie-ul-abramowicka-2-22-po-remoncie-jak-nowe-jasne-cieple-kunickiego-gluska-CID3-ID1c2gT1.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Abramowicka 2/22 · cena: 2000 zł</div>
+              <strong>ID: mieszkanie-do-wynajecia-dostepne-od-zaraz-CID3-ID1cCSCa</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-dostepne-od-zaraz-CID3-ID1cCSCa.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-dostepne-od-zaraz-CID3-ID1cCSCa.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Kwiatowej 17 · cena: 1900 zł</div>
             </div>
           </div>
         </div>
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="mieszkanie- 3 niezalezne  pok.na lsm ul. pana tadeusza róg filaretów (okolice miasteczka akadem.). ">
+    <div class="offer" data-category="duplicate" data-search="wynajmę bezpośrednio apartament dwa pokoje, ul. nałęczowska 18a ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Mieszkanie- 3 niezalezne  pok.na LSM ul. Pana Tadeusza róg Filaretów (okolice miasteczka akadem.).</div>
+        <div class="offer-title">Wynajmę BEZPOŚREDNIO apartament dwa pokoje, ul. Nałęczowska 18A</div>
         
       </div>
       
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Pana Tadeusza"</span></div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Nałęczowska 18A"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -1418,30 +923,30 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Mieszkanie- 3 niezalezne  pok.na LSM ul. Pana Tadeusza róg Filaretów (okolice miasteczka akadem.).</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-3-niezalezne-pok-na-lsm-ul-pana-tadeusza-rog-filaretow-okolice-miasteczka-akadem-CID3-ID1cddVa.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-3-niezalezne-pok-na-lsm-ul-pana-tadeusza-rog-filaretow-okolice-miasteczka-akadem-CID3-ID1cddVa.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">parsed: Pana Tadeusza · cena: 2300 zł</div>
+              <strong>Wynajmę BEZPOŚREDNIO apartament dwa pokoje, ul. Nałęczowska 18A</strong>
+              <a href="https://www.olx.pl/d/oferta/wynajme-bezposrednio-apartament-dwa-pokoje-ul-naleczowska-18a-CID3-ID1aC7VY.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-bezposrednio-apartament-dwa-pokoje-ul-naleczowska-18a-CID3-ID1aC7VY.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Nałęczowska 18A · cena: 3200 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: mieszkanie-3-niezalezne-pok-na-lsm-ul-pana-tadeusza-rog-filaretow-okolice-miasteczka-akadem-CID3-ID1cddVa</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-3-niezalezne-pok-na-lsm-ul-pana-tadeusza-rog-filaretow-okolice-miasteczka-akadem-CID3-ID1cddVa.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-3-niezalezne-pok-na-lsm-ul-pana-tadeusza-rog-filaretow-okolice-miasteczka-akadem-CID3-ID1cddVa.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">adres: Pana Tadeusza · cena: 2300 zł</div>
+              <strong>ID: wynajme-bezposrednio-apartament-dwa-pokoje-ul-naleczowska-18a-CID3-ID1aC7VY</strong>
+              <a href="https://www.olx.pl/d/oferta/wynajme-bezposrednio-apartament-dwa-pokoje-ul-naleczowska-18a-CID3-ID1aC7VY.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-bezposrednio-apartament-dwa-pokoje-ul-naleczowska-18a-CID3-ID1aC7VY.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Nałęczowska 18A · cena: 3200 zł</div>
             </div>
           </div>
         </div>
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="nowoczesna, nowa kawalerka ul wyścigowa lublin ">
+    <div class="offer" data-category="duplicate" data-search="kawalerka w centrum na wynajem- ul. probostwo, lublin ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Nowoczesna, nowa kawalerka ul Wyścigowa Lublin</div>
+        <div class="offer-title">Kawalerka w centrum na wynajem- ul. Probostwo, Lublin</div>
         
       </div>
       
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Wyścigowa"</span></div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Probostwo 17B"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -1451,30 +956,30 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Nowoczesna, nowa kawalerka ul Wyścigowa Lublin</strong>
-              <a href="https://www.olx.pl/d/oferta/nowoczesna-nowa-kawalerka-ul-wyscigowa-lublin-CID3-ID1clJ8L.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/nowoczesna-nowa-kawalerka-ul-wyscigowa-lublin-CID3-ID1clJ8L.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Wyścigowa · cena: 2200 zł</div>
+              <strong>Kawalerka w centrum na wynajem- ul. Probostwo, Lublin</strong>
+              <a href="https://www.olx.pl/d/oferta/kawalerka-w-centrum-na-wynajem-ul-probostwo-lublin-CID3-ID1cFVHW.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-w-centrum-na-wynajem-ul-probostwo-lublin-CID3-ID1cFVHW.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Probostwo 17B · cena: 1600 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: nowoczesna-nowa-kawalerka-ul-wyscigowa-lublin-CID3-ID1clJ8L</strong>
-              <a href="https://www.olx.pl/d/oferta/nowoczesna-nowa-kawalerka-ul-wyscigowa-lublin-CID3-ID1clJ8L.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/nowoczesna-nowa-kawalerka-ul-wyscigowa-lublin-CID3-ID1clJ8L.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Wyścigowa · cena: 2200 zł</div>
+              <strong>ID: kawalerka-w-centrum-na-wynajem-ul-probostwo-lublin-CID3-ID1cFVHW</strong>
+              <a href="https://www.olx.pl/d/oferta/kawalerka-w-centrum-na-wynajem-ul-probostwo-lublin-CID3-ID1cFVHW.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-w-centrum-na-wynajem-ul-probostwo-lublin-CID3-ID1cFVHW.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Probostwo 17B · cena: 1600 zł</div>
             </div>
           </div>
         </div>
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="do wynajęcia mieszkanie 40mkw 2 pokojowe obok uniwersytetu medycznego ul. hirszfelda 5 ">
+    <div class="offer" data-category="duplicate" data-search="mieszkanie na wynajem puławska/wieniawa ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Do wynajęcia mieszkanie 40mkw 2 pokojowe obok Uniwersytetu Medycznego ul. Hirszfelda 5</div>
+        <div class="offer-title">Mieszkanie na wynajem Puławska/Wieniawa</div>
         
       </div>
       
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Hirszfelda 5"</span></div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Puławskiej"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -1484,16 +989,313 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Do wynajęcia mieszkanie 40mkw 2 pokojowe obok Uniwersytetu Medycznego ul. Hirszfelda 5</strong>
-              <a href="https://www.olx.pl/d/oferta/do-wynajecia-mieszkanie-40mkw-2-pokojowe-obok-uniwersytetu-medycznego-ul-hirszfelda-5-CID3-ID1c5puy.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/do-wynajecia-mieszkanie-40mkw-2-pokojowe-obok-uniwersytetu-medycznego-ul-hirszfelda-5-CID3-ID1c5puy.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">parsed: Hirszfelda 5 · cena: 2200 zł</div>
+              <strong>Mieszkanie na wynajem Puławska/Wieniawa</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-na-wynajem-pulawska-wieniawa-CID3-ID1cG0AE.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-na-wynajem-pulawska-wieniawa-CID3-ID1cG0AE.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">parsed: Puławskiej · cena: 2300 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: do-wynajecia-mieszkanie-40mkw-2-pokojowe-obok-uniwersytetu-medycznego-ul-hirszfelda-5-CID3-ID1c5puy</strong>
-              <a href="https://www.olx.pl/d/oferta/do-wynajecia-mieszkanie-40mkw-2-pokojowe-obok-uniwersytetu-medycznego-ul-hirszfelda-5-CID3-ID1c5puy.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/do-wynajecia-mieszkanie-40mkw-2-pokojowe-obok-uniwersytetu-medycznego-ul-hirszfelda-5-CID3-ID1c5puy.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">adres: Hirszfelda 5 · cena: 2200 zł</div>
+              <strong>ID: mieszkanie-na-wynajem-pulawska-wieniawa-CID3-ID1cG0AE</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-na-wynajem-pulawska-wieniawa-CID3-ID1cG0AE.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-na-wynajem-pulawska-wieniawa-CID3-ID1cG0AE.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">adres: Puławskiej · cena: 2300 zł</div>
+            </div>
+          </div>
+        </div>
+        
+    </div>
+    
+    <div class="offer" data-category="duplicate" data-search="mieszkanie 2 pok. z balkonem, lublin, lsm balladyny, umcs, wszędzie blisko, cicho, 38m2 ">
+      <div class="offer-header">
+        <span class="badge duplicate">duplikat</span>
+        <div class="offer-title">Mieszkanie 2 pok. z balkonem, Lublin, LSM Balladyny, UMCS, wszędzie blisko, cicho, 38m2</div>
+        
+      </div>
+      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Balladyny"</span></div>
+      
+        <div class="duplicate-compare">
+          <div class="duplicate-compare-title">
+            🔗 Porównaj oferty
+            <span class="similarity-pill">100.0% podobne</span>
+          </div>
+          <div class="duplicate-compare-grid">
+            <div class="duplicate-side this">
+              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
+              <strong>Mieszkanie 2 pok. z balkonem, Lublin, LSM Balladyny, UMCS, wszędzie blisko, cicho, 38m2</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-2-pok-z-balkonem-lublin-lsm-balladyny-umcs-wszedzie-blisko-cicho-38m2-CID3-ID1cncQQ.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-2-pok-z-balkonem-lublin-lsm-balladyny-umcs-wszedzie-blisko-cicho-38m2-CID3-ID1cncQQ.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Balladyny · cena: 1800 zł</div>
+            </div>
+            <div class="duplicate-arrow">≈</div>
+            <div class="duplicate-side original">
+              <div class="role-label">✅ Pozostawione na mapie</div>
+              <strong>ID: mieszkanie-2-pok-z-balkonem-lublin-lsm-balladyny-umcs-wszedzie-blisko-cicho-38m2-CID3-ID1cncQQ</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-2-pok-z-balkonem-lublin-lsm-balladyny-umcs-wszedzie-blisko-cicho-38m2-CID3-ID1cncQQ.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-2-pok-z-balkonem-lublin-lsm-balladyny-umcs-wszedzie-blisko-cicho-38m2-CID3-ID1cncQQ.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Balladyny · cena: 1800 zł</div>
+            </div>
+          </div>
+        </div>
+        
+    </div>
+    
+    <div class="offer" data-category="duplicate" data-search="wynajmę bezpośrednio apartament dwa pokoje, ul. nałęczowska 18a ">
+      <div class="offer-header">
+        <span class="badge duplicate">duplikat</span>
+        <div class="offer-title">Wynajmę BEZPOŚREDNIO apartament dwa pokoje, ul. Nałęczowska 18A</div>
+        
+      </div>
+      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Nałęczowska 18A"</span></div>
+      
+        <div class="duplicate-compare">
+          <div class="duplicate-compare-title">
+            🔗 Porównaj oferty
+            <span class="similarity-pill">100.0% podobne</span>
+          </div>
+          <div class="duplicate-compare-grid">
+            <div class="duplicate-side this">
+              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
+              <strong>Wynajmę BEZPOŚREDNIO apartament dwa pokoje, ul. Nałęczowska 18A</strong>
+              <a href="https://www.olx.pl/d/oferta/wynajme-bezposrednio-apartament-dwa-pokoje-ul-naleczowska-18a-CID3-ID1aC7VY.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-bezposrednio-apartament-dwa-pokoje-ul-naleczowska-18a-CID3-ID1aC7VY.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Nałęczowska 18A · cena: 3200 zł</div>
+            </div>
+            <div class="duplicate-arrow">≈</div>
+            <div class="duplicate-side original">
+              <div class="role-label">✅ Pozostawione na mapie</div>
+              <strong>ID: wynajme-bezposrednio-apartament-dwa-pokoje-ul-naleczowska-18a-CID3-ID1aC7VY</strong>
+              <a href="https://www.olx.pl/d/oferta/wynajme-bezposrednio-apartament-dwa-pokoje-ul-naleczowska-18a-CID3-ID1aC7VY.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-bezposrednio-apartament-dwa-pokoje-ul-naleczowska-18a-CID3-ID1aC7VY.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Nałęczowska 18A · cena: 3200 zł</div>
+            </div>
+          </div>
+        </div>
+        
+    </div>
+    
+    <div class="offer" data-category="duplicate" data-search="do wynajęcia 2 pokoje, 39m2,kalinowszczyzna niepodległości, od zaraz ">
+      <div class="offer-header">
+        <span class="badge duplicate">duplikat</span>
+        <div class="offer-title">do wynajęcia 2 pokoje, 39m2,Kalinowszczyzna Niepodległości, od zaraz</div>
+        
+      </div>
+      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Niepodległości"</span></div>
+      
+        <div class="duplicate-compare">
+          <div class="duplicate-compare-title">
+            🔗 Porównaj oferty
+            <span class="similarity-pill">100.0% podobne</span>
+          </div>
+          <div class="duplicate-compare-grid">
+            <div class="duplicate-side this">
+              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
+              <strong>do wynajęcia 2 pokoje, 39m2,Kalinowszczyzna Niepodległości, od zaraz</strong>
+              <a href="https://www.olx.pl/d/oferta/do-wynajecia-2-pokoje-39m2-kalinowszczyzna-niepodleglosci-od-zaraz-CID3-ID1cvuU7.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/do-wynajecia-2-pokoje-39m2-kalinowszczyzna-niepodleglosci-od-zaraz-CID3-ID1cvuU7.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">parsed: Niepodległości · cena: 1450 zł</div>
+            </div>
+            <div class="duplicate-arrow">≈</div>
+            <div class="duplicate-side original">
+              <div class="role-label">✅ Pozostawione na mapie</div>
+              <strong>ID: do-wynajecia-2-pokoje-39m2-kalinowszczyzna-niepodleglosci-od-zaraz-CID3-ID1cvuU7</strong>
+              <a href="https://www.olx.pl/d/oferta/do-wynajecia-2-pokoje-39m2-kalinowszczyzna-niepodleglosci-od-zaraz-CID3-ID1cvuU7.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/do-wynajecia-2-pokoje-39m2-kalinowszczyzna-niepodleglosci-od-zaraz-CID3-ID1cvuU7.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">adres: Niepodległości · cena: 1450 zł</div>
+            </div>
+          </div>
+        </div>
+        
+    </div>
+    
+    <div class="offer" data-category="duplicate" data-search="kawalerka w centrum na wynajem- ul. probostwo, lublin ">
+      <div class="offer-header">
+        <span class="badge duplicate">duplikat</span>
+        <div class="offer-title">Kawalerka w centrum na wynajem- ul. Probostwo, Lublin</div>
+        
+      </div>
+      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Probostwo 17B"</span></div>
+      
+        <div class="duplicate-compare">
+          <div class="duplicate-compare-title">
+            🔗 Porównaj oferty
+            <span class="similarity-pill">100.0% podobne</span>
+          </div>
+          <div class="duplicate-compare-grid">
+            <div class="duplicate-side this">
+              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
+              <strong>Kawalerka w centrum na wynajem- ul. Probostwo, Lublin</strong>
+              <a href="https://www.olx.pl/d/oferta/kawalerka-w-centrum-na-wynajem-ul-probostwo-lublin-CID3-ID1cFVHW.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-w-centrum-na-wynajem-ul-probostwo-lublin-CID3-ID1cFVHW.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Probostwo 17B · cena: 1600 zł</div>
+            </div>
+            <div class="duplicate-arrow">≈</div>
+            <div class="duplicate-side original">
+              <div class="role-label">✅ Pozostawione na mapie</div>
+              <strong>ID: kawalerka-w-centrum-na-wynajem-ul-probostwo-lublin-CID3-ID1cFVHW</strong>
+              <a href="https://www.olx.pl/d/oferta/kawalerka-w-centrum-na-wynajem-ul-probostwo-lublin-CID3-ID1cFVHW.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-w-centrum-na-wynajem-ul-probostwo-lublin-CID3-ID1cFVHW.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Probostwo 17B · cena: 1600 zł</div>
+            </div>
+          </div>
+        </div>
+        
+    </div>
+    
+    <div class="offer" data-category="duplicate" data-search="słoneczne mieszkanie przy ul. jemiołuszki 4 klimatyzacja ">
+      <div class="offer-header">
+        <span class="badge duplicate">duplikat</span>
+        <div class="offer-title">Słoneczne mieszkanie przy ul. Jemiołuszki 4 KLIMATYZACJA</div>
+        
+      </div>
+      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Jemiołuszki 4"</span></div>
+      
+        <div class="duplicate-compare">
+          <div class="duplicate-compare-title">
+            🔗 Porównaj oferty
+            <span class="similarity-pill">100.0% podobne</span>
+          </div>
+          <div class="duplicate-compare-grid">
+            <div class="duplicate-side this">
+              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
+              <strong>Słoneczne mieszkanie przy ul. Jemiołuszki 4 KLIMATYZACJA</strong>
+              <a href="https://www.olx.pl/d/oferta/sloneczne-mieszkanie-przy-ul-jemioluszki-4-klimatyzacja-CID3-ID16QsCz.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/sloneczne-mieszkanie-przy-ul-jemioluszki-4-klimatyzacja-CID3-ID16QsCz.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Jemiołuszki 4 · cena: 2500 zł</div>
+            </div>
+            <div class="duplicate-arrow">≈</div>
+            <div class="duplicate-side original">
+              <div class="role-label">✅ Pozostawione na mapie</div>
+              <strong>ID: sloneczne-mieszkanie-przy-ul-jemioluszki-4-klimatyzacja-CID3-ID16QsCz</strong>
+              <a href="https://www.olx.pl/d/oferta/sloneczne-mieszkanie-przy-ul-jemioluszki-4-klimatyzacja-CID3-ID16QsCz.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/sloneczne-mieszkanie-przy-ul-jemioluszki-4-klimatyzacja-CID3-ID16QsCz.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Jemiołuszki 4 · cena: 2500 zł</div>
+            </div>
+          </div>
+        </div>
+        
+    </div>
+    
+    <div class="offer" data-category="duplicate" data-search="mieszkanie do wynajecia ">
+      <div class="offer-header">
+        <span class="badge duplicate">duplikat</span>
+        <div class="offer-title">Mieszkanie do wynajecia</div>
+        
+      </div>
+      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Skrzatow 2/57"</span></div>
+      
+        <div class="duplicate-compare">
+          <div class="duplicate-compare-title">
+            🔗 Porównaj oferty
+            <span class="similarity-pill">100.0% podobne</span>
+          </div>
+          <div class="duplicate-compare-grid">
+            <div class="duplicate-side this">
+              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
+              <strong>Mieszkanie do wynajecia</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-CID3-ID1cyQgw.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-CID3-ID1cyQgw.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Skrzatow 2/57 · cena: 1950 zł</div>
+            </div>
+            <div class="duplicate-arrow">≈</div>
+            <div class="duplicate-side original">
+              <div class="role-label">✅ Pozostawione na mapie</div>
+              <strong>ID: mieszkanie-do-wynajecia-CID3-ID1cyQgw</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-CID3-ID1cyQgw.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-CID3-ID1cyQgw.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">adres: Skrzatow 2/57 · cena: 1950 zł</div>
+            </div>
+          </div>
+        </div>
+        
+    </div>
+    
+    <div class="offer" data-category="duplicate" data-search="sowińskiego 3 - mieszkanie do wynajęcia (blisko umcs, kul, centrum) ">
+      <div class="offer-header">
+        <span class="badge duplicate">duplikat</span>
+        <div class="offer-title">Sowińskiego 3 - mieszkanie do wynajęcia (blisko UMCS, KUL, Centrum)</div>
+        
+      </div>
+      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Sowińskiego 3"</span></div>
+      
+        <div class="duplicate-compare">
+          <div class="duplicate-compare-title">
+            🔗 Porównaj oferty
+            <span class="similarity-pill">100.0% podobne</span>
+          </div>
+          <div class="duplicate-compare-grid">
+            <div class="duplicate-side this">
+              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
+              <strong>Sowińskiego 3 - mieszkanie do wynajęcia (blisko UMCS, KUL, Centrum)</strong>
+              <a href="https://www.olx.pl/d/oferta/sowinskiego-3-mieszkanie-do-wynajecia-blisko-umcs-kul-centrum-CID3-ID1brdFt.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/sowinskiego-3-mieszkanie-do-wynajecia-blisko-umcs-kul-centrum-CID3-ID1brdFt.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">parsed: Sowińskiego 3 · cena: 2300 zł</div>
+            </div>
+            <div class="duplicate-arrow">≈</div>
+            <div class="duplicate-side original">
+              <div class="role-label">✅ Pozostawione na mapie</div>
+              <strong>ID: sowinskiego-3-mieszkanie-do-wynajecia-blisko-umcs-kul-centrum-CID3-ID1brdFt</strong>
+              <a href="https://www.olx.pl/d/oferta/sowinskiego-3-mieszkanie-do-wynajecia-blisko-umcs-kul-centrum-CID3-ID1brdFt.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/sowinskiego-3-mieszkanie-do-wynajecia-blisko-umcs-kul-centrum-CID3-ID1brdFt.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">adres: Sowińskiego 3 · cena: 2300 zł</div>
+            </div>
+          </div>
+        </div>
+        
+    </div>
+    
+    <div class="offer" data-category="duplicate" data-search="śródmieście ul.lipowa ">
+      <div class="offer-header">
+        <span class="badge duplicate">duplikat</span>
+        <div class="offer-title">Śródmieście ul.Lipowa</div>
+        
+      </div>
+      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Lipowej"</span></div>
+      
+        <div class="duplicate-compare">
+          <div class="duplicate-compare-title">
+            🔗 Porównaj oferty
+            <span class="similarity-pill">100.0% podobne</span>
+          </div>
+          <div class="duplicate-compare-grid">
+            <div class="duplicate-side this">
+              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
+              <strong>Śródmieście ul.Lipowa</strong>
+              <a href="https://www.olx.pl/d/oferta/srodmiescie-ul-lipowa-CID3-ID17yCb7.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/srodmiescie-ul-lipowa-CID3-ID17yCb7.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">parsed: Lipowej · cena: 3000 zł</div>
+            </div>
+            <div class="duplicate-arrow">≈</div>
+            <div class="duplicate-side original">
+              <div class="role-label">✅ Pozostawione na mapie</div>
+              <strong>ID: srodmiescie-ul-lipowa-CID3-ID17yCb7</strong>
+              <a href="https://www.olx.pl/d/oferta/srodmiescie-ul-lipowa-CID3-ID17yCb7.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/srodmiescie-ul-lipowa-CID3-ID17yCb7.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">adres: Lipowej · cena: 3000 zł</div>
+            </div>
+          </div>
+        </div>
+        
+    </div>
+    
+    <div class="offer" data-category="duplicate" data-search="mieszkanie do wynajęcia centrum lublina ">
+      <div class="offer-header">
+        <span class="badge duplicate">duplikat</span>
+        <div class="offer-title">Mieszkanie do wynajęcia Centrum Lublina</div>
+        
+      </div>
+      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Jaczewskiego"</span></div>
+      
+        <div class="duplicate-compare">
+          <div class="duplicate-compare-title">
+            🔗 Porównaj oferty
+            <span class="similarity-pill">100.0% podobne</span>
+          </div>
+          <div class="duplicate-compare-grid">
+            <div class="duplicate-side this">
+              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
+              <strong>Mieszkanie do wynajęcia Centrum Lublina</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-centrum-lublina-CID3-ID1cFVDi.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-centrum-lublina-CID3-ID1cFVDi.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">parsed: Jaczewskiego · cena: 2600 zł</div>
+            </div>
+            <div class="duplicate-arrow">≈</div>
+            <div class="duplicate-side original">
+              <div class="role-label">✅ Pozostawione na mapie</div>
+              <strong>ID: mieszkanie-do-wynajecia-centrum-lublina-CID3-ID1cFVDi</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-centrum-lublina-CID3-ID1cFVDi.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-centrum-lublina-CID3-ID1cFVDi.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">adres: Jaczewskiego · cena: 2600 zł</div>
             </div>
           </div>
         </div>
@@ -1533,14 +1335,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="kawalerka, parking na posesji, slawin bez czynszu ">
+    <div class="offer" data-category="duplicate" data-search="nowoczesne, klimatyzowane mieszkanie na wynajem, ul. rotmistrza witolda pileckiego ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Kawalerka, parking na posesji, Slawin bez czynszu</div>
+        <div class="offer-title">Nowoczesne, klimatyzowane mieszkanie na wynajem, ul. Rotmistrza Witolda Pileckiego</div>
         
       </div>
       
-      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Rotmistrza Witolda Pileckiego"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -1550,30 +1352,30 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Kawalerka, parking na posesji, Slawin bez czynszu</strong>
-              <a href="https://www.olx.pl/d/oferta/kawalerka-parking-na-posesji-slawin-bez-czynszu-CID3-ID1czy1T.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-parking-na-posesji-slawin-bez-czynszu-CID3-ID1czy1T.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">parsed:  · cena: 1800 zł</div>
+              <strong>Nowoczesne, klimatyzowane mieszkanie na wynajem, ul. Rotmistrza Witolda Pileckiego</strong>
+              <a href="https://www.olx.pl/d/oferta/nowoczesne-klimatyzowane-mieszkanie-na-wynajem-ul-rotmistrza-witolda-pileckiego-CID3-ID1czKg3.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/nowoczesne-klimatyzowane-mieszkanie-na-wynajem-ul-rotmistrza-witolda-pileckiego-CID3-ID1czKg3.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Rotmistrza Witolda Pileckiego · cena: 3300 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: kawalerka-parking-na-posesji-slawin-bez-czynszu-CID3-ID1czy1T</strong>
-              <a href="https://www.olx.pl/d/oferta/kawalerka-parking-na-posesji-slawin-bez-czynszu-CID3-ID1czy1T.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-parking-na-posesji-slawin-bez-czynszu-CID3-ID1czy1T.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">adres:  · cena: 1800 zł</div>
+              <strong>ID: nowoczesne-klimatyzowane-mieszkanie-na-wynajem-ul-rotmistrza-witolda-pileckiego-CID3-ID1czKg3</strong>
+              <a href="https://www.olx.pl/d/oferta/nowoczesne-klimatyzowane-mieszkanie-na-wynajem-ul-rotmistrza-witolda-pileckiego-CID3-ID1czKg3.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/nowoczesne-klimatyzowane-mieszkanie-na-wynajem-ul-rotmistrza-witolda-pileckiego-CID3-ID1czKg3.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Rotmistrza Witolda Pileckiego · cena: 3300 zł</div>
             </div>
           </div>
         </div>
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="komfortowe mieszkanie 68 m² na wynajem – lublin sławin ">
+    <div class="offer" data-category="duplicate" data-search="# **przytulna, w pełni wyposażona kawalerka 28 m² z balkonem – gotowa do zamieszkania!** lsm/rury ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Komfortowe mieszkanie 68 m² na wynajem – Lublin Sławin</div>
+        <div class="offer-title"># **Przytulna, w pełni wyposażona kawalerka 28 m² z balkonem – Gotowa do zamieszkania!** LSM/Rury</div>
         
       </div>
       
-      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Wileńska 7"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -1583,30 +1385,30 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Komfortowe mieszkanie 68 m² na wynajem – Lublin Sławin</strong>
-              <a href="https://www.olx.pl/d/oferta/komfortowe-mieszkanie-68-m-na-wynajem-lublin-slawin-CID3-ID1cu2vp.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/komfortowe-mieszkanie-68-m-na-wynajem-lublin-slawin-CID3-ID1cu2vp.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">parsed:  · cena: 2790 zł</div>
+              <strong># **Przytulna, w pełni wyposażona kawalerka 28 m² z balkonem – Gotowa do zamieszkania!** LSM/Rury</strong>
+              <a href="https://www.olx.pl/d/oferta/przytulna-w-pelni-wyposazona-kawalerka-28-m-z-balkonem-gotowa-do-zamieszkania-lsm-rury-CID3-ID1cBcwb.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/przytulna-w-pelni-wyposazona-kawalerka-28-m-z-balkonem-gotowa-do-zamieszkania-lsm-rury-CID3-ID1cBcwb.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Wileńska 7 · cena: 1800 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: komfortowe-mieszkanie-68-m-na-wynajem-lublin-slawin-CID3-ID1cu2vp</strong>
-              <a href="https://www.olx.pl/d/oferta/komfortowe-mieszkanie-68-m-na-wynajem-lublin-slawin-CID3-ID1cu2vp.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/komfortowe-mieszkanie-68-m-na-wynajem-lublin-slawin-CID3-ID1cu2vp.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">adres:  · cena: 2790 zł</div>
+              <strong>ID: przytulna-w-pelni-wyposazona-kawalerka-28-m-z-balkonem-gotowa-do-zamieszkania-lsm-rury-CID3-ID1cBcwb</strong>
+              <a href="https://www.olx.pl/d/oferta/przytulna-w-pelni-wyposazona-kawalerka-28-m-z-balkonem-gotowa-do-zamieszkania-lsm-rury-CID3-ID1cBcwb.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/przytulna-w-pelni-wyposazona-kawalerka-28-m-z-balkonem-gotowa-do-zamieszkania-lsm-rury-CID3-ID1cBcwb.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Wileńska 7 · cena: 1800 zł</div>
             </div>
           </div>
         </div>
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="mieszkanie dla studentek/studentów/osób pracujących   blisko umcs,kul do wynajęcia ">
+    <div class="offer" data-category="duplicate" data-search="2 pokojowe mieszkanie do wynajęcia - lsm ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Mieszkanie dla studentek/studentów/osób pracujących   blisko UMCS,KUL do wynajęcia</div>
+        <div class="offer-title">2 pokojowe mieszkanie do wynajęcia - LSM</div>
         
       </div>
       
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Popiełuszki"</span></div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Grazyny"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -1616,30 +1418,30 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Mieszkanie dla studentek/studentów/osób pracujących   blisko UMCS,KUL do wynajęcia</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-dla-studentek-studentow-osob-pracujacych-blisko-umcs-kul-do-wynajecia-CID3-ID1cHw1f.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-dla-studentek-studentow-osob-pracujacych-blisko-umcs-kul-do-wynajecia-CID3-ID1cHw1f.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">parsed: Popiełuszki · cena: 2200 zł</div>
+              <strong>2 pokojowe mieszkanie do wynajęcia - LSM</strong>
+              <a href="https://www.olx.pl/d/oferta/2-pokojowe-mieszkanie-do-wynajecia-lsm-CID3-ID18YIIt.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/2-pokojowe-mieszkanie-do-wynajecia-lsm-CID3-ID18YIIt.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Grazyny · cena: 1600 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: mieszkanie-dla-studentek-studentow-osob-pracujacych-blisko-umcs-kul-do-wynajecia-CID3-ID1cHw1f</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-dla-studentek-studentow-osob-pracujacych-blisko-umcs-kul-do-wynajecia-CID3-ID1cHw1f.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-dla-studentek-studentow-osob-pracujacych-blisko-umcs-kul-do-wynajecia-CID3-ID1cHw1f.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">adres: Popiełuszki · cena: 2200 zł</div>
+              <strong>ID: 2-pokojowe-mieszkanie-do-wynajecia-lsm-CID3-ID18YIIt</strong>
+              <a href="https://www.olx.pl/d/oferta/2-pokojowe-mieszkanie-do-wynajecia-lsm-CID3-ID18YIIt.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/2-pokojowe-mieszkanie-do-wynajecia-lsm-CID3-ID18YIIt.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Grazyny · cena: 1600 zł</div>
             </div>
           </div>
         </div>
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="mieszkanie- kawalerka plus miejsce parkingowe,  lublin, botanik, ul. relaksowa ">
+    <div class="offer" data-category="duplicate" data-search="kawalerka do wynajęcia blisko miasteczka uniwersyteckiego ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Mieszkanie- kawalerka plus miejsce parkingowe,  Lublin, Botanik, ul. Relaksowa</div>
+        <div class="offer-title">Kawalerka do wynajęcia blisko miasteczka Uniwersyteckiego</div>
         
       </div>
       
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Relaksowa"</span></div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Grażyny"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -1649,30 +1451,30 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Mieszkanie- kawalerka plus miejsce parkingowe,  Lublin, Botanik, ul. Relaksowa</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-kawalerka-plus-miejsce-parkingowe-lublin-botanik-ul-relaksowa-CID3-ID1bFZcO.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-kawalerka-plus-miejsce-parkingowe-lublin-botanik-ul-relaksowa-CID3-ID1bFZcO.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">parsed: Relaksowa · cena: 2300 zł</div>
+              <strong>Kawalerka do wynajęcia blisko miasteczka Uniwersyteckiego</strong>
+              <a href="https://www.olx.pl/d/oferta/kawalerka-do-wynajecia-blisko-miasteczka-uniwersyteckiego-CID3-ID1cCNLp.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-do-wynajecia-blisko-miasteczka-uniwersyteckiego-CID3-ID1cCNLp.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Grażyny · cena: 2100 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: mieszkanie-kawalerka-plus-miejsce-parkingowe-lublin-botanik-ul-relaksowa-CID3-ID1bFZcO</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-kawalerka-plus-miejsce-parkingowe-lublin-botanik-ul-relaksowa-CID3-ID1bFZcO.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-kawalerka-plus-miejsce-parkingowe-lublin-botanik-ul-relaksowa-CID3-ID1bFZcO.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">adres: Relaksowa · cena: 2300 zł</div>
+              <strong>ID: kawalerka-do-wynajecia-blisko-miasteczka-uniwersyteckiego-CID3-ID1cCNLp</strong>
+              <a href="https://www.olx.pl/d/oferta/kawalerka-do-wynajecia-blisko-miasteczka-uniwersyteckiego-CID3-ID1cCNLp.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-do-wynajecia-blisko-miasteczka-uniwersyteckiego-CID3-ID1cCNLp.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Grażyny · cena: 2100 zł</div>
             </div>
           </div>
         </div>
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="mieszkanie do wynajęcia lsm ul. juranda ">
+    <div class="offer" data-category="duplicate" data-search="nowoczesne mieszkanie na wynajem, ul. morwowa/wojciechowska ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Mieszkanie do wynajęcia LSM ul. Juranda</div>
+        <div class="offer-title">Nowoczesne mieszkanie na wynajem, ul. Morwowa/Wojciechowska</div>
         
       </div>
       
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Juranda"</span></div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Morwowa"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -1682,16 +1484,115 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Mieszkanie do wynajęcia LSM ul. Juranda</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-lsm-ul-juranda-CID3-ID1cizrI.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-lsm-ul-juranda-CID3-ID1cizrI.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">parsed: Juranda · cena: 1800 zł</div>
+              <strong>Nowoczesne mieszkanie na wynajem, ul. Morwowa/Wojciechowska</strong>
+              <a href="https://www.olx.pl/d/oferta/nowoczesne-mieszkanie-na-wynajem-ul-morwowa-wojciechowska-CID3-ID1cjosU.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/nowoczesne-mieszkanie-na-wynajem-ul-morwowa-wojciechowska-CID3-ID1cjosU.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Morwowa · cena: 2900 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: mieszkanie-do-wynajecia-lsm-ul-juranda-CID3-ID1cizrI</strong>
-              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-lsm-ul-juranda-CID3-ID1cizrI.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-lsm-ul-juranda-CID3-ID1cizrI.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">adres: Juranda · cena: 1800 zł</div>
+              <strong>ID: nowoczesne-mieszkanie-na-wynajem-ul-morwowa-wojciechowska-CID3-ID1cjosU</strong>
+              <a href="https://www.olx.pl/d/oferta/nowoczesne-mieszkanie-na-wynajem-ul-morwowa-wojciechowska-CID3-ID1cjosU.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/nowoczesne-mieszkanie-na-wynajem-ul-morwowa-wojciechowska-CID3-ID1cjosU.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Morwowa · cena: 2900 zł</div>
+            </div>
+          </div>
+        </div>
+        
+    </div>
+    
+    <div class="offer" data-category="duplicate" data-search="wynajmę mieszkanie w lublinie ul. różana 28 z opcjonalnym miejscem garażowym ">
+      <div class="offer-header">
+        <span class="badge duplicate">duplikat</span>
+        <div class="offer-title">Wynajmę mieszkanie w Lublinie ul. Różana 28 z opcjonalnym miejscem garażowym</div>
+        
+      </div>
+      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Różana 28"</span></div>
+      
+        <div class="duplicate-compare">
+          <div class="duplicate-compare-title">
+            🔗 Porównaj oferty
+            <span class="similarity-pill">100.0% podobne</span>
+          </div>
+          <div class="duplicate-compare-grid">
+            <div class="duplicate-side this">
+              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
+              <strong>Wynajmę mieszkanie w Lublinie ul. Różana 28 z opcjonalnym miejscem garażowym</strong>
+              <a href="https://www.olx.pl/d/oferta/wynajme-mieszkanie-w-lublinie-ul-rozana-28-z-opcjonalnym-miejscem-garazowym-CID3-ID1cFp98.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-mieszkanie-w-lublinie-ul-rozana-28-z-opcjonalnym-miejscem-garazowym-CID3-ID1cFp98.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Różana 28 · cena: 3000 zł</div>
+            </div>
+            <div class="duplicate-arrow">≈</div>
+            <div class="duplicate-side original">
+              <div class="role-label">✅ Pozostawione na mapie</div>
+              <strong>ID: wynajme-mieszkanie-w-lublinie-ul-rozana-28-z-opcjonalnym-miejscem-garazowym-CID3-ID1cFp98</strong>
+              <a href="https://www.olx.pl/d/oferta/wynajme-mieszkanie-w-lublinie-ul-rozana-28-z-opcjonalnym-miejscem-garazowym-CID3-ID1cFp98.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-mieszkanie-w-lublinie-ul-rozana-28-z-opcjonalnym-miejscem-garazowym-CID3-ID1cFp98.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">adres: Różana 28 · cena: 3000 zł</div>
+            </div>
+          </div>
+        </div>
+        
+    </div>
+    
+    <div class="offer" data-category="duplicate" data-search="kawalerka do wynajęcia blisko miasteczka uniwersyteckiego ">
+      <div class="offer-header">
+        <span class="badge duplicate">duplikat</span>
+        <div class="offer-title">Kawalerka do wynajęcia blisko miasteczka Uniwersyteckiego</div>
+        
+      </div>
+      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Grażyny"</span></div>
+      
+        <div class="duplicate-compare">
+          <div class="duplicate-compare-title">
+            🔗 Porównaj oferty
+            <span class="similarity-pill">100.0% podobne</span>
+          </div>
+          <div class="duplicate-compare-grid">
+            <div class="duplicate-side this">
+              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
+              <strong>Kawalerka do wynajęcia blisko miasteczka Uniwersyteckiego</strong>
+              <a href="https://www.olx.pl/d/oferta/kawalerka-do-wynajecia-blisko-miasteczka-uniwersyteckiego-CID3-ID1cCNLp.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-do-wynajecia-blisko-miasteczka-uniwersyteckiego-CID3-ID1cCNLp.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Grażyny · cena: 2100 zł</div>
+            </div>
+            <div class="duplicate-arrow">≈</div>
+            <div class="duplicate-side original">
+              <div class="role-label">✅ Pozostawione na mapie</div>
+              <strong>ID: kawalerka-do-wynajecia-blisko-miasteczka-uniwersyteckiego-CID3-ID1cCNLp</strong>
+              <a href="https://www.olx.pl/d/oferta/kawalerka-do-wynajecia-blisko-miasteczka-uniwersyteckiego-CID3-ID1cCNLp.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-do-wynajecia-blisko-miasteczka-uniwersyteckiego-CID3-ID1cCNLp.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Grażyny · cena: 2100 zł</div>
+            </div>
+          </div>
+        </div>
+        
+    </div>
+    
+    <div class="offer" data-category="duplicate" data-search="wynajmę mieszkanie na lsm- balladyny ">
+      <div class="offer-header">
+        <span class="badge duplicate">duplikat</span>
+        <div class="offer-title">Wynajmę mieszkanie na LSM- Balladyny</div>
+        
+      </div>
+      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Balladyny"</span></div>
+      
+        <div class="duplicate-compare">
+          <div class="duplicate-compare-title">
+            🔗 Porównaj oferty
+            <span class="similarity-pill">100.0% podobne</span>
+          </div>
+          <div class="duplicate-compare-grid">
+            <div class="duplicate-side this">
+              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
+              <strong>Wynajmę mieszkanie na LSM- Balladyny</strong>
+              <a href="https://www.olx.pl/d/oferta/wynajme-mieszkanie-na-lsm-balladyny-CID3-ID1cpFGW.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-mieszkanie-na-lsm-balladyny-CID3-ID1cpFGW.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">parsed: Balladyny · cena: 3000 zł</div>
+            </div>
+            <div class="duplicate-arrow">≈</div>
+            <div class="duplicate-side original">
+              <div class="role-label">✅ Pozostawione na mapie</div>
+              <strong>ID: wynajme-mieszkanie-na-lsm-balladyny-CID3-ID1cpFGW</strong>
+              <a href="https://www.olx.pl/d/oferta/wynajme-mieszkanie-na-lsm-balladyny-CID3-ID1cpFGW.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-mieszkanie-na-lsm-balladyny-CID3-ID1cpFGW.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">adres: Balladyny · cena: 3000 zł</div>
             </div>
           </div>
         </div>
@@ -1731,14 +1632,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
         
     </div>
     
-    <div class="offer" data-category="duplicate" data-search="piętro domu dla dwóch studentek przy orkana/węglin ">
+    <div class="offer" data-category="duplicate" data-search="wynajmę nową, klimatyczną kawalerkę ul.kwarcowa ">
       <div class="offer-header">
         <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Piętro domu dla dwóch studentek przy Orkana/Węglin</div>
+        <div class="offer-title">Wynajmę nową, klimatyczną kawalerkę ul.Kwarcowa</div>
         
       </div>
       
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Orkana"</span></div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Kwarcowej"</span></div>
       
         <div class="duplicate-compare">
           <div class="duplicate-compare-title">
@@ -1748,16 +1649,214 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
           <div class="duplicate-compare-grid">
             <div class="duplicate-side this">
               <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Piętro domu dla dwóch studentek przy Orkana/Węglin</strong>
-              <a href="https://www.olx.pl/d/oferta/pietro-domu-dla-dwoch-studentek-przy-orkana-weglin-CID3-ID1cweIO.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/pietro-domu-dla-dwoch-studentek-przy-orkana-weglin-CID3-ID1cweIO.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">parsed: Orkana · cena: 1200 zł</div>
+              <strong>Wynajmę nową, klimatyczną kawalerkę ul.Kwarcowa</strong>
+              <a href="https://www.olx.pl/d/oferta/wynajme-nowa-klimatyczna-kawalerke-ul-kwarcowa-CID3-ID1cDJ0s.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-nowa-klimatyczna-kawalerke-ul-kwarcowa-CID3-ID1cDJ0s.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">parsed: Kwarcowej · cena: 2100 zł</div>
             </div>
             <div class="duplicate-arrow">≈</div>
             <div class="duplicate-side original">
               <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: pietro-domu-dla-dwoch-studentek-przy-orkana-weglin-CID3-ID1cweIO</strong>
-              <a href="https://www.olx.pl/d/oferta/pietro-domu-dla-dwoch-studentek-przy-orkana-weglin-CID3-ID1cweIO.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/pietro-domu-dla-dwoch-studentek-przy-orkana-weglin-CID3-ID1cweIO.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">adres: Orkana · cena: 1200 zł</div>
+              <strong>ID: wynajme-nowa-klimatyczna-kawalerke-ul-kwarcowa-CID3-ID1cDJ0s</strong>
+              <a href="https://www.olx.pl/d/oferta/wynajme-nowa-klimatyczna-kawalerke-ul-kwarcowa-CID3-ID1cDJ0s.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-nowa-klimatyczna-kawalerke-ul-kwarcowa-CID3-ID1cDJ0s.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">adres: Kwarcowej · cena: 2100 zł</div>
+            </div>
+          </div>
+        </div>
+        
+    </div>
+    
+    <div class="offer" data-category="duplicate" data-search="kawalerka, parking na posesji, slawin bez czynszu ">
+      <div class="offer-header">
+        <span class="badge duplicate">duplikat</span>
+        <div class="offer-title">Kawalerka, parking na posesji, Slawin bez czynszu</div>
+        
+      </div>
+      
+      
+      
+        <div class="duplicate-compare">
+          <div class="duplicate-compare-title">
+            🔗 Porównaj oferty
+            <span class="similarity-pill">100.0% podobne</span>
+          </div>
+          <div class="duplicate-compare-grid">
+            <div class="duplicate-side this">
+              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
+              <strong>Kawalerka, parking na posesji, Slawin bez czynszu</strong>
+              <a href="https://www.olx.pl/d/oferta/kawalerka-parking-na-posesji-slawin-bez-czynszu-CID3-ID1czy1T.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-parking-na-posesji-slawin-bez-czynszu-CID3-ID1czy1T.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">parsed:  · cena: 1800 zł</div>
+            </div>
+            <div class="duplicate-arrow">≈</div>
+            <div class="duplicate-side original">
+              <div class="role-label">✅ Pozostawione na mapie</div>
+              <strong>ID: kawalerka-parking-na-posesji-slawin-bez-czynszu-CID3-ID1czy1T</strong>
+              <a href="https://www.olx.pl/d/oferta/kawalerka-parking-na-posesji-slawin-bez-czynszu-CID3-ID1czy1T.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/kawalerka-parking-na-posesji-slawin-bez-czynszu-CID3-ID1czy1T.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">adres:  · cena: 1800 zł</div>
+            </div>
+          </div>
+        </div>
+        
+    </div>
+    
+    <div class="offer" data-category="duplicate" data-search="mieszkanie- kawalerka plus miejsce parkingowe,  lublin, botanik, ul. relaksowa ">
+      <div class="offer-header">
+        <span class="badge duplicate">duplikat</span>
+        <div class="offer-title">Mieszkanie- kawalerka plus miejsce parkingowe,  Lublin, Botanik, ul. Relaksowa</div>
+        
+      </div>
+      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Relaksowa"</span></div>
+      
+        <div class="duplicate-compare">
+          <div class="duplicate-compare-title">
+            🔗 Porównaj oferty
+            <span class="similarity-pill">100.0% podobne</span>
+          </div>
+          <div class="duplicate-compare-grid">
+            <div class="duplicate-side this">
+              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
+              <strong>Mieszkanie- kawalerka plus miejsce parkingowe,  Lublin, Botanik, ul. Relaksowa</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-kawalerka-plus-miejsce-parkingowe-lublin-botanik-ul-relaksowa-CID3-ID1bFZcO.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-kawalerka-plus-miejsce-parkingowe-lublin-botanik-ul-relaksowa-CID3-ID1bFZcO.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">parsed: Relaksowa · cena: 2300 zł</div>
+            </div>
+            <div class="duplicate-arrow">≈</div>
+            <div class="duplicate-side original">
+              <div class="role-label">✅ Pozostawione na mapie</div>
+              <strong>ID: mieszkanie-kawalerka-plus-miejsce-parkingowe-lublin-botanik-ul-relaksowa-CID3-ID1bFZcO</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-kawalerka-plus-miejsce-parkingowe-lublin-botanik-ul-relaksowa-CID3-ID1bFZcO.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-kawalerka-plus-miejsce-parkingowe-lublin-botanik-ul-relaksowa-CID3-ID1bFZcO.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">adres: Relaksowa · cena: 2300 zł</div>
+            </div>
+          </div>
+        </div>
+        
+    </div>
+    
+    <div class="offer" data-category="duplicate" data-search="mieszkanie dla studentek/studentów/osób pracujących   blisko umcs,kul do wynajęcia ">
+      <div class="offer-header">
+        <span class="badge duplicate">duplikat</span>
+        <div class="offer-title">Mieszkanie dla studentek/studentów/osób pracujących   blisko UMCS,KUL do wynajęcia</div>
+        
+      </div>
+      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Popiełuszki"</span></div>
+      
+        <div class="duplicate-compare">
+          <div class="duplicate-compare-title">
+            🔗 Porównaj oferty
+            <span class="similarity-pill">100.0% podobne</span>
+          </div>
+          <div class="duplicate-compare-grid">
+            <div class="duplicate-side this">
+              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
+              <strong>Mieszkanie dla studentek/studentów/osób pracujących   blisko UMCS,KUL do wynajęcia</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-dla-studentek-studentow-osob-pracujacych-blisko-umcs-kul-do-wynajecia-CID3-ID1cHw1f.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-dla-studentek-studentow-osob-pracujacych-blisko-umcs-kul-do-wynajecia-CID3-ID1cHw1f.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">parsed: Popiełuszki · cena: 2200 zł</div>
+            </div>
+            <div class="duplicate-arrow">≈</div>
+            <div class="duplicate-side original">
+              <div class="role-label">✅ Pozostawione na mapie</div>
+              <strong>ID: mieszkanie-dla-studentek-studentow-osob-pracujacych-blisko-umcs-kul-do-wynajecia-CID3-ID1cHw1f</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-dla-studentek-studentow-osob-pracujacych-blisko-umcs-kul-do-wynajecia-CID3-ID1cHw1f.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-dla-studentek-studentow-osob-pracujacych-blisko-umcs-kul-do-wynajecia-CID3-ID1cHw1f.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">adres: Popiełuszki · cena: 2200 zł</div>
+            </div>
+          </div>
+        </div>
+        
+    </div>
+    
+    <div class="offer" data-category="duplicate" data-search="mieszkanie do wynajęcia lsm ul. juranda ">
+      <div class="offer-header">
+        <span class="badge duplicate">duplikat</span>
+        <div class="offer-title">Mieszkanie do wynajęcia LSM ul. Juranda</div>
+        
+      </div>
+      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Juranda"</span></div>
+      
+        <div class="duplicate-compare">
+          <div class="duplicate-compare-title">
+            🔗 Porównaj oferty
+            <span class="similarity-pill">100.0% podobne</span>
+          </div>
+          <div class="duplicate-compare-grid">
+            <div class="duplicate-side this">
+              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
+              <strong>Mieszkanie do wynajęcia LSM ul. Juranda</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-lsm-ul-juranda-CID3-ID1cizrI.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-lsm-ul-juranda-CID3-ID1cizrI.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">parsed: Juranda · cena: 1800 zł</div>
+            </div>
+            <div class="duplicate-arrow">≈</div>
+            <div class="duplicate-side original">
+              <div class="role-label">✅ Pozostawione na mapie</div>
+              <strong>ID: mieszkanie-do-wynajecia-lsm-ul-juranda-CID3-ID1cizrI</strong>
+              <a href="https://www.olx.pl/d/oferta/mieszkanie-do-wynajecia-lsm-ul-juranda-CID3-ID1cizrI.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/mieszkanie-do-wynajecia-lsm-ul-juranda-CID3-ID1cizrI.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">adres: Juranda · cena: 1800 zł</div>
+            </div>
+          </div>
+        </div>
+        
+    </div>
+    
+    <div class="offer" data-category="duplicate" data-search="nowoczesna kawalerka w atrakcyjnej lokalizacji ">
+      <div class="offer-header">
+        <span class="badge duplicate">duplikat</span>
+        <div class="offer-title">Nowoczesna kawalerka w atrakcyjnej lokalizacji</div>
+        
+      </div>
+      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Probostwo"</span></div>
+      
+        <div class="duplicate-compare">
+          <div class="duplicate-compare-title">
+            🔗 Porównaj oferty
+            <span class="similarity-pill">100.0% podobne</span>
+          </div>
+          <div class="duplicate-compare-grid">
+            <div class="duplicate-side this">
+              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
+              <strong>Nowoczesna kawalerka w atrakcyjnej lokalizacji</strong>
+              <a href="https://www.olx.pl/d/oferta/nowoczesna-kawalerka-w-atrakcyjnej-lokalizacji-CID3-ID1bZpa3.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/nowoczesna-kawalerka-w-atrakcyjnej-lokalizacji-CID3-ID1bZpa3.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">parsed: Probostwo · cena: 2040 zł</div>
+            </div>
+            <div class="duplicate-arrow">≈</div>
+            <div class="duplicate-side original">
+              <div class="role-label">✅ Pozostawione na mapie</div>
+              <strong>ID: nowoczesna-kawalerka-w-atrakcyjnej-lokalizacji-CID3-ID1bZpa3</strong>
+              <a href="https://www.olx.pl/d/oferta/nowoczesna-kawalerka-w-atrakcyjnej-lokalizacji-CID3-ID1bZpa3.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/nowoczesna-kawalerka-w-atrakcyjnej-lokalizacji-CID3-ID1bZpa3.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">adres: Probostwo · cena: 2040 zł</div>
+            </div>
+          </div>
+        </div>
+        
+    </div>
+    
+    <div class="offer" data-category="duplicate" data-search="klimatyzacja - 2-pokojowe mieszkanie – osiedle prestige - czechów północny ">
+      <div class="offer-header">
+        <span class="badge duplicate">duplikat</span>
+        <div class="offer-title">KLIMATYZACJA - 2-pokojowe mieszkanie – Osiedle Prestige - Czechów Północny</div>
+        
+      </div>
+      
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Osiedle Prestige"</span></div>
+      
+        <div class="duplicate-compare">
+          <div class="duplicate-compare-title">
+            🔗 Porównaj oferty
+            <span class="similarity-pill">100.0% podobne</span>
+          </div>
+          <div class="duplicate-compare-grid">
+            <div class="duplicate-side this">
+              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
+              <strong>KLIMATYZACJA - 2-pokojowe mieszkanie – Osiedle Prestige - Czechów Północny</strong>
+              <a href="https://www.olx.pl/d/oferta/klimatyzacja-2-pokojowe-mieszkanie-osiedle-prestige-czechow-polnocny-CID3-ID1bn1AS.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/klimatyzacja-2-pokojowe-mieszkanie-osiedle-prestige-czechow-polnocny-CID3-ID1bn1AS.html?search_reason=search%7Corganic ↗</a>
+              <div class="meta">parsed: Osiedle Prestige · cena: 2650 zł</div>
+            </div>
+            <div class="duplicate-arrow">≈</div>
+            <div class="duplicate-side original">
+              <div class="role-label">✅ Pozostawione na mapie</div>
+              <strong>ID: klimatyzacja-2-pokojowe-mieszkanie-osiedle-prestige-czechow-polnocny-CID3-ID1bn1AS</strong>
+              <a href="https://www.olx.pl/d/oferta/klimatyzacja-2-pokojowe-mieszkanie-osiedle-prestige-czechow-polnocny-CID3-ID1bn1AS.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/klimatyzacja-2-pokojowe-mieszkanie-osiedle-prestige-czechow-polnocny-CID3-ID1bn1AS.html?search_reason=search%7Cpromoted ↗</a>
+              <div class="meta">adres: Osiedle Prestige · cena: 2650 zł</div>
             </div>
           </div>
         </div>
@@ -1791,105 +1890,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
               <strong>ID: nowoczesne-mieszkanie-trzypokojowe-zana-lublin-wynajme-CID3-ID1chuqr</strong>
               <a href="https://www.olx.pl/d/oferta/nowoczesne-mieszkanie-trzypokojowe-zana-lublin-wynajme-CID3-ID1chuqr.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/nowoczesne-mieszkanie-trzypokojowe-zana-lublin-wynajme-CID3-ID1chuqr.html?search_reason=search%7Cpromoted ↗</a>
               <div class="meta">adres: Zana · cena: 2100 zł</div>
-            </div>
-          </div>
-        </div>
-        
-    </div>
-    
-    <div class="offer" data-category="duplicate" data-search="wynajmę bezpośrednio apartament dwa pokoje, ul. nałęczowska 18a ">
-      <div class="offer-header">
-        <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Wynajmę BEZPOŚREDNIO apartament dwa pokoje, ul. Nałęczowska 18A</div>
-        
-      </div>
-      
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Nałęczowska 18A"</span></div>
-      
-        <div class="duplicate-compare">
-          <div class="duplicate-compare-title">
-            🔗 Porównaj oferty
-            <span class="similarity-pill">100.0% podobne</span>
-          </div>
-          <div class="duplicate-compare-grid">
-            <div class="duplicate-side this">
-              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Wynajmę BEZPOŚREDNIO apartament dwa pokoje, ul. Nałęczowska 18A</strong>
-              <a href="https://www.olx.pl/d/oferta/wynajme-bezposrednio-apartament-dwa-pokoje-ul-naleczowska-18a-CID3-ID1aC7VY.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-bezposrednio-apartament-dwa-pokoje-ul-naleczowska-18a-CID3-ID1aC7VY.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">parsed: Nałęczowska 18A · cena: 3200 zł</div>
-            </div>
-            <div class="duplicate-arrow">≈</div>
-            <div class="duplicate-side original">
-              <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: wynajme-bezposrednio-apartament-dwa-pokoje-ul-naleczowska-18a-CID3-ID1aC7VY</strong>
-              <a href="https://www.olx.pl/d/oferta/wynajme-bezposrednio-apartament-dwa-pokoje-ul-naleczowska-18a-CID3-ID1aC7VY.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-bezposrednio-apartament-dwa-pokoje-ul-naleczowska-18a-CID3-ID1aC7VY.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">adres: Nałęczowska 18A · cena: 3200 zł</div>
-            </div>
-          </div>
-        </div>
-        
-    </div>
-    
-    <div class="offer" data-category="duplicate" data-search="słoneczne mieszkanie przy ul. jemiołuszki 4 klimatyzacja ">
-      <div class="offer-header">
-        <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Słoneczne mieszkanie przy ul. Jemiołuszki 4 KLIMATYZACJA</div>
-        
-      </div>
-      
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Jemiołuszki 4"</span></div>
-      
-        <div class="duplicate-compare">
-          <div class="duplicate-compare-title">
-            🔗 Porównaj oferty
-            <span class="similarity-pill">100.0% podobne</span>
-          </div>
-          <div class="duplicate-compare-grid">
-            <div class="duplicate-side this">
-              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Słoneczne mieszkanie przy ul. Jemiołuszki 4 KLIMATYZACJA</strong>
-              <a href="https://www.olx.pl/d/oferta/sloneczne-mieszkanie-przy-ul-jemioluszki-4-klimatyzacja-CID3-ID16QsCz.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/sloneczne-mieszkanie-przy-ul-jemioluszki-4-klimatyzacja-CID3-ID16QsCz.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">parsed: Jemiołuszki 4 · cena: 2500 zł</div>
-            </div>
-            <div class="duplicate-arrow">≈</div>
-            <div class="duplicate-side original">
-              <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: sloneczne-mieszkanie-przy-ul-jemioluszki-4-klimatyzacja-CID3-ID16QsCz</strong>
-              <a href="https://www.olx.pl/d/oferta/sloneczne-mieszkanie-przy-ul-jemioluszki-4-klimatyzacja-CID3-ID16QsCz.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/sloneczne-mieszkanie-przy-ul-jemioluszki-4-klimatyzacja-CID3-ID16QsCz.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">adres: Jemiołuszki 4 · cena: 2500 zł</div>
-            </div>
-          </div>
-        </div>
-        
-    </div>
-    
-    <div class="offer" data-category="duplicate" data-search="wynajmę mieszkanie na lsm- balladyny ">
-      <div class="offer-header">
-        <span class="badge duplicate">duplikat</span>
-        <div class="offer-title">Wynajmę mieszkanie na LSM- Balladyny</div>
-        
-      </div>
-      
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Balladyny"</span></div>
-      
-        <div class="duplicate-compare">
-          <div class="duplicate-compare-title">
-            🔗 Porównaj oferty
-            <span class="similarity-pill">100.0% podobne</span>
-          </div>
-          <div class="duplicate-compare-grid">
-            <div class="duplicate-side this">
-              <div class="role-label">⚠️ Odrzucone (duplikat)</div>
-              <strong>Wynajmę mieszkanie na LSM- Balladyny</strong>
-              <a href="https://www.olx.pl/d/oferta/wynajme-mieszkanie-na-lsm-balladyny-CID3-ID1cpFGW.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-mieszkanie-na-lsm-balladyny-CID3-ID1cpFGW.html?search_reason=search%7Corganic ↗</a>
-              <div class="meta">parsed: Balladyny · cena: 3000 zł</div>
-            </div>
-            <div class="duplicate-arrow">≈</div>
-            <div class="duplicate-side original">
-              <div class="role-label">✅ Pozostawione na mapie</div>
-              <strong>ID: wynajme-mieszkanie-na-lsm-balladyny-CID3-ID1cpFGW</strong>
-              <a href="https://www.olx.pl/d/oferta/wynajme-mieszkanie-na-lsm-balladyny-CID3-ID1cpFGW.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="url">www.olx.pl/d/oferta/wynajme-mieszkanie-na-lsm-balladyny-CID3-ID1cpFGW.html?search_reason=search%7Cpromoted ↗</a>
-              <div class="meta">adres: Balladyny · cena: 3000 zł</div>
             </div>
           </div>
         </div>
@@ -2358,6 +2358,17 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       
     </div>
     
+    <div class="offer" data-category="not_a_street" data-search="2 pokojowe lsm od zaraz lublin blisko uniwersytety cid3 id1cuytq wynajmę mieszkanie 2 pokojowe lsm lublin blisko uniwersytety wynajmę mieszkanie 2 pokojowe lsm lublin blisko uniwersytety lublin piękne mieszkanie na 8 piętrze z widokiem na wąwóz i stare miasto. 2 pokojowe praktycznie w pełni umeblowane z 2 osobowym łóżkiem małżeńskim. idealne dla pary.w pobliżu lidl i biedronka przystanki rzeckiego. w pobliżu wąwoz tereny zielone filaretów. suszarka podwieszana. przyjazne kotom.idealne dla pary i singli z balkonem i szafą pojemna. w środku porządne rolety i te">
+      <div class="offer-header">
+        <span class="badge not_a_street">nie ulica</span>
+        <div class="offer-title">2 pokojowe lsm od zaraz lublin blisko uniwersytety CID3 ID1cuytq</div>
+        <a href="https://www.olx.pl/d/oferta/2-pokojowe-lsm-od-zaraz-lublin-blisko-uniwersytety-CID3-ID1cuytq.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="offer-link">→ OLX</a>
+      </div>
+      <div class="offer-desc" onclick="this.classList.toggle('expanded')">Wynajmę mieszkanie 2 pokojowe LSM Lublin blisko Uniwersytety Wynajmę mieszkanie 2 pokojowe LSM Lublin blisko Uniwersytety Lublin Piękne mieszkanie na 8 piętrze z widokiem na Wąwóz i Stare Miasto. 2 pokojowe praktycznie w pełni umeblowane z 2 Osobowym łóżkiem małżeńskim. Idealne dla pary.W pobliżu Lidl i Biedronka przystanki Rzeckiego. W pobliżu Wąwoz tereny zielone Filaretów. Suszarka podwieszana. Przyjazne Kotom.Idealne dla Pary I Singli z balkonem i szafą pojemna. W środku porządne rolety i te</div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Uniwersytety 2"</span></div>
+      
+    </div>
+    
     <div class="offer" data-category="not_a_street" data-search="dwupokojowe mieszkanie z balkonem cid3 id1cwnlw bezczynszowe  2-pokojowe mieszkanie bezczynszowe  2-pokojowe mieszkanie lublin wynajmę bezczynszowe dwupokojowe, w pełni wyposażone mieszkanie w szeregowcu (wyodrębniona klatka schodowa, każde piętro osobne, samodzielne mieszkanie]. lokum składa się z 2 pokoi (sypialnia, salon), oddzielnej kuchni, garderoby i łazienki. dogodna lokalizacja, blisko centrum (niedaleko ronda krwiodawców), doskonale skomunikowana z każdą częścią miasta. idealne miejsce do zamieszkania - spokojna, zielona okolica, w p">
       <div class="offer-header">
         <span class="badge not_a_street">nie ulica</span>
@@ -2399,17 +2410,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       </div>
       <div class="offer-desc" onclick="this.classList.toggle('expanded')">Do wynajęcia kawalerka na os.Poręba, Lublin Do wynajęcia kawalerka na os.Poręba, Lublin Lublin * Oferta zamieszczona przez Biuro Nieruchomości ANMA-Magdalena Staniszewska *Oferujemy do wynajęcia przestronną kawalerką, usytuowaną na osiedlu z dobrą infrastrukturą, blisko skwer, tereny rekreacyjne, supermarket.1. O P I S  B L O K U  =    ROK BUDOWY:     , MATERIAŁ BUDOWLANY:   20082. O P I S   M I E S Z K A N I A  =  ROZKŁAD:  rozkładowe   , BALKON:   duży   ,  USYTUOWANIE:  płd   , OKNA: pcv- POK</div>
       <div class="offer-meta"><span class="parsed-addr">parsed: "Osiedle Poręba"</span></div>
-      
-    </div>
-    
-    <div class="offer" data-category="not_a_street" data-search="dwa nowe 2 pokojowe mieszkania z ogrodkiem lub balkonem premium tv klimatyzacja wolinskiego lublin umowa najmu okazjonalnego cid3 id1cxrlq nowe 2-pokojowe mieszkanie z ogródkiem | premium | tv | klimatyzacja | wolińskiego – lublin | umowa najmu okazjonalnego nowe 2-pokojowe mieszkanie z ogródkiem | premium | tv | klimatyzacja | wolińskiego – lublin | umowa najmu okazjonalnego lublin do wynajęcia  nowe, komfortowe mieszkanie 2-pokojowe o powierzchni 36 m², zlokalizowane przy ul. wolińskiego w lublinie (osiedle active). mieszkanie znajduje się na parterze i posiada prywatny ogródek 30 m², – idealny do wypoczynku.układ mieszkania:•	ku">
-      <div class="offer-header">
-        <span class="badge not_a_street">nie ulica</span>
-        <div class="offer-title">dwa nowe 2 pokojowe mieszkania z ogrodkiem lub balkonem premium tv klimatyzacja wolinskiego lublin umowa najmu okazjonalnego CID3 ID1cxrLQ</div>
-        <a href="https://www.olx.pl/d/oferta/dwa-nowe-2-pokojowe-mieszkania-z-ogrodkiem-lub-balkonem-premium-tv-klimatyzacja-wolinskiego-lublin-umowa-najmu-okazjonalnego-CID3-ID1cxrLQ.html?search_reason=search%7Cpromoted" target="_blank" rel="noopener" class="offer-link">→ OLX</a>
-      </div>
-      <div class="offer-desc" onclick="this.classList.toggle('expanded')">Nowe 2-pokojowe mieszkanie z ogródkiem | Premium | TV | Klimatyzacja | Wolińskiego – Lublin | Umowa najmu okazjonalnego Nowe 2-pokojowe mieszkanie z ogródkiem | Premium | TV | Klimatyzacja | Wolińskiego – Lublin | Umowa najmu okazjonalnego Lublin Do wynajęcia  nowe, komfortowe mieszkanie 2-pokojowe o powierzchni 36 m², zlokalizowane przy ul. Wolińskiego w Lublinie (Osiedle Active). Mieszkanie znajduje się na parterze i posiada prywatny ogródek 30 m², – idealny do wypoczynku.Układ mieszkania:•	ku</div>
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Nowe 2"</span></div>
       
     </div>
     
@@ -2468,17 +2468,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       
     </div>
     
-    <div class="offer" data-category="area_only" data-search="kawalerka na wynajem osiedle lsm rury cid3 id1buolq kawalerka na wynajem - osiedle lsm / rury kawalerka na wynajem - osiedle lsm / rury lublin wynajmę kawalerkęlsm – rury ul. wajdelotypowierzchnia: 25 m²piętro: 1/4 bez windystan wykończenia: po generalnym remonciedostępne od: 20 sierpnianajwiększe atuty mieszkania:dogodna lokalizacja - w pobliżu targ, sklepy, siłownia 24h, apteki, przychodnie itd.300m do komunikacji miejskiej (n2,30, 32,37,42,50********50,153,155,158,159,950)mieszkanie jest w pełni wyposażone (zmywarka, pralka, piekarnik itd.)dod">
-      <div class="offer-header">
-        <span class="badge area_only">obszar</span>
-        <div class="offer-title">kawalerka na wynajem osiedle lsm rury CID3 ID1bUolQ</div>
-        <a href="https://www.olx.pl/d/oferta/kawalerka-na-wynajem-osiedle-lsm-rury-CID3-ID1bUolQ.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="offer-link">→ OLX</a>
-      </div>
-      <div class="offer-desc" onclick="this.classList.toggle('expanded')">Kawalerka na wynajem - osiedle LSM / Rury Kawalerka na wynajem - osiedle LSM / Rury Lublin WYNAJMĘ KAWALERKĘLSM – Rury ul. WajdelotyPowierzchnia: 25 m²Piętro: 1/4 bez windyStan wykończenia: po generalnym remoncieDostępne od: 20 sierpniaNajwiększe atuty mieszkania:Dogodna lokalizacja - w pobliżu targ, sklepy, siłownia 24h, apteki, przychodnie itd.300m do komunikacji miejskiej (N2,30, 32,37,42,50********50,153,155,158,159,950)Mieszkanie jest w pełni wyposażone (zmywarka, pralka, piekarnik itd.)Dod</div>
-      <div class="offer-meta"><span class="parsed-addr">parsed: "Rury"</span></div>
-      
-    </div>
-    
     <div class="offer" data-category="area_only" data-search="wynajem mieszkania w lublinie cid3 id1ctobj wynajem mieszkania w lublinie wynajem mieszkania w lublinie lublin wynajmę mieszkanie w lublinie, osiedle wrotków, cicha, spokojna okolica, dużo zieleni, dwa niezależne pokoje, kuchnia, łazienka i toaleta, w sąsiedztwie sklepy, przystanek autobusowy.numer telefonu 69*****68czynsz w cenie">
       <div class="offer-header">
         <span class="badge area_only">obszar</span>
@@ -2531,6 +2520,17 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
       </div>
       <div class="offer-desc" onclick="this.classList.toggle('expanded')">Wynajmę kawalerke w centrum Lublina Osiedle Czwartek Wynajmę kawalerke w centrum Lublina Osiedle Czwartek Lublin Oferuję kawalerkę na wynajem o powierzchni 25 m². Mieszkanie znajduje się na 5. piętrze bloku i jest umeblowane. W budynku znajduje się winda, co ułatwia dostęp. Mieszkanie posiada przynależne miejsce parkingowe przy ulicy. Możesz mieć zwierzęta, co jest dużą zaletą. W łazience znajduje się prysznic, toaleta oraz pralka. W pokoju dziennym są białe ściany i wykładzina, a widok z okien </div>
       <div class="offer-meta"><span class="parsed-addr">parsed: "Osiedle Czwartek"</span></div>
+      
+    </div>
+    
+    <div class="offer" data-category="no_coords" data-search="od wlasciciela aleja krakowska 281 cid3 id1cihmw od właściciela aleja krakowska 281 od właściciela aleja krakowska 281 lublin posiadam do wynajęcia 3 pokojowe mieszkanie o powierzchni 61 m2 na 4 piętrze w pięciopiętrowym apartamentowcu z 2025 roku z tarasem 9 m2. mieszkanie jest trójstronne: północ, wschód i południe. jest ono umeblowane i wyposażone. ma dwie niezależne sypialnie, łazienka z oknem, przedpokój, salon z aneksem kuchennym i wyjściem na taras. są dwa niezależne miejsca postojowe w garażu podziemnym oraz komórka lokatorska. mieszka">
+      <div class="offer-header">
+        <span class="badge no_coords">brak współrzędnych</span>
+        <div class="offer-title">od wlasciciela aleja krakowska 281 CID3 ID1cIhMW</div>
+        <a href="https://www.olx.pl/d/oferta/od-wlasciciela-aleja-krakowska-281-CID3-ID1cIhMW.html?search_reason=search%7Corganic" target="_blank" rel="noopener" class="offer-link">→ OLX</a>
+      </div>
+      <div class="offer-desc" onclick="this.classList.toggle('expanded')">Od właściciela Aleja Krakowska 281 Od właściciela Aleja Krakowska 281 Lublin Posiadam do wynajęcia 3 pokojowe mieszkanie o powierzchni 61 m2 na 4 piętrze w pięciopiętrowym apartamentowcu z 2025 roku z tarasem 9 m2. Mieszkanie jest trójstronne: północ, wschód i południe. Jest ono umeblowane i wyposażone. Ma dwie niezależne sypialnie, łazienka z oknem, przedpokój, salon z aneksem kuchennym i wyjściem na taras. Są dwa niezależne miejsca postojowe w garażu podziemnym oraz komórka lokatorska. Mieszka</div>
+      <div class="offer-meta"><span class="parsed-addr">parsed: "Aleja Krakowska"</span></div>
       
     </div>
     
