@@ -8,6 +8,8 @@ import pytz
 import requests
 
 import http_client
+import index_history
+from geocoder import Geocoder
 from main import SonarMieszkaniowy
 
 TZ = pytz.timezone('Europe/Warsaw')
@@ -400,3 +402,104 @@ class TestVerifyAndDeactivate:
                          'still_alive': 0, 'errors': 0, 'circuit_broken': False,
                          'candidates': 0}
         assert called == []
+
+
+class TestProcessingErrorAlert:
+    """FIX 2026-10-13 (propagacja #65, z Bonaventura-EW/SONAR---DZIA-KOWY):
+    bezpiecznik analogiczny do _no_address_alert, ale dla ofert pominiętych
+    przez wyjątek w pętli przetwarzania (żeby szeroki except Exception nie
+    połknął cicho systemowej regresji)."""
+
+    def test_healthy_scan_no_alert(self, agent):
+        assert agent._processing_error_alert(2, 767) is None
+
+    def test_small_scan_never_alerts(self, agent):
+        # Próg procentowy nie ma sensu przy garstce ofert (jedna zła oferta
+        # na 10 to 10%, ale to nie jest sygnał systemowej regresji).
+        assert agent._processing_error_alert(10, 20) is None
+
+    def test_over_threshold_alerts(self, agent):
+        reason = agent._processing_error_alert(400, 767)
+        assert reason is not None
+        assert '400' in reason and '767' in reason
+
+    def test_at_threshold_boundary(self, agent):
+        limit = int(767 * agent.MAX_PROCESSING_ERROR_RATIO)
+        assert agent._processing_error_alert(limit, 767) is None
+        assert agent._processing_error_alert(limit + 20, 767) is not None
+
+
+class TestPerOfferErrorIsolation:
+    """FIX 2026-10-13 (propagacja #65, z Bonaventura-EW/SONAR---DZIA-KOWY):
+    _process_offer rzucający wyjątek dla JEDNEJ oferty nie może wywrócić
+    całego run_scan (wcześniej: wyjątek leciał do zewnętrznego try, który go
+    re-raise'uje — scan kończył się bez zapisu bazy)."""
+
+    def _isolate_scan_logger_and_caches(self, agent, tmp_path, monkeypatch):
+        """run_scan() dotyka też scan_logger, cache geokodera i index_history —
+        wszystkie domyślnie wskazują na pliki repo (paths.*). Agent fixture
+        przekierowuje tylko data_file/removed_file, więc resztę izolujemy tu,
+        żeby realny `python -m pytest` nie dopisał śmieci do `data/`."""
+        agent.scan_logger.log_file = tmp_path / 'scan_history.json'
+        agent.geocoder = Geocoder(cache_file=str(tmp_path / 'geocoding_cache.json'))
+        monkeypatch.setattr(index_history, 'record', lambda *a, **kw: None)
+
+    def _last_scan(self, agent):
+        history = json.loads(agent.scan_logger.log_file.read_text(encoding='utf-8'))
+        return history[-1]
+
+    def test_exception_in_one_offer_does_not_crash_scan(self, agent, monkeypatch, tmp_path):
+        self._isolate_scan_logger_and_caches(agent, tmp_path, monkeypatch)
+        raw_offers = [
+            {'url': 'https://www.olx.pl/d/oferta/zepsuta-CID3-IDbad1.html', 'title': 'zepsuta oferta'},
+            {'url': 'https://www.olx.pl/d/oferta/dobra-CID3-IDgood1.html', 'title': 'dobra oferta'},
+        ]
+        monkeypatch.setattr(agent.scraper, 'scrape_all_pages', lambda max_pages=50: raw_offers)
+
+        good_processed = _offer(
+            'good1', active=True,
+            address={'full': 'Testowa 1', 'street': 'Testowa', 'number': '1',
+                      'has_number': True, 'coords': [51.25, 22.57], 'precision': 'exact'},
+        )
+
+        def fake_process_offer(raw_offer):
+            if 'bad1' in raw_offer['url']:
+                raise ValueError("boom - zepsuta oferta")
+            return dict(good_processed)
+
+        monkeypatch.setattr(agent, '_process_offer', fake_process_offer)
+
+        # Nie powinno rzucić wyjątku mimo wadliwej oferty w środku listy.
+        agent.run_scan()
+
+        assert len(agent.database['offers']) == 1
+        assert agent.database['offers'][0]['id'] == good_processed['id']
+
+        scan = self._last_scan(agent)
+        assert scan['status'] == 'completed'
+        assert scan['stats']['skipped_error'] == 1
+        assert scan['stats']['processed'] == 1
+
+    def test_all_offers_failing_still_completes_and_logs_alert(self, agent, monkeypatch, tmp_path):
+        self._isolate_scan_logger_and_caches(agent, tmp_path, monkeypatch)
+        # Systemowa regresja (WSZYSTKIE oferty wywalają się) nie powinna
+        # crashować run_scan, ale MUSI zalogować się jako błąd skanu
+        # (_processing_error_alert) — inaczej przechodzi cicho jako "✅ sukces".
+        raw_offers = [
+            {'url': f'https://www.olx.pl/d/oferta/zla-CID3-IDbad{i}.html', 'title': f'zla {i}'}
+            for i in range(60)
+        ]
+        monkeypatch.setattr(agent.scraper, 'scrape_all_pages', lambda max_pages=50: raw_offers)
+
+        def always_raise(raw_offer):
+            raise RuntimeError("systemowa regresja parsera")
+
+        monkeypatch.setattr(agent, '_process_offer', always_raise)
+
+        agent.run_scan()
+
+        assert agent.database['offers'] == []
+        scan = self._last_scan(agent)
+        assert scan['status'] == 'completed'
+        assert scan['stats']['skipped_error'] == 60
+        assert any('pominięto przez wyjątek' in err['message'] for err in scan['errors'])
