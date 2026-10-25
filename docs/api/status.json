@@ -1,49 +1,80 @@
 {
   "system": "sonar",
   "version": "1.0.0",
-  "generatedAt": "2026-10-25T13:39:16.375846+01:00",
+  "generatedAt": "2026-10-25T18:11:36.547142+01:00",
   "status": {
-    "current": "operational",
+    "current": "degraded",
     "isHealthy": true,
-    "hasErrors": false,
-    "errorMessages": []
+    "hasErrors": true,
+    "errorMessages": [
+      "Scraper zwrócił tylko 261 ofert przy 674 aktywnych w bazie (próg: 404) — prawdopodobna blokada OLX. Dezaktywacja pominięta."
+    ]
   },
   "notification": {
-    "title": "✅ Skan 13:36 — +6 nowe / -5 znikły",
-    "body": "Pojawiło się 6 nowych, znikło 5 ofert mieszkań w Lublinie"
+    "title": "⚠️ Skan 18:10 — zakończony z ostrzeżeniami",
+    "body": "Scraper zwrócił tylko 261 ofert przy 674 aktywnych w bazie (próg: 404) — prawdopodobna blokada OLX. Dezaktywacja pominięta."
   },
   "lastScan": {
-    "id": "2026-10-25T13-36-43",
-    "timestamp": "2026-10-25T13:36:43.968652+01:00",
-    "endTimestamp": "2026-10-25T13:38:35.086697+01:00",
-    "durationSeconds": 111.12,
-    "durationFormatted": "1m 51s",
-    "uiStatus": "success",
+    "id": "2026-10-25T18-10-16",
+    "timestamp": "2026-10-25T18:10:16.444325+01:00",
+    "endTimestamp": "2026-10-25T18:10:55.753955+01:00",
+    "durationSeconds": 39.31,
+    "durationFormatted": "39s",
+    "uiStatus": "warning",
     "rawStatus": "completed",
-    "scanTimeFormatted": "13:36",
-    "failureReason": null,
+    "scanTimeFormatted": "18:10",
+    "failureReason": "Scraper zwrócił tylko 261 ofert przy 674 aktywnych w bazie (próg: 404) — prawdopodobna blokada OLX. Dezaktywacja pominięta.",
     "notification": {
-      "title": "✅ Skan 13:36 — +6 nowe / -5 znikły",
-      "body": "Pojawiło się 6 nowych, znikło 5 ofert mieszkań w Lublinie"
+      "title": "⚠️ Skan 18:10 — zakończony z ostrzeżeniami",
+      "body": "Scraper zwrócił tylko 261 ofert przy 674 aktywnych w bazie (próg: 404) — prawdopodobna blokada OLX. Dezaktywacja pominięta."
     },
     "offers": {
-      "found": 680,
-      "processed": 610,
-      "new": 6,
-      "disappeared": 5,
-      "updated": 604,
-      "active": 671,
+      "found": 261,
+      "processed": 219,
+      "new": 0,
+      "disappeared": 0,
+      "updated": 219,
+      "active": 674,
       "inactive": 4635
     },
     "skipped": {
       "noAddress": 0,
       "noCoords": 0,
-      "duplicates": 70
+      "duplicates": 42
     },
-    "errors": [],
-    "hasErrors": false
+    "errors": [
+      {
+        "message": "Scraper zwrócił tylko 261 ofert przy 674 aktywnych w bazie (próg: 404) — prawdopodobna blokada OLX. Dezaktywacja pominięta.",
+        "timestamp": "2026-10-25T18:10:53.286841+01:00"
+      }
+    ],
+    "hasErrors": true
   },
   "recentScans": [
+    {
+      "id": "2026-10-25T18-10-16",
+      "scanTimeFormatted": "18:10",
+      "uiStatus": "warning",
+      "newOffers": 0,
+      "disappearedOffers": 0,
+      "hasErrors": true
+    },
+    {
+      "id": "2026-10-25T18-07-17",
+      "scanTimeFormatted": "18:07",
+      "uiStatus": "warning",
+      "newOffers": 2,
+      "disappearedOffers": 0,
+      "hasErrors": true
+    },
+    {
+      "id": "2026-10-25T18-04-43",
+      "scanTimeFormatted": "18:04",
+      "uiStatus": "warning",
+      "newOffers": 1,
+      "disappearedOffers": 0,
+      "hasErrors": true
+    },
     {
       "id": "2026-10-25T13-36-43",
       "scanTimeFormatted": "13:36",
@@ -67,30 +98,6 @@
       "newOffers": 4,
       "disappearedOffers": 9,
       "hasErrors": false
-    },
-    {
-      "id": "2026-10-24T18-39-50",
-      "scanTimeFormatted": "18:39",
-      "uiStatus": "success",
-      "newOffers": 5,
-      "disappearedOffers": 7,
-      "hasErrors": false
-    },
-    {
-      "id": "2026-10-24T14-03-06",
-      "scanTimeFormatted": "14:03",
-      "uiStatus": "success",
-      "newOffers": 3,
-      "disappearedOffers": 6,
-      "hasErrors": false
-    },
-    {
-      "id": "2026-10-24T11-36-44",
-      "scanTimeFormatted": "11:36",
-      "uiStatus": "success",
-      "newOffers": 4,
-      "disappearedOffers": 12,
-      "hasErrors": false
     }
   ],
   "schedule": {
@@ -100,12 +107,12 @@
       "21:17"
     ],
     "timezone": "Europe/Warsaw",
-    "nextScanAt": "2026-10-25T15:17:00+01:00"
+    "nextScanAt": "2026-10-25T21:17:00+01:00"
   },
   "statistics": {
     "totalScans": 100,
-    "successRate": 91.0,
-    "avgDurationSeconds": 122.49,
-    "avgOffersFound": 684.4
+    "successRate": 88.0,
+    "avgDurationSeconds": 119.07,
+    "avgOffersFound": 667.6
   }
 }
