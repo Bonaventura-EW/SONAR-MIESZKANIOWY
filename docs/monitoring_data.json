@@ -1,15 +1,98 @@
 {
-  "generated_at": "2026-10-29T00:17:06.387061+01:00",
+  "generated_at": "2026-10-29T14:15:06.148994+01:00",
   "statistics": {
     "total_scans": 100,
-    "successful": 88,
-    "warnings": 12,
-    "failed": 12,
-    "success_rate": 88.0,
-    "avg_duration": 113.79,
-    "avg_offers_found": 658.0
+    "successful": 89,
+    "warnings": 11,
+    "failed": 11,
+    "success_rate": 89.0,
+    "avg_duration": 114.6,
+    "avg_offers_found": 662.1
   },
   "recent_scans": [
+    {
+      "timestamp": "2026-10-29T14:15:06.148994+01:00",
+      "status": "completed",
+      "phases": {
+        "scraping": {
+          "duration": 48.22,
+          "details": {
+            "offers_found": 650,
+            "max_pages": 50
+          }
+        },
+        "processing": {
+          "duration": 11.48,
+          "details": {
+            "processed": 586,
+            "no_address_kept": 50,
+            "skipped_no_address": 0,
+            "skipped_no_price": 0,
+            "skipped_no_coords": 0,
+            "skipped_duplicate": 64,
+            "skipped_removed": 0
+          }
+        },
+        "geocoding": {
+          "duration": 11.38,
+          "details": {
+            "geocoded_addresses": 586
+          }
+        }
+      },
+      "stats": {
+        "raw_offers": 650,
+        "processed": 586,
+        "new": 1,
+        "updated": 585,
+        "reactivated": 7,
+        "total_in_db": 5359,
+        "active": 626,
+        "inactive": 4733,
+        "skipped_no_address": 0,
+        "skipped_no_price": 0,
+        "skipped_no_coords": 0,
+        "skipped_duplicate": 64,
+        "skipped_removed": 0,
+        "disappeared": 19,
+        "verification": {
+          "checked": 32,
+          "confirmed_inactive": 19,
+          "stale_inactive": 4,
+          "still_alive": 17,
+          "errors": 0,
+          "circuit_broken": false,
+          "candidates": 36
+        },
+        "map_quality": {
+          "active": 626,
+          "on_map": 541,
+          "off_map": 85,
+          "counts": {
+            "no_address": 48,
+            "not_a_street": 28,
+            "area_only": 3,
+            "no_coords": 6
+          },
+          "precision": {
+            "exact": 183,
+            "street": 358,
+            "none": 85
+          }
+        }
+      },
+      "errors": [],
+      "end_timestamp": "2026-10-29T14:17:17.766188+01:00",
+      "total_duration": 131.61,
+      "performance": {
+        "offers_per_second": 4.94,
+        "pages_scanned": 50,
+        "geocoding_duration": 11.38,
+        "geocoding_per_address": 0.02,
+        "scraping_per_page": 0.96,
+        "processing_success_rate": 90.2
+      }
+    },
     {
       "timestamp": "2026-10-29T00:17:06.387061+01:00",
       "status": "completed",
@@ -6945,106 +7028,10 @@
         "scraping_per_page": 1.13,
         "processing_success_rate": 89.7
       }
-    },
-    {
-      "timestamp": "2026-10-09T01:46:24.497325+02:00",
-      "status": "completed",
-      "phases": {
-        "scraping": {
-          "duration": 8.67,
-          "details": {
-            "offers_found": 96,
-            "max_pages": 50
-          }
-        },
-        "processing": {
-          "duration": 3.21,
-          "details": {
-            "processed": 85,
-            "no_address_kept": 13,
-            "skipped_no_address": 0,
-            "skipped_no_price": 0,
-            "skipped_no_coords": 0,
-            "skipped_duplicate": 11,
-            "skipped_removed": 0
-          }
-        },
-        "geocoding": {
-          "duration": 3.2,
-          "details": {
-            "geocoded_addresses": 85
-          }
-        }
-      },
-      "stats": {
-        "raw_offers": 96,
-        "processed": 85,
-        "new": 3,
-        "updated": 82,
-        "reactivated": 2,
-        "total_in_db": 5055,
-        "active": 717,
-        "inactive": 4338,
-        "skipped_no_address": 0,
-        "skipped_no_price": 0,
-        "skipped_no_coords": 0,
-        "skipped_duplicate": 11,
-        "skipped_removed": 0,
-        "disappeared": 0,
-        "verification": {
-          "checked": 0,
-          "confirmed_inactive": 0,
-          "still_alive": 0,
-          "errors": 0,
-          "circuit_broken": false,
-          "candidates": 0,
-          "skipped_blocked": true
-        },
-        "map_quality": {
-          "active": 717,
-          "on_map": 614,
-          "off_map": 103,
-          "counts": {
-            "no_address": 63,
-            "not_a_street": 29,
-            "area_only": 7,
-            "no_coords": 4
-          },
-          "precision": {
-            "exact": 223,
-            "street": 391,
-            "none": 103
-          }
-        }
-      },
-      "errors": [
-        {
-          "timestamp": "2026-10-09T01:46:36.448162+02:00",
-          "message": "Scraper zwrócił tylko 96 ofert przy 717 aktywnych w bazie (próg: 430) — prawdopodobna blokada OLX. Dezaktywacja pominięta."
-        }
-      ],
-      "end_timestamp": "2026-10-09T01:46:38.564769+02:00",
-      "total_duration": 14.07,
-      "performance": {
-        "offers_per_second": 6.82,
-        "pages_scanned": 50,
-        "geocoding_duration": 3.2,
-        "geocoding_per_address": 0.04,
-        "scraping_per_page": 0.17,
-        "processing_success_rate": 88.5
-      }
     }
   ],
   "charts": {
     "duration_over_time": [
-      {
-        "timestamp": "2026-10-04T15:16:21.734018+02:00",
-        "duration": 51.84,
-        "offers_per_second": 4.61,
-        "scraping_per_page": 0.85,
-        "geocoding_duration": 4.36,
-        "geocoding_per_address": 0.02
-      },
       {
         "timestamp": "2026-10-04T15:19:13.588674+02:00",
         "duration": 167.3,
@@ -7836,17 +7823,17 @@
         "scraping_per_page": 1.0,
         "geocoding_duration": 30.84,
         "geocoding_per_address": 0.05
+      },
+      {
+        "timestamp": "2026-10-29T14:15:06.148994+01:00",
+        "duration": 131.61,
+        "offers_per_second": 4.94,
+        "scraping_per_page": 0.96,
+        "geocoding_duration": 11.38,
+        "geocoding_per_address": 0.02
       }
     ],
     "offers_over_time": [
-      {
-        "timestamp": "2026-10-04T15:16:21.734018+02:00",
-        "raw_offers": 239,
-        "processed": 202,
-        "new": 4,
-        "disappeared": 0,
-        "confirmed_inactive": 0
-      },
       {
         "timestamp": "2026-10-04T15:19:13.588674+02:00",
         "raw_offers": 752,
@@ -8638,15 +8625,17 @@
         "new": 12,
         "disappeared": 18,
         "confirmed_inactive": 18
+      },
+      {
+        "timestamp": "2026-10-29T14:15:06.148994+01:00",
+        "raw_offers": 650,
+        "processed": 586,
+        "new": 1,
+        "disappeared": 19,
+        "confirmed_inactive": 19
       }
     ],
     "success_rate": [
-      {
-        "timestamp": "2026-10-04T15:16:21.734018+02:00",
-        "success": 0,
-        "status": "completed",
-        "hasErrors": true
-      },
       {
         "timestamp": "2026-10-04T15:19:13.588674+02:00",
         "success": 100,
@@ -9240,20 +9229,15 @@
         "success": 100,
         "status": "completed",
         "hasErrors": false
+      },
+      {
+        "timestamp": "2026-10-29T14:15:06.148994+01:00",
+        "success": 100,
+        "status": "completed",
+        "hasErrors": false
       }
     ],
     "map_quality": [
-      {
-        "timestamp": "2026-10-04T15:16:21.734018+02:00",
-        "active": 727,
-        "on_map": 624,
-        "off_map": 103,
-        "exact": 223,
-        "street": 401,
-        "none": 103,
-        "exact_pct": 30.7,
-        "off_map_pct": 14.2
-      },
       {
         "timestamp": "2026-10-04T15:19:13.588674+02:00",
         "active": 728,
@@ -10342,6 +10326,17 @@
         "none": 86,
         "exact_pct": 29.0,
         "off_map_pct": 13.5
+      },
+      {
+        "timestamp": "2026-10-29T14:15:06.148994+01:00",
+        "active": 626,
+        "on_map": 541,
+        "off_map": 85,
+        "exact": 183,
+        "street": 358,
+        "none": 85,
+        "exact_pct": 29.2,
+        "off_map_pct": 13.6
       }
     ]
   }
