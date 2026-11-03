@@ -10,6 +10,33 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Naprawione (2026-10-13) — pojedyncza wadliwa oferta nie wywraca już całego skanu (propagacja #65)
+Pętla przetwarzania ofert w `run_scan` (`src/main.py`) nie miała żadnej izolacji
+błędów: wyjątek z dowolnego miejsca w `_process_offer` (~250 linii logiki
+adresu/ceny/geokodowania) leciał do zewnętrznego `try` skanu, który go
+re-raise'uje — cały skan kończył się bez zapisu bazy, mimo że reszta ofert
+przetworzyłaby się poprawnie. Propagacja z
+`Bonaventura-EW/SONAR---DZIA-KOWY` (manifest
+`2026-10-07-refiner-empty-street-crash`): tam realnym objawem był
+`IndexError` w `nominative_variants('')`, który stracił 4 z 8 skanów po cichu
+(`.github/workflows/scanner.yml` miał `|| echo "::warning::..."`, więc workflow
+zostawał zielony mimo utraty danych). U nas ten konkretny bug w `geocoder.py`
+nie istnieje (`to_nominative`/`to_nominative_singular_feminine` mają już guard
+na pusty adres), ale architektoniczna luka — brak izolacji błędów per oferta
+w pętli skanu — była ta sama.
+
+- Cała logika pojedynczej oferty w pętli `run_scan` (od geokodowania przez
+  klasyfikację odrzuceń po dedup) owinięta w `try/except Exception`: log +
+  pełny traceback + licznik `skipped_error_count`, `continue` do następnej
+  oferty zamiast crashu całego skanu.
+- Nowy bezpiecznik `_processing_error_alert` (próg `MAX_PROCESSING_ERROR_RATIO`
+  = 20%, ten sam poziom co `MAX_NO_ADDRESS_RATIO`) — szeroki `except Exception`
+  mógłby inaczej cicho połknąć systemową regresję (np. parser zaczyna rzucać na
+  wszystkich ofertach); przy przekroczeniu progu loguje się jako błąd skanu
+  (⚠️ w monitoringu), tak samo jak istniejący alert braku adresu.
+- `skipped_error` dopisany do `scan_logger.log_phase('processing', ...)` i do
+  `log_stats` — widoczne w `scan_history.json` i monitoringu.
+
 ### Dodane (2026-09-29) — naprzemienne pasy miesięcy na wykresie Indeksu (propagacja #58)
 Subtelne, naprzemienne pasy tła co drugi miesiąc na głównym wykresie Indeksu
 (`trend.html`, oba tryby: Suma i Rozbicie) — na szeregu 100+ dni granice

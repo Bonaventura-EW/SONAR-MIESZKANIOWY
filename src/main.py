@@ -6,6 +6,7 @@ WERSJA 2.0: Równoległy scraping + monitoring
 
 import json
 import re
+import traceback
 from pathlib import Path
 from datetime import datetime, timedelta, date
 import pytz
@@ -73,6 +74,15 @@ class SonarMieszkaniowy:
     # Przekroczenie progu logujemy jako błąd skanu → monitoring pokazuje ⚠️,
     # zamiast raportować „✅ sukces" przy wyciętej połowie bazy.
     MAX_NO_ADDRESS_RATIO = 0.20
+
+    # FIX 2026-10-13 (propagacja #65): bezpiecznik dla try/except per ofertę
+    # w pętli przetwarzania (patrz run_scan). Łapanie wyjątków chroni skan przed
+    # crashem jednej wadliwej oferty, ale szeroki `except Exception` może też
+    # maskować systemową regresję (np. parser zaczyna rzucać na WSZYSTKICH
+    # ofertach) — bez progu taki skan zgłosiłby „✅ sukces" z processed=0.
+    # Próg taki sam jak MAX_NO_ADDRESS_RATIO: to samo zjawisko (cicha utrata
+    # ofert), ten sam poziom tolerancji.
+    MAX_PROCESSING_ERROR_RATIO = 0.20
 
     # FIX 2026-08-12: dezaktywacja oparta na REALNYM stanie oferty, nie na
     # jednorazowej nieobecności w listingu.
@@ -1574,6 +1584,26 @@ class SonarMieszkaniowy:
                 f"regresja parsera lub zmiana formatu ogłoszeń. Te oferty trafiły na stronę "
                 f"bez lokalizacji na mapie.")
 
+    def _processing_error_alert(self, skipped_error_count: int, scraped_count: int):
+        """
+        Zwraca ostrzeżenie, gdy zbyt duża część ofert w skanie wyleciała przez
+        wyjątek w pętli przetwarzania, albo None gdy odsetek jest normalny.
+
+        FIX 2026-10-13 (propagacja #65, z Bonaventura-EW/SONAR---DZIA-KOWY):
+        pętla w run_scan łapie teraz wyjątki per ofertę, żeby jedna wadliwa
+        oferta nie wywróciła całego skanu. Ale szeroki `except Exception` sam
+        w sobie może cicho połknąć systemową regresję — ten alert to ten sam
+        bezpiecznik co `_no_address_alert`, tylko dla kategorii "błąd", nie
+        "brak adresu".
+        """
+        if scraped_count < 50 or skipped_error_count <= scraped_count * self.MAX_PROCESSING_ERROR_RATIO:
+            return None
+        pct = skipped_error_count / scraped_count * 100
+        return (f"{skipped_error_count} z {scraped_count} ofert ({pct:.0f}%, próg: "
+                f"{self.MAX_PROCESSING_ERROR_RATIO * 100:.0f}%) pominięto przez wyjątek w "
+                f"przetwarzaniu — prawdopodobna systemowa regresja (nie pojedyncza wadliwa "
+                f"oferta). Sprawdź traceback w logu skanu.")
+
     def _cleanup_old_offers(self, max_age_days: int = 548):
         """
         Usuwa oferty starsze niż 1.5 roku (548 dni).
@@ -1637,6 +1667,10 @@ class SonarMieszkaniowy:
             skipped_no_coords = 0
             skipped_duplicate = 0
             skipped_removed = 0
+            # FIX 2026-10-13 (propagacja #65): licznik ofert pominiętych przez
+            # wyjątek w try/except pętli (patrz niżej) — osobno od pozostałych
+            # kategorii "skipped_*", bo to awaria, nie normalna klasyfikacja.
+            skipped_error_count = 0
             new_geocodes_count = 0      # Ile nowych geokodowań zrobiono w tym skanie
             MAX_NEW_GEOCODES = 150      # Limit geokodowań per skan (Nominatim rate limit)
 
@@ -1666,96 +1700,112 @@ class SonarMieszkaniowy:
                     skipped_removed += 1
                     continue
                 
-                # Pomiar czasu geokodowania
-                geo_start = time.time()
-                # Gdy limit geocodowań osiągnięty, wyłącz fallbacki (tylko cache)
-                if new_geocodes_count >= MAX_NEW_GEOCODES:
-                    self.geocoder._geocoding_limited = True
-                else:
-                    self.geocoder._geocoding_limited = False
-                cache_before = len(self.geocoder.cache)
-                processed = self._process_offer(raw_offer)
-                # Zlicz nowe geokodowania (wpisy dodane do cache)
-                new_geocodes_count += len(self.geocoder.cache) - cache_before
-                geocoding_time += time.time() - geo_start
-                
-                if not processed:
-                    # Zlicz powody odrzucenia + zachowaj próbkę do analizy
-                    full_text = raw_offer['title'] + " " + raw_offer.get('description', '')
-                    sample = {
-                        'url': raw_offer.get('url', ''),
-                        'title': raw_offer.get('title', '')[:200],
-                        'description_preview': (raw_offer.get('description', '') or '')[:500]
-                    }
-                    if not self.address_parser.extract_address(full_text):
-                        # Sprawdź czy parser znalazłby ulicę bez numeru
-                        street_only = self.address_parser.extract_street_only(full_text)
-                        if street_only:
-                            sample['note'] = f"extract_street_only znalazłby: {street_only['full']}"
-                        skipped_no_address += 1
-                        if len(skipped_samples['no_address']) < SAMPLE_LIMIT:
-                            skipped_samples['no_address'].append(sample)
-                    elif not self.price_parser.extract_price(full_text) and not raw_offer.get('official_price'):
-                        skipped_no_price += 1
-                        if len(skipped_samples['no_price']) < SAMPLE_LIMIT:
-                            skipped_samples['no_price'].append(sample)
+                # FIX 2026-10-13 (propagacja #65, z Bonaventura-EW/SONAR---DZIA-KOWY):
+                # cała logika oferty owinięta w try/except — jedna wadliwa oferta
+                # (np. wyjątek w głębi _process_offer) nie może wywrócić całego
+                # skanu. Bez tego wyjątek leciał aż do zewnętrznego try w run_scan,
+                # który go re-raise'uje — skan kończył się bez zapisu bazy, mimo że
+                # reszta ofert przetworzyła się poprawnie.
+                try:
+                    # Pomiar czasu geokodowania
+                    geo_start = time.time()
+                    # Gdy limit geocodowań osiągnięty, wyłącz fallbacki (tylko cache)
+                    if new_geocodes_count >= MAX_NEW_GEOCODES:
+                        self.geocoder._geocoding_limited = True
                     else:
-                        skipped_no_coords += 1
-                        if len(skipped_samples['no_coords']) < SAMPLE_LIMIT:
-                            addr = self.address_parser.extract_address(full_text)
-                            sample['address_parsed'] = addr['full'] if addr else None
-                            skipped_samples['no_coords'].append(sample)
-                    continue
+                        self.geocoder._geocoding_limited = False
+                    cache_before = len(self.geocoder.cache)
+                    processed = self._process_offer(raw_offer)
+                    # Zlicz nowe geokodowania (wpisy dodane do cache)
+                    new_geocodes_count += len(self.geocoder.cache) - cache_before
+                    geocoding_time += time.time() - geo_start
 
-                # FIX 2026-08-07: oferta bez rozpoznanego adresu zostaje na stronie
-                # (warstwa „bez lokacji"), ale wciąż ją liczymy i próbkujemy — inaczej
-                # regresja parsera byłaby niewidoczna. Zakładka debugowa pokazuje to
-                # w sekcji „brak adresu".
-                if not (processed.get('address') or {}).get('full'):
-                    no_address_count += 1
-                    if len(skipped_samples['no_address']) < SAMPLE_LIMIT:
+                    if not processed:
+                        # Zlicz powody odrzucenia + zachowaj próbkę do analizy
                         full_text = raw_offer['title'] + " " + raw_offer.get('description', '')
                         sample = {
                             'url': raw_offer.get('url', ''),
                             'title': raw_offer.get('title', '')[:200],
-                            'description_preview': (raw_offer.get('description', '') or '')[:500],
-                            'note': 'oferta zostaje na stronie w warstwie „bez lokacji"',
+                            'description_preview': (raw_offer.get('description', '') or '')[:500]
                         }
-                        street_only = self.address_parser.extract_street_only(full_text)
-                        if street_only:
-                            sample['note'] += f" | extract_street_only znalazłby: {street_only['full']}"
-                        skipped_samples['no_address'].append(sample)
+                        if not self.address_parser.extract_address(full_text):
+                            # Sprawdź czy parser znalazłby ulicę bez numeru
+                            street_only = self.address_parser.extract_street_only(full_text)
+                            if street_only:
+                                sample['note'] = f"extract_street_only znalazłby: {street_only['full']}"
+                            skipped_no_address += 1
+                            if len(skipped_samples['no_address']) < SAMPLE_LIMIT:
+                                skipped_samples['no_address'].append(sample)
+                        elif not self.price_parser.extract_price(full_text) and not raw_offer.get('official_price'):
+                            skipped_no_price += 1
+                            if len(skipped_samples['no_price']) < SAMPLE_LIMIT:
+                                skipped_samples['no_price'].append(sample)
+                        else:
+                            skipped_no_coords += 1
+                            if len(skipped_samples['no_coords']) < SAMPLE_LIMIT:
+                                addr = self.address_parser.extract_address(full_text)
+                                sample['address_parsed'] = addr['full'] if addr else None
+                                skipped_samples['no_coords'].append(sample)
+                        continue
 
-                # Sprawdź duplikaty — tylko wśród ofert pod tym samym adresem (indeks).
-                original_dup = self.duplicate_detector.find_duplicate_indexed(processed, processed_by_address)
-                if original_dup is not None:
-                    skipped_duplicate += 1
-                    print(f"      ⚠️ Duplikat - ignoruję")
-                    if len(skipped_samples['duplicate']) < SAMPLE_LIMIT:
-                        similarity = self.duplicate_detector.calculate_similarity(
-                            processed.get('description', ''),
-                            original_dup.get('description', '')
-                        )
-                        skipped_samples['duplicate'].append({
-                            'url': raw_offer.get('url', ''),
-                            'title': raw_offer.get('title', '')[:200],
-                            'address_parsed': processed['address']['full'],
-                            'price': processed.get('price', {}).get('current'),
-                            'duplicate_of': {
-                                'url': original_dup.get('url', ''),
-                                'id': original_dup.get('id', ''),
-                                'address': original_dup.get('address', {}).get('full', ''),
-                                'price': original_dup.get('price', {}).get('current')
-                            },
-                            'similarity': round(similarity, 4)
-                        })
+                    # FIX 2026-08-07: oferta bez rozpoznanego adresu zostaje na stronie
+                    # (warstwa „bez lokacji"), ale wciąż ją liczymy i próbkujemy — inaczej
+                    # regresja parsera byłaby niewidoczna. Zakładka debugowa pokazuje to
+                    # w sekcji „brak adresu".
+                    if not (processed.get('address') or {}).get('full'):
+                        no_address_count += 1
+                        if len(skipped_samples['no_address']) < SAMPLE_LIMIT:
+                            full_text = raw_offer['title'] + " " + raw_offer.get('description', '')
+                            sample = {
+                                'url': raw_offer.get('url', ''),
+                                'title': raw_offer.get('title', '')[:200],
+                                'description_preview': (raw_offer.get('description', '') or '')[:500],
+                                'note': 'oferta zostaje na stronie w warstwie „bez lokacji"',
+                            }
+                            street_only = self.address_parser.extract_street_only(full_text)
+                            if street_only:
+                                sample['note'] += f" | extract_street_only znalazłby: {street_only['full']}"
+                            skipped_samples['no_address'].append(sample)
+
+                    # Sprawdź duplikaty — tylko wśród ofert pod tym samym adresem (indeks).
+                    original_dup = self.duplicate_detector.find_duplicate_indexed(processed, processed_by_address)
+                    if original_dup is not None:
+                        skipped_duplicate += 1
+                        print(f"      ⚠️ Duplikat - ignoruję")
+                        if len(skipped_samples['duplicate']) < SAMPLE_LIMIT:
+                            similarity = self.duplicate_detector.calculate_similarity(
+                                processed.get('description', ''),
+                                original_dup.get('description', '')
+                            )
+                            skipped_samples['duplicate'].append({
+                                'url': raw_offer.get('url', ''),
+                                'title': raw_offer.get('title', '')[:200],
+                                'address_parsed': processed['address']['full'],
+                                'price': processed.get('price', {}).get('current'),
+                                'duplicate_of': {
+                                    'url': original_dup.get('url', ''),
+                                    'id': original_dup.get('id', ''),
+                                    'address': original_dup.get('address', {}).get('full', ''),
+                                    'price': original_dup.get('price', {}).get('current')
+                                },
+                                'similarity': round(similarity, 4)
+                            })
+                        continue
+
+                    processed_offers.append(processed)
+                    processed_by_address.setdefault(
+                        self.duplicate_detector.address_key(processed), []
+                    ).append(processed)
+                    print(f"      ✅ {processed['address']['full']} - {processed['price']['current']} zł")
+                except Exception as e:
+                    # Patrz komentarz przy `try:` powyżej. Pełny traceback do logów
+                    # (diagnoza), licznik do scan_logger (patrz _processing_error_alert)
+                    # — żeby regresja uderzająca we WSZYSTKIE oferty nie przeszła cicho
+                    # jako "99 pominiętych błędów" bez ostrzeżenia w monitoringu.
+                    skipped_error_count += 1
+                    print(f"      💥 Błąd przetwarzania oferty, pomijam: {e}")
+                    traceback.print_exc()
                     continue
-                
-                processed_offers.append(processed)
-                processed_by_address.setdefault(
-                    self.duplicate_detector.address_key(processed), []
-                ).append(processed)
-                print(f"      ✅ {processed['address']['full']} - {processed['price']['current']} zł")
 
             # Zapisz próbki odrzuconych do analizy (nadpisuje przy każdym skanie)
             try:
@@ -1783,14 +1833,15 @@ class SonarMieszkaniowy:
                 'skipped_no_price': skipped_no_price,
                 'skipped_no_coords': skipped_no_coords,
                 'skipped_duplicate': skipped_duplicate,
-                'skipped_removed': skipped_removed
+                'skipped_removed': skipped_removed,
+                'skipped_error': skipped_error_count
             })
-            
+
             # Dodaj metryki geokodowania
             self.scan_logger.log_phase('geocoding', geocoding_time, {
                 'geocoded_addresses': len(processed_offers)
             })
-            
+
             print(f"\n✅ Przetworzone oferty: {len(processed_offers)}")
             print(f"   Bez adresu (zostają w warstwie 'bez lokacji'): {no_address_count}")
             print(f"   Pominięte - brak adresu: {skipped_no_address}")
@@ -1800,7 +1851,8 @@ class SonarMieszkaniowy:
             print(f"   Bez lokacji GPS (warstwa dodatkowa): {unlocalised_count}")
             print(f"   Nowe geokodowania w tym skanie: {new_geocodes_count} (limit: {MAX_NEW_GEOCODES})")
             print(f"   Pominięte - duplikaty: {skipped_duplicate}")
-            print(f"   Pominięte - usunięte przez użytkownika: {skipped_removed}\n")
+            print(f"   Pominięte - usunięte przez użytkownika: {skipped_removed}")
+            print(f"   Pominięte - błąd przetwarzania: {skipped_error_count}\n")
             
             # 3. Aktualizacja bazy danych
             print("💾 Krok 3: Aktualizacja bazy danych...")
@@ -1892,6 +1944,14 @@ class SonarMieszkaniowy:
                 print(f"   ⚠️  UWAGA: {no_address_reason}")
                 self.scan_logger.log_error(no_address_reason)
 
+            # FIX 2026-10-13 (propagacja #65): analogiczny bezpiecznik dla ofert
+            # pominiętych przez wyjątek w pętli przetwarzania (patrz try/except
+            # wokół _process_offer wyżej).
+            processing_error_reason = self._processing_error_alert(skipped_error_count, scraped_count)
+            if processing_error_reason:
+                print(f"   ⚠️  UWAGA: {processing_error_reason}")
+                self.scan_logger.log_error(processing_error_reason)
+
             # Aktualizuj days_active dla WSZYSTKICH ofert
             self._update_days_active()
 
@@ -1971,6 +2031,7 @@ class SonarMieszkaniowy:
                 'skipped_no_coords': skipped_no_coords,
                 'skipped_duplicate': skipped_duplicate,
                 'skipped_removed': skipped_removed,
+                'skipped_error': skipped_error_count,
                 'disappeared': deactivated_count,
                 'verification': verification_stats,
                 # FIX 2026-08-09: jakość mapy jako metryka skanu — udział pinezek
