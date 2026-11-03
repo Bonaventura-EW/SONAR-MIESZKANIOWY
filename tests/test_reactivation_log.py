@@ -127,6 +127,35 @@ class TestReturnDays:
         assert log.first_return_day({}) is None
 
 
+class TestIsReactivated:
+    """Flaga 'reactivated' na mapie (map_generator.py) — nie licz mignięć <24h
+    ani pomyłek weryfikacji jako powrót na rynek."""
+
+    def test_no_reactivated_at_is_false(self):
+        assert log.is_reactivated({}) is False
+
+    def test_real_return_is_true(self):
+        offer = {'last_seen': _at(1)}
+        log.record(offer, _at(5), 'rescrape', offer['last_seen'])
+        assert log.is_reactivated(offer) is True
+
+    def test_blink_only_is_false(self):
+        offer = {'last_seen': _at(5, 15)}
+        log.record(offer, _at(5, 18), 'rescrape', offer['last_seen'])   # 3 h
+        assert log.is_reactivated(offer) is False
+
+    def test_verification_only_is_false(self):
+        offer = {'last_seen': _at(1)}
+        log.record(offer, _at(6), 'verification', offer['last_seen'])
+        assert log.is_reactivated(offer) is False
+
+    def test_legacy_history_without_measured_gap_stays_true(self):
+        """Historia sprzed 2026-08-09 (goła data, bez gap_h) nie dowodzi
+        mignięcia — zachowujemy dotychczasowe zachowanie flagi."""
+        offer = {'reactivated_at': _at(3)}
+        assert log.is_reactivated(offer) is True
+
+
 class TestEntries:
     def test_tolerates_plain_iso_strings(self):
         offer = {'reactivation_dates': ['2026-08-05T12:00:00+02:00']}

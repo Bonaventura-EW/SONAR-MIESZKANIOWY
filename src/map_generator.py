@@ -13,6 +13,7 @@ from pathlib import Path
 # Import taggera ofert (B1)
 from offer_tagger import build_tags, title_from_url, TAGS as OFFER_TAGS
 from street_whitelist import is_known_place
+import reactivation_log
 
 
 def resolve_tags(offer):
@@ -388,7 +389,10 @@ def generate_map_data(input_file, output_file):
             'precision': offer.get('address', {}).get('precision'),
             'description': desc_preview,        # Podgląd; pełny opis w descriptions.json
             'desc_truncated': desc_truncated,   # True → frontend doczytuje pełny opis na żądanie
-            'reactivated': offer.get('reactivated_at') is not None,  # Czy była reaktywowana
+            # FIX 2026-11-03: samo mignięcie listingu (<24h) albo pomyłka
+            # weryfikacji też ustawiały `reactivated_at` — filtrujemy przez
+            # reactivation_log, tak jak już robi trend_generator.py.
+            'reactivated': reactivation_log.is_reactivated(offer),
             'reactivated_at': format_datetime(offer.get('reactivated_at', '')) if offer.get('reactivated_at') else None,
             # B1: Tagi oferty (liczone raz w main.py, tu tylko odczyt)
             'tags': tags

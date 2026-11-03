@@ -10,6 +10,28 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Naprawione (2026-11-03) — flaga „reaktywowana" na mapie nie liczy już mignięć <24h (propagacja #67)
+`map_generator.py` ustawiał `reactivated` wprost z `offer.get('reactivated_at')
+is not None`, bez filtra na `gap_h`/`NOISE_SOURCES` — mimo że
+`reactivation_log.record()` nadpisuje `reactivated_at` przy KAŻDYM powrocie,
+łącznie z mignięciami listingu (<24h) i pomyłkami weryfikacji
+(`reactivation_log.NOISE_SOURCES`). Propagacja z `SONAR-POKOJOWY` (manifest
+`2026-10-26-blink-returns-not-reactivations`), zwężona do tej jednej dziury:
+`trend_generator.py` filtr mignięć już miał (`MIN_REAL_GAP_HOURS` +
+`_absence_intervals`), więc zmiana dotyka tylko flagi na mapie, bez
+przepisywania logiki szeregów.
+
+- Nowa funkcja `reactivation_log.is_reactivated(offer)`: prawda, gdy oferta ma
+  co najmniej jeden realny powrót (`return_days`) ALBO gdy cała jej historia
+  jest niezmierzona (brak `gap_h` — backfill sprzed 2026-08-09, gdzie brak
+  pomiaru nie znaczy mignięcia).
+- `map_generator.py` woła ten helper zamiast gołego sprawdzenia
+  `reactivated_at` — ta sama logika filtrowania co w `trend_generator.py`, bez
+  duplikacji.
+- Zmierzone na `data/offers.json`: 3 z 589 aktywnych ofert oznaczonych dotąd
+  jako „reaktywowane" miały w historii same mignięcia/weryfikacje — po
+  poprawce flaga spada do `False` tylko dla nich.
+
 ### Naprawione (2026-10-13) — pojedyncza wadliwa oferta nie wywraca już całego skanu (propagacja #65)
 Pętla przetwarzania ofert w `run_scan` (`src/main.py`) nie miała żadnej izolacji
 błędów: wyjątek z dowolnego miejsca w `_process_offer` (~250 linii logiki
