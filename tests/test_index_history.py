@@ -126,6 +126,30 @@ def test_bands_scale_to_measured_index():
     assert react > new  # obie oferty to recykling, więc pasmo recyklingu dominuje
 
 
+def test_bands_follow_measured_index_gaps_not_scan_coverage():
+    """Przy mierzonym Indeksie pasma mają lukę tam, gdzie Indeks — nie wg maski skanów.
+
+    Regresja 2026-11-04: doba z nocną przerwą > MAX_SCAN_GAP_HOURS (29.10, 31.10)
+    była w `incomplete`, więc „Rozbij" miał dziurę, choć „Suma" (pomiar) rysowała
+    ten dzień normalnie.
+    """
+    offers = [
+        _returned("2026-05-16", "2026-05-25", ["2026-05-18"]),  # startuje pomiar
+        _returned("2026-05-16", "2026-05-25", ["2026-05-21"]),
+    ]
+    counts = {date(2026, 5, d): gen.SCANS_PER_DAY for d in range(16, 26)}
+    counts[date(2026, 5, 22)] = 1          # niepełna doba wg dziennika skanów
+    gap_in_scans = gen._day_ms(date(2026, 5, 22))
+    gap_in_index = gen._day_ms(date(2026, 5, 23))
+    measured = [[gen._day_ms(date(2026, 5, d)), 500] for d in range(18, 26)]
+    measured = [[ms, None if ms == gap_in_index else v] for ms, v in measured]
+
+    bands = gen.build_bands(offers, counts, index_series=measured)
+    new, react = dict(bands["new"]), dict(bands["react"])
+    assert new[gap_in_scans] + react[gap_in_scans] == 500   # Suma ma punkt → pasma też
+    assert new[gap_in_index] is None and react[gap_in_index] is None
+
+
 def test_bands_without_index_series_stay_raw():
     """Bez index_series pasma zwracają surowe liczby rekonstrukcji (kompat.)."""
     offers = [
