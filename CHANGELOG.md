@@ -10,6 +10,25 @@ Daty w formacie RRRR-MM-DD (strefa Europe/Warsaw).
 
 ## [Niewydane]
 
+### Naprawione (2026-11-04) — dziura 28.10–01.11 w trybie „Rozbij" na wykresie Indeksu
+Tryb „Suma" rysował ostatnie dni normalnie, a „Rozbij — nowe / reaktywacje" miał
+dziurę od 28.10 do 01.11. Przyczyna: pasma maskowały doby wg ciągłości skanów
+(`_scan_coverage`, przerwa > `MAX_SCAN_GAP_HOURS` = 12 h), a mierzony Indeks
+(`index_history`) tej maski nie używa. 29.10 (skany 00:17 → 14:15) i 31.10
+(00:00 → 13:44) nie miały porannego przebiegu, więc trafiły do `incomplete`
+i w pasmach były `None`. Leżący między nimi 30.10 to pojedynczy punkt otoczony
+lukami — ApexCharts nie rysuje z niego pola, więc dziura wizualnie objęła 4 dni.
+
+- `build_bands(index_series=...)` maskuje teraz tylko dni, dla których
+  zmierzony Indeks ma `None` — „ta sama maska co w Indeksie" znów jest prawdą.
+  Udział recyklingu z rekonstrukcji jest na takiej dobie wiarygodny (odcinki
+  życia ofert przechodzą przez nocną przerwę bez zmian), a liczba i tak idzie
+  z pomiaru. Gałąź bez `index_series` (rekonstrukcja) zostaje z maską
+  `incomplete`; wykresy przepływu (odpływ/napływ) — bez zmian.
+- Zweryfikowane na bieżących danych: 0 dni z luką w pasmach, suma pasm = linia
+  Indeksu na każdym dniu (także 29–31.10). Nowy test
+  `test_bands_follow_measured_index_gaps_not_scan_coverage`.
+
 ### Naprawione (2026-10-13) — pojedyncza wadliwa oferta nie wywraca już całego skanu (propagacja #65)
 Pętla przetwarzania ofert w `run_scan` (`src/main.py`) nie miała żadnej izolacji
 błędów: wyjątek z dowolnego miejsca w `_process_offer` (~250 linii logiki
