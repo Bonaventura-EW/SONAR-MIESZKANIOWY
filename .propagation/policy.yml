@@ -35,12 +35,13 @@ never_touch:
 # MODELE: decyzje = Sonnet (claude-sonnet-5), programowanie = Opus (claude-opus-4-8).
 default_autonomy: ask
 
-# 2026-09-29 distill-policy: feature ma 7 rozstrzygniętych wpisów, 100%
-# accepted, 0 odrzuceń bezpieczeństwa — TUŻ pod progiem awansu (≥8). Bugfix
-# ma 4 rozstrzygnięcia (100% accepted) — za mało danych. Żadna kategoria nie
-# awansuje w tym przebiegu. Poprzedni stan (2026-09-22): feature 4, bugfix 5.
-# Zobacz PR dla scorecardu.
-categories: {}
+# 2026-11-03 distill-policy: feature osiągnął próg awansu — 8 rozstrzygniętych
+# wpisów, 8/8 (100%) accepted, 0 odrzuceń bezpieczeństwa. AWANS na 'draft'
+# (ósmy wpis: issue#68, velocity-history-chart). Bugfix ma 6 rozstrzygnięć
+# (100% accepted) — wciąż za mało danych (próg ≥8). Poprzedni stan
+# (2026-09-29): feature 7/8, bugfix 4/8. Zobacz PR dla scorecardu.
+categories:
+  feature: draft
   # css-refactor:   draft
   # a11y-fix:       draft
   # dependency-bump: ask
@@ -48,7 +49,7 @@ categories: {}
 # Reguły destylowane z Twoich decyzji — dopisuje je skill `distill-policy`
 # przez PR, który zatwierdzasz. Ręcznie też możesz.
 learned_rules:
-  - "Feature: propozycje rozszerzające już istniejący, architektonicznie analogiczny moduł (nie budowa od zera) są przyjmowane bez zastrzeżeń — dowody: issue#39 (promoted-listings-metric), issue#40 (okazje-tab), issue#47 (refresh-from-listing-card), issue#51 (partial-day-dashed), issue#54 (price-change-series), issue#58 (apexcharts-month-bands, kosmetyka), issue#59 (origin-filter-checkboxes). 7/7 accepted, 0 odrzuceń — najbliższa awansu kategoria w repo (7/8)."
-  - "Bugfix: propozycje poparte bezpośrednim pomiarem/weryfikacją problemu w kodzie lub danych TEGO repo (nie hipotetycznym transferem z brata) są przyjmowane — dowody: issue#38/pr#42 (coincident-marker-stacks, zmierzone 255 grup kolizji / 1517 ofert), issue#45 (measured-index-history, potwierdzone dwoma własnymi łatkami symptomów), issue#46 (odpornosc-skanu, zweryfikowane w scraper.py/main.py), issue#50 (address-precision-upgrade, zmierzone 106 zamrożonych ofert). 4/4 accepted, 0 odrzuceń."
+  - "Feature: propozycje rozszerzające już istniejący, architektonicznie analogiczny moduł (nie budowa od zera) są przyjmowane bez zastrzeżeń — dowody: issue#39 (promoted-listings-metric), issue#40 (okazje-tab), issue#47 (refresh-from-listing-card), issue#51 (partial-day-dashed), issue#54 (price-change-series), issue#58 (apexcharts-month-bands, kosmetyka), issue#59 (origin-filter-checkboxes), issue#68 (velocity-history-chart, rozszerzenie _flow_metric). 8/8 accepted, 0 odrzuceń — **AWANS na 'draft' (2026-11-03)**."
+  - "Bugfix: propozycje poparte bezpośrednim pomiarem/weryfikacją problemu w kodzie lub danych TEGO repo (nie hipotetycznym transferem z brata) są przyjmowane — dowody: issue#38 (coincident-marker-stacks, zmierzone 255 grup kolizji / 1517 ofert), issue#45 (measured-index-history, potwierdzone dwoma własnymi łatkami symptomów), issue#46 (odpornosc-skanu, zweryfikowane w scraper.py/main.py), issue#50 (address-precision-upgrade, zmierzone 106 zamrożonych ofert), issue#65 (refiner-empty-street-crash, luka strukturalna potwierdzona w main.py), issue#67 (blink-returns-not-reactivations, zmierzone 8/268 ofert). 6/6 accepted, 0 odrzuceń — wciąż za mało danych (próg ≥8)."
   #  - "Nie propaguj niczego, co rusza moduł auth (dotąd 0/6 przyjętych)."
   #  - "Zmiany typu css-refactor przyjmowane w 11/12 → kandydat do awansu na 'draft'."
