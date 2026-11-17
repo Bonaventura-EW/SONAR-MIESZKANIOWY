@@ -170,6 +170,22 @@ def first_return_day(offer, min_gap_hours=MIN_REAL_GAP_HOURS, skip_days=()):
     return days[0] if days else None
 
 
+def is_reactivated(offer, min_gap_hours=MIN_REAL_GAP_HOURS):
+    """Czy flaga „reaktywowana" (mapa, filtr pochodzenia) powinna być ustawiona.
+
+    `offer['reactivated_at']` sam w sobie łapie też mignięcia listingu (<24 h)
+    i pomyłki weryfikacji — stąd wymagamy co najmniej jednego wpisu z
+    `return_days`. Oferty bez ŻADNEGO zmierzonego gapu (historia sprzed
+    2026-08-09, odtworzona gołym `reactivated_at`) zachowują flagę: brak
+    pomiaru nie znaczy, że to mignięcie.
+    """
+    if not offer.get('reactivated_at'):
+        return False
+    if return_days(offer, min_gap_hours):
+        return True
+    return all(entry.get('gap_h') is None for entry in entries(offer))
+
+
 if __name__ == '__main__':
     ok = fail = 0
 
@@ -212,5 +228,16 @@ if __name__ == '__main__':
           ['2026-06-01T10:00:00+02:00', '2026-06-10T10:00:00+02:00'])
     check('pomiar zaczyna się od wpisu z gapem',
           measured_days(legacy) == [date(2026, 6, 10)])
+
+    check('brak reactivated_at = nie reaktywowana', is_reactivated({}) is False)
+    check('realny powrót = reaktywowana', is_reactivated(o) is True)
+
+    blink_only = {'last_seen': '2026-08-05T15:00:00+02:00'}
+    record(blink_only, '2026-08-05T18:00:00+02:00', 'rescrape', blink_only['last_seen'])  # 3 h
+    check('same mignięcia (<24h) = nie reaktywowana', is_reactivated(blink_only) is False)
+
+    check('sama weryfikacja = nie reaktywowana', is_reactivated(noise) is False)
+    check('historia bez gapu (legacy) zachowuje flagę',
+          is_reactivated({'reactivated_at': '2026-06-01T10:00:00+02:00'}) is True)
 
     print(f"\nOK: {ok} / FAIL: {fail}")
