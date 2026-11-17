@@ -653,7 +653,9 @@ def build_bands(offers, scan_days=None, index_series=None):
                 fresh[i] += 1
 
     # Ta sama maska co w Indeksie — inaczej po przełączeniu na „Rozbij" dzień
-    # z niepełnym pokryciem pokazywałby słupek tam, gdzie „Suma" ma przerwę.
+    # z niepełnym pokryciem pokazywałby słupek tam, gdzie „Suma" ma przerwę
+    # (i na odwrót). Zrekonstruowany Indeks maskuje `incomplete`, mierzony —
+    # tylko dni bez pomiaru (`None` w `index_series`).
     if index_series is None:
         def _masked(values):
             return [[_day_ms(d), None if d in incomplete else v]
@@ -662,12 +664,22 @@ def build_bands(offers, scan_days=None, index_series=None):
 
     # Główny Indeks jest MIERZONY: bierzemy z rekonstrukcji wyłącznie udział
     # recyklingu i skalujemy go na zmierzoną sumę dnia (suma pasm = linia).
+    #
+    # FIX 2026-11-04: luka w pasmach tylko tam, gdzie luka jest w MIERZONYM
+    # Indeksie. Maska `incomplete` (ciągłość skanów, `_scan_coverage`) chroni
+    # przepływy i rekonstrukcję, ale zmierzony Indeks jej nie używa — tryb
+    # „Suma" rysował 29.10 i 31.10, a „Rozbij" miał tam dziury (nocna przerwa
+    # 00:17 → 14:15 i 00:00 → 13:44, > MAX_SCAN_GAP_HOURS). Pojedynczy 30.10
+    # między dwiema lukami ApexCharts w ogóle nie rysuje jako pole, więc dziura
+    # na wykresie ciągnęła się 28.10 → 01.11. Udział recyklingu z rekonstrukcji
+    # jest na takiej dobie wiarygodny — odcinki życia ofert przechodzą przez
+    # nocną przerwę bez zmian, a liczbę bierzemy i tak z pomiaru.
     idx = {ms: val for ms, val in index_series}
     new_out, react_out = [], []
     for d, f, r in zip(days, fresh, recycled):
         ms = _day_ms(d)
         value = idx.get(ms)
-        if d in incomplete or value is None:
+        if value is None:
             new_out.append([ms, None])
             react_out.append([ms, None])
             continue
